@@ -1,0 +1,846 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../../provider/videoProvider.dart';
+
+
+class UploadMediaHelpers {
+  static Widget buildEnhancedUploadSection(String label, ThemeData selectedThemeData, BuildContext context) {
+    return Consumer<VideoProvider>(builder: (context, provider, child) {
+      bool isUploaded = UploadMediaHelpers.getUploadStatus(label, provider);
+      double progress = UploadMediaHelpers.getUploadProgress(label, provider);
+      bool isUploading = UploadMediaHelpers.getUploadingStatus(label, provider);
+      String? imageUrl = UploadMediaHelpers.getImageUrl(label, provider);
+
+      Color containerColor = selectedThemeData.primaryColor.withOpacity(0.1);
+      Color borderColor = selectedThemeData.primaryColor.withOpacity(0.3);
+      IconData iconData = Icons.cloud_upload_outlined;
+      if (isUploaded) {
+        containerColor = Colors.green.withOpacity(0.1);
+        borderColor = Colors.green.withOpacity(0.3);
+        iconData = Icons.check_circle_outline;
+      } else if (isUploading) {
+        containerColor = selectedThemeData.primaryColor.withOpacity(0.2);
+        borderColor = selectedThemeData.primaryColor.withOpacity(0.5);
+        iconData = Icons.cloud_upload_outlined;
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: selectedThemeData.canvasColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: isUploading ? null : () async {
+              if (label == "Movie File" || label == "Trailer File") {
+                provider.uploadVideo(label == "Trailer File");
+              } else if (label.contains("Audio")) {
+                await provider.pickAudioFile(label);
+              } else {
+                await provider.pickImage(label);
+              }
+            },
+            child: Container(
+              height: isUploaded && UploadMediaHelpers.isImageFile(label) ? 120 : 80,
+              decoration: BoxDecoration(
+                color: containerColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor, width: 2),
+              ),
+              child: Stack(
+                children: [
+                  if (isUploading && progress > 0)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              selectedThemeData.primaryColor.withOpacity(0.3),
+                            ),
+                            minHeight: isUploaded && UploadMediaHelpers.isImageFile(label) ? 120 : 80,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (isUploaded && UploadMediaHelpers.isImageFile(label) && imageUrl != null)
+                    UploadMediaHelpers.buildImagePreview(imageUrl, label, selectedThemeData, context) // Pass context
+                  else
+                    Center(
+                      child: isUploading
+                          ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              value: progress > 0 ? progress : null,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                selectedThemeData.primaryColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            progress > 0
+                                ? "Uploading... ${(progress * 100).toInt()}%"
+                                : "Preparing...",
+                            style: TextStyle(
+                              color: selectedThemeData.primaryColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      )
+                          : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            iconData,
+                            color: isUploaded ? Colors.green : selectedThemeData.primaryColor,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Text(
+                              isUploaded ? "$label Uploaded" : "Upload $label",
+                              style: TextStyle(
+                                color: isUploaded ? Colors.green : selectedThemeData.primaryColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  static Widget buildImagePreview(String imageUrl, String label, ThemeData themeData, BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 120,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        image: DecorationImage(
+          image: NetworkImage(imageUrl),
+          fit: BoxFit.cover,
+          onError: (exception, stackTrace) {
+            print("Error loading image: $exception");
+          },
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.transparent,
+              Colors.black.withOpacity(0.7),
+            ],
+          ),
+        ),
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    "$label Uploaded",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => UploadMediaHelpers.showImagePreview(context, imageUrl, label, themeData), // Pass context
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Icon(
+                          Icons.visibility,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  static void showImagePreview(BuildContext context, String imageUrl, String label, ThemeData themeData) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.8,
+              maxWidth: MediaQuery.of(context).size.width * 0.9,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.8),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(12),
+                        bottomRight: Radius.circular(12),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(12),
+                        bottomRight: Radius.circular(12),
+                      ),
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: 200,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                    : null,
+                              ),
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            height: 200,
+                            child: const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.error_outline,
+                                    color: Colors.red,
+                                    size: 48,
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    "Failed to load image",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static bool isImageFile(String label) {
+    return label == "Censor Certificate" || label.startsWith("Poster");
+  }
+
+  static String? getImageUrl(String label, VideoProvider provider) {
+    switch (label) {
+      case "Censor Certificate":
+        return provider.censorCertificateController.text.isNotEmpty
+            ? provider.censorCertificateController.text
+            : null;
+      case "Poster 1":
+        return provider.poster1Controller.text.isNotEmpty
+            ? provider.poster1Controller.text
+            : null;
+      case "Poster 2":
+        return provider.poster2Controller.text.isNotEmpty
+            ? provider.poster2Controller.text
+            : null;
+      case "Poster 3":
+        return provider.poster3Controller.text.isNotEmpty
+            ? provider.poster3Controller.text
+            : null;
+      default:
+        return null;
+    }
+  }
+
+  static bool getUploadStatus(String label, VideoProvider provider) {
+    switch (label) {
+      case "Trailer File":
+        return provider.trailerUrlController.text.isNotEmpty;
+      case "Movie File":
+        return provider.movieUrlController.text.isNotEmpty;
+      case "Censor Certificate":
+        return provider.censorCertificateController.text.isNotEmpty;
+      case "Poster 1":
+        return provider.poster1Controller.text.isNotEmpty;
+      case "Poster 2":
+        return provider.poster2Controller.text.isNotEmpty;
+      case "Poster 3":
+        return provider.poster3Controller.text.isNotEmpty;
+      default:
+      // Check for dynamically added audio languages
+        if (label.endsWith(" Audio")) {
+          final language = label.replaceAll(" Audio", "");
+          return provider.audioControllers[language]?.text.isNotEmpty ?? false;
+        }
+        return false;
+    }
+  }
+
+  static double getUploadProgress(String label, VideoProvider provider) {
+    switch (label) {
+      case "Trailer File":
+        return provider.trailerUploadProgress;
+      case "Movie File":
+        return provider.movieUploadProgress;
+      case "Censor Certificate":
+      case "Poster 1":
+      case "Poster 2":
+      case "Poster 3":
+        return getUploadStatus(label, provider) ? 1.0 : 0.0;
+      default:
+      // Check for dynamically added audio languages
+        if (label.endsWith(" Audio")) {
+          return provider.getProgressByLabel(label);
+        }
+        return 0.0;
+    }
+  }
+
+  static bool getUploadingStatus(String label, VideoProvider provider) {
+    switch (label) {
+      case "Trailer File":
+      case "Movie File":
+        return provider.isUploading;
+      case "Censor Certificate":
+      case "Poster 1":
+      case "Poster 2":
+      case "Poster 3":
+        return provider.isUploading && !getUploadStatus(label, provider);
+      default:
+      // Check for dynamically added audio languages
+        if (label.endsWith(" Audio")) {
+          return provider.getUploadingStatusByLabel(label);
+        }
+        return false;
+    }
+  }
+
+  static Widget buildDynamicLanguageAudioSection(BuildContext context, ThemeData themeData) {
+    return Consumer<VideoProvider>(
+      builder: (context, provider, child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Add Audio Language Button
+            Container(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => UploadMediaHelpers.showAddAudioLanguageDialog(context, provider, themeData),
+                icon: Icon(
+                  Icons.add,
+                  color: themeData.primaryColor,
+                  size: 20,
+                ),
+                label: Text(
+                  'Add Audio Language',
+                  style: TextStyle(
+                    color: themeData.primaryColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                  side: BorderSide(color: themeData.primaryColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            // Dynamic Audio Language List
+            if (provider.audioLanguages.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              ...provider.audioLanguages.map((language) {
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: UploadMediaHelpers.buildAudioUploadSection("$language Audio", themeData, context), // Pass context
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: () => provider.removeAudioLanguage(language),
+                          icon: Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                            size: 20,
+                          ),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.red.withOpacity(0.1),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                );
+              }).toList(),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  static void showAddAudioLanguageDialog(BuildContext context, VideoProvider provider, ThemeData themeData) {
+    final TextEditingController languageController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: themeData.cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Add Audio Language',
+            style: TextStyle(
+              color: themeData.primaryColor,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Enter the language name for the audio file',
+                style: TextStyle(
+                  color: themeData.canvasColor.withOpacity(0.7),
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: languageController,
+                decoration: InputDecoration(
+                  hintText: 'e.g., Hindi, English, Tamil',
+                  hintStyle: TextStyle(
+                    color: themeData.canvasColor.withOpacity(0.5),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: themeData.dividerColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: themeData.primaryColor, width: 2),
+                  ),
+                  filled: true,
+                  fillColor: themeData.scaffoldBackgroundColor,
+                ),
+                style: TextStyle(color: themeData.canvasColor),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: themeData.canvasColor.withOpacity(0.7)),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final language = languageController.text.trim();
+                if (language.isNotEmpty) {
+                  provider.addAudioLanguage(language);
+                  Navigator.of(context).pop();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: themeData.primaryColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Add',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  static Widget buildAudioUploadSection(String label, ThemeData selectedThemeData, BuildContext context) {
+    return Consumer<VideoProvider>(builder: (context, provider, child) {
+      bool isUploaded = UploadMediaHelpers.getUploadStatus(label, provider);
+      double progress = UploadMediaHelpers.getUploadProgress(label, provider);
+      bool isUploading = UploadMediaHelpers.getUploadingStatus(label, provider);
+
+      Color containerColor = selectedThemeData.primaryColor.withOpacity(0.1);
+      Color borderColor = selectedThemeData.primaryColor.withOpacity(0.3);
+      IconData iconData = Icons.audiotrack_outlined;
+      if (isUploaded) {
+        containerColor = Colors.green.withOpacity(0.1);
+        borderColor = Colors.green.withOpacity(0.3);
+        iconData = Icons.check_circle_outline;
+      } else if (isUploading) {
+        containerColor = selectedThemeData.primaryColor.withOpacity(0.2);
+        borderColor = selectedThemeData.primaryColor.withOpacity(0.5);
+        iconData = Icons.audiotrack_outlined;
+      }
+      String? uploadedFileName;
+      if (isUploaded) {
+        // Attempt to get the file name from the controller
+        if (label.endsWith(" Audio")) {
+          final language = label.replaceAll(" Audio", "");
+          uploadedFileName = provider.audioControllers[language]?.text.split('/').last;
+        }
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.audiotrack,
+                size: 16,
+                color: selectedThemeData.primaryColor,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: selectedThemeData.canvasColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: isUploading ? null : () async {
+              await provider.pickAudioFile(label);
+            },
+            child: Container(
+              height: 80,
+              decoration: BoxDecoration(
+                color: containerColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor, width: 2),
+              ),
+              child: Stack(
+                children: [
+                  if (isUploading && progress > 0)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              selectedThemeData.primaryColor.withOpacity(0.3),
+                            ),
+                            minHeight: 80,
+                          ),
+                        ),
+                      ),
+                    ),
+                  Center(
+                    child: isUploading
+                        ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            value: progress > 0 ? progress : null,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              selectedThemeData.primaryColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          progress > 0
+                              ? "Uploading... ${(progress * 100).toInt()}%"
+                              : "Preparing...",
+                          style: TextStyle(
+                            color: selectedThemeData.primaryColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    )
+                        : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          iconData,
+                          color: isUploaded ? Colors.green : selectedThemeData.primaryColor,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                isUploaded
+                                    ? (uploadedFileName ?? "$label Uploaded")
+                                    : "Upload $label",
+                                style: TextStyle(
+                                  color: isUploaded ? Colors.green : selectedThemeData.primaryColor,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              if (!isUploaded)
+                                Text(
+                                  "Supported: MP3, WAV, AAC",
+                                  style: TextStyle(
+                                    color: selectedThemeData.canvasColor.withOpacity(0.6),
+                                    fontSize: 10,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (isUploaded) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.check_circle,
+                    size: 16,
+                    color: Colors.green,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      uploadedFileName ?? "Audio file uploaded successfully",
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => UploadMediaHelpers.showAudioPreview(context, label, provider), // Pass context
+                    icon: Icon(
+                      Icons.play_circle_outline,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                    constraints: BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      // Logic to clear the uploaded audio file
+                      if (label.endsWith(" Audio")) {
+                        final language = label.replaceAll(" Audio", "");
+                        provider.audioControllers[language]?.clear();
+                      }
+                      provider.notifyListeners(); // Notify to update UI
+                    },
+                    icon: Icon(
+                      Icons.close,
+                      color: Colors.red,
+                      size: 20,
+                    ),
+                    constraints: BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    });
+  }
+
+  static void showAudioPreview(BuildContext context, String label, VideoProvider provider) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Audio Preview'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.audiotrack,
+                size: 48,
+                color: Theme.of(context).primaryColor,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Audio file is ready for playback',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text('Close'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Implement audio playback functionality here
+                Navigator.of(context).pop();
+              },
+              child: Text('Play Audio'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
