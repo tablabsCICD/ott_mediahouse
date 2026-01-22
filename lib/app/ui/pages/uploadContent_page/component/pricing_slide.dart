@@ -9,8 +9,8 @@ import '../../../../provider/videoProvider.dart';
 
 class PricingSlide extends StatelessWidget {
   final ThemeData themeData;
-
-  const PricingSlide({super.key, required this.themeData});
+  final String type;
+  const PricingSlide({super.key, required this.themeData,required this.type});
 
   @override
   Widget build(BuildContext context) {

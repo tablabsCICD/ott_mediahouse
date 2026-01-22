@@ -95,8 +95,8 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
                       BasicInfoSlide(themeData: selectedThemeData),
-                      UploadFilesSlide(themeData: selectedThemeData),
-                      PricingSlide(themeData: selectedThemeData),
+                      UploadFilesSlide(themeData: selectedThemeData,type:provider.typeController.text.trim()),
+                      PricingSlide(themeData: selectedThemeData,type:provider.typeController.text.trim()),
                     ],
                   ),
                 ),
@@ -145,7 +145,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
               ),
               const Spacer(),
               Text(
-                'Upload Video Content',
+                'Upload Content',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -295,32 +295,44 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
 
   void _handleButtonPress(VideoProvider provider, ThemeData themeData) {
     if (_currentPage == 2) {
-      _handleAdd(provider, themeData);
+      String type = provider.typeController.text.trim();
+      _handleAdd(provider, themeData,type);
     } else {
       // Validation logic (keeping original logic)
       String releaseDate = provider.releaseDateController.text.trim();
       String title = provider.titleController.text.trim();
       String movieUrl = provider.movieUrlController.text.trim();
       String trailerUrl = provider.trailerUrlController.text.trim();
+      String type = provider.typeController.text.trim();
       String priceText = provider.priceController.text.trim();
       double? price = double.tryParse(priceText);
 
-      if (releaseDate.isEmpty || title.isEmpty || price == null || price <= 0) {
+      if (releaseDate.isEmpty || title.isEmpty || price == null || price <= 0 || type.isEmpty || type==null) {
         CustomToast.show(
-          "Please enter valid title, price, and release date.",
+          "Please enter valid title, price, and release date and content type",
           isSuccess: false,
         );
         return;
       }
 
       if (_currentPage == 1) {
+        if(type=="MOVIE"){
         if (movieUrl.isEmpty || trailerUrl.isEmpty) {
           CustomToast.show(
             "Please upload movie url and trailer url",
             isSuccess: false,
           );
           return;
+        }}else{
+          if (trailerUrl.isEmpty) {
+            CustomToast.show(
+              "Please upload trailer url",
+              isSuccess: false,
+            );
+            return;
+          }
         }
+
       }
 
       try {
@@ -341,15 +353,27 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     }
   }
 
-  Future<void> _handleAdd(VideoProvider provider, ThemeData selectedThemeData) async {
-    Content? content = await provider.uploadContent(context);
-    if (content != null) {
-      Navigator.of(context).pop();
-    } else {
-      CustomToast.show(
-          "Failed to add content. Please check your inputs and try again.",
-          isSuccess: false);
-    }
+  Future<void> _handleAdd(VideoProvider provider, ThemeData selectedThemeData, String type) async {
+   if(type=="MOVIE"){
+     Content? content = await provider.uploadContent(context);
+     if (content != null) {
+       Navigator.of(context).pop();
+     } else {
+       CustomToast.show(
+           "Failed to add content. Please check your inputs and try again.",
+           isSuccess: false);
+     }
+   }else{
+     Content? content = await provider.uploadSeries(context);
+     if (content != null) {
+       Navigator.of(context).pop();
+     } else {
+       CustomToast.show(
+           "Failed to add content. Please check your inputs and try again.",
+           isSuccess: false);
+     }
+   }
+
   }
 }
 

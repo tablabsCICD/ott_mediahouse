@@ -95,14 +95,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     child: Stack(
                     alignment: Alignment.bottomRight,
                     children: [
-                      // Circular image
                       CircleAvatar(
-                        radius: 50, // Adjust the radius as needed
-                        backgroundImage: NetworkImage(provider.mediaHouse.logo??""),
+                        radius: 50,
+                        backgroundColor: Colors.grey.shade200,
+                        backgroundImage: provider.profileImageProvider,
+                        child: provider.profileImageProvider == null
+                            ? const Icon(Icons.person, size: 40, color: Colors.grey)
+                            : null,
                       ),
+
+
                       // Edit icon
                       InkWell(
-
+                        onTap: (){
+                              provider.pickImage("profile");
+                        },
                         child: Container(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,

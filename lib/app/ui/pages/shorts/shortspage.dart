@@ -28,11 +28,11 @@ class _ShortsPageState extends State<ShortsPage> {
     final crossAxisCount = ResponsiveWidget.isDesktop(context)
         ? 5
         : ResponsiveWidget.isTablet(context)
-            ? 4
-            : 2;
+        ? 4
+        : 2;
 
     final tileHeight = ResponsiveWidget.isDesktop(context) ||
-            ResponsiveWidget.isTablet(context)
+        ResponsiveWidget.isTablet(context)
         ? 300.0
         : 240.0;
 
@@ -147,18 +147,28 @@ class _ShortsPageState extends State<ShortsPage> {
   Widget _buildShortTile(dynamic short, ThemeData theme) {
     return GestureDetector(
       onTap: () async {
-        await context.read<ShortProvider>().fetchShortDetail(short.id, 1);
+        await context.read<ShortProvider>().fetchShortDetail(shortId:short.id, userId: 1);
       },
       child: GestureDetector(
-        onTap: () {
-          Navigator.push(
+        onTap: () async {
+          final deleted = await Navigator.push<bool>(
             context,
             MaterialPageRoute(
-              builder: (context) => ShortMasterPage(
-                short: short,
-              ),
+              builder: (_) => ShortMasterPage(shortId: short.id,),
             ),
           );
+
+          if (deleted == true && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Short deleted successfully"),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+
+            context.read<ShortProvider>().fetchShorts(); // refresh list
+          }
+
         },
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
@@ -194,7 +204,7 @@ class _ShortsPageState extends State<ShortsPage> {
                   left: 10,
                   child: Container(
                     padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: theme.primaryColor.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(8),

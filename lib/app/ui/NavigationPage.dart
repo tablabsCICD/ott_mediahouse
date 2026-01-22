@@ -7,6 +7,7 @@ import 'package:media_house/app/ui/pages/document_page/documentpage.dart';
 import 'package:media_house/app/ui/pages/released_content_page/released_content.dart';
 import 'package:media_house/app/ui/pages/pendingContent_page/pendingcontent.dart';
 import 'package:media_house/app/ui/pages/profile%20page/ProfilePage.dart';
+import 'package:media_house/app/ui/pages/sereis/seriespage.dart';
 import 'package:media_house/app/ui/pages/settlemet_page/SettlementPage.dart';
 import 'package:media_house/app/ui/pages/shorts/shortspage.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/upload_video.dart';
@@ -30,6 +31,7 @@ class _NavigationPageState extends State<NavigationPage> {
     PageData(title: 'Released Content', page: ReleasedContentPage()),
     PageData(title: 'All Content', page: PendingContentPage()),
     PageData(title: 'Shorts', page: ShortsPage()),
+    PageData(title: 'Series', page: SeriesPage()),
     PageData(title: 'Analytics', page: AnalyticsPage()),
     PageData(title: 'Documents', page: DocumentsPage()),
     PageData(title: 'Settlement', page: SettlementPage()),
@@ -40,6 +42,7 @@ class _NavigationPageState extends State<NavigationPage> {
     Icons.dashboard_outlined,
     Icons.play_circle_outline_sharp,
     Icons.hourglass_top_outlined,
+    Icons.play_circle_fill_sharp,
     Icons.play_circle_fill_sharp,
     Icons.bar_chart_sharp,
     Icons.document_scanner_outlined,

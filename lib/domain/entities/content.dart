@@ -6,7 +6,7 @@ class Content {
   dynamic releaseDate;
   double? ratings;
   double? price;
-  List<String>? languageList;
+  List<LanguageList>? languageList;
   List<String>? castList;
   List<String>? genreList;
   List<String>? directorList;
@@ -79,8 +79,8 @@ class Content {
     releaseDate: json["releaseDate"],
     ratings: json["ratings"]?.toDouble(),
     price: json["price"]?.toDouble(),
-    languageList: json["languageList"] == null ? [] : List<String>.from(json["languageList"]!.map((x) => x)),
-    castList: json["castList"] == null ? [] : List<String>.from(json["castList"]!.map((x) => x)),
+      languageList: json["languageList"] == null ? [] : List<LanguageList>.from(json["languageList"]!.map((x) => LanguageList.fromJson(x))),
+      castList: json["castList"] == null ? [] : List<String>.from(json["castList"]!.map((x) => x)),
     genreList: json["genreList"] == null ? [] : List<String>.from(json["genreList"]!.map((x) => x)),
     directorList: json["directorList"] == null ? [] : List<String>.from(json["directorList"]!.map((x) => x)),
     views: json["views"],
@@ -116,7 +116,7 @@ class Content {
     "releaseDate": releaseDate,
     "ratings": ratings,
     "price": price,
-    "languageList": languageList == null ? [] : List<dynamic>.from(languageList!.map((x) => x)),
+    "languageList": languageList == null ? [] : List<dynamic>.from(languageList!.map((x) => x.toJson())),
     "castList": castList == null ? [] : List<dynamic>.from(castList!.map((x) => x)),
     "genreList": genreList == null ? [] : List<dynamic>.from(genreList!.map((x) => x)),
     "directorList": directorList == null ? [] : List<dynamic>.from(directorList!.map((x) => x)),
@@ -163,5 +163,25 @@ class Availability {
   Map<String, dynamic> toJson() => {
     "regions": regions == null ? [] : List<dynamic>.from(regions!.map((x) => x)),
     "platforms": platforms == null ? [] : List<dynamic>.from(platforms!.map((x) => x)),
+  };
+}
+
+class LanguageList {
+  String? language;
+  String? fileUrl;
+
+  LanguageList({
+    this.language,
+    this.fileUrl,
+  });
+
+  factory LanguageList.fromJson(Map<String, dynamic> json) => LanguageList(
+    language: json["language"],
+    fileUrl: json["fileUrl"],
+  );
+
+  Map<String, dynamic> toJson() => {
+    "language": language,
+    "fileUrl": fileUrl,
   };
 }

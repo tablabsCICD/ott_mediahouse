@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:media_house/app/provider/content_provider.dart';
 import 'package:media_house/app/provider/graphProvider.dart';
 import 'package:media_house/app/provider/mediaHouseProvider.dart';
+import 'package:media_house/app/provider/series_provider.dart';
 import 'package:media_house/app/provider/settelementProvider.dart';
 import 'package:media_house/app/provider/shorts_provider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
@@ -11,6 +12,9 @@ import 'package:media_house/app/provider/videoProvider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app/config/routes/routes.dart';
+
+final GlobalKey<ScaffoldMessengerState> globalMessengerKey =
+GlobalKey<ScaffoldMessengerState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +43,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => SettelementProvider()),
         ChangeNotifierProvider(create: (_) => GraphProvider()),
         ChangeNotifierProvider(create: (_) => ShortProvider()),
+        ChangeNotifierProvider(create: (_) => SeriesProvider()),
       ],
       child: MyApp(),
     ),
@@ -57,6 +62,7 @@ class MyApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
+      scaffoldMessengerKey: globalMessengerKey,
       title: 'OTT Media House',
       theme: themeProvider.getTheme,
       debugShowCheckedModeBanner: false,

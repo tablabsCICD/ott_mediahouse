@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../data/models/request/raiseTicketRequest.dart';
 import '../../data/models/response/getRaisedTicketListResponse.dart';
+import '../../data/models/response/image_upload_response.dart';
 import '../../data/models/response/raiseTicketResponse.dart';
 import '../../domain/entities/user.dart';
 import '../core/constant/api_constant.dart';
@@ -328,7 +329,7 @@ class TicketProvider extends ChangeNotifier {
 
         final byteData = reader.result as List<int>;
         final multipartFile = http.MultipartFile.fromBytes(
-          'profilePicture',
+          'file',
           byteData,
           filename: _webFile!.name,
         );
@@ -338,7 +339,8 @@ class TicketProvider extends ChangeNotifier {
 
         if (response.statusCode == 200) {
           final responseBody = await response.stream.bytesToString();
-          _uploadedImageUrl = jsonDecode(responseBody);
+          ImageUploadResponse imageUploadResponse = ImageUploadResponse.fromJson(jsonDecode(responseBody));
+          _uploadedImageUrl = imageUploadResponse.data!.fileUrl;
           imgUrl = _uploadedImageUrl!;
           notifyListeners();
         }

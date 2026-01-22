@@ -1,45 +1,117 @@
 import 'package:flutter/material.dart';
 import 'package:media_house/app/core/constant/image_constant.dart';
-import 'package:media_house/data/models/shorts.dart';
+import 'package:media_house/app/ui/pages/DisplayTrailer.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
+import 'package:provider/provider.dart';
+
+import '../../../../../data/models/response/short_detail_response.dart';
+import '../../../../../main.dart';
+import '../../../../provider/shorts_provider.dart';
+import 'create_short_parts_page.dart';
+import 'edit_short_master_page.dart';
+import 'edit_short_part.dart';
 
 class ShortMasterPage extends StatefulWidget {
-  final ShortModel short;
+  final int shortId;
 
-  const ShortMasterPage({super.key, required this.short});
+  const ShortMasterPage({super.key, required this.shortId});
 
   @override
   State<ShortMasterPage> createState() => _ShortMasterPageState();
 }
 
 class _ShortMasterPageState extends State<ShortMasterPage> {
+  int createdPartCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ShortProvider>().fetchShortDetail(
+        shortId: widget.shortId,
+        userId: 1,
+      );
+    });
+  }
+
+  void _editShort(BuildContext context, ShortDetailModel shortModel) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) =>
+          Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(24),
+            child: EditShortMasterDialog(
+              shortId: widget.shortId,
+              shortDetailModel: shortModel,
+            ),
+          ),
+    );
+    if (result == true && mounted) {
+      await context.read<ShortProvider>().fetchShortDetail(
+        shortId: widget.shortId,
+        userId: 1,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<ShortProvider>();
     final theme = Theme.of(context);
 
-    final int totalParts = widget.short.totalParts;
+    if (provider.isDetailLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (provider.detailError != null) {
+      return Scaffold(
+        body: Center(child: Text(provider.detailError!)),
+      );
+    }
+
+    final short = provider.shortDetail!;
+    final totalParts = short.data!.totalParts??0;
 
     final crossAxisCount = ResponsiveWidget.isDesktop(context)
         ? 5
         : ResponsiveWidget.isTablet(context)
-            ? 4
-            : 2;
+        ? 4
+        : 2;
 
     final tileHeight = ResponsiveWidget.isDesktop(context)
         ? 220.0
         : ResponsiveWidget.isTablet(context)
-            ? 200.0
-            : 180.0;
+        ? 200.0
+        : 180.0;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
         title: Text(
-          widget.short.title,
+          short.data!.title??"",
           style: TextStyle(color: theme.canvasColor),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: "Edit Short",
+            icon: Icon(Icons.edit, color: theme.primaryColor),
+            onPressed: () {
+              _editShort(context,short.data!);
+            },
+          ),
+          IconButton(
+            tooltip: "Delete Short",
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            onPressed: () => _confirmDelete(context, short.data!.id!),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -47,25 +119,21 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // -----------------------------------------------------------------
-            // MASTER DETAILS SECTION
+            // MASTER DETAILS
             // -----------------------------------------------------------------
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Poster
                 ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: Image.network(
-                    widget.short.posterUrl,
+                    short.data!.poster??"",
                     height: 180,
                     width: 130,
                     fit: BoxFit.cover,
                   ),
                 ),
-
                 const SizedBox(width: 16),
-
-                // Details
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,11 +141,12 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                       Row(
                         children: [
                           SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: Image.asset(ImageConstant.coin)),
+                            height: 20,
+                            width: 20,
+                            child: Image.asset(ImageConstant.coin),
+                          ),
                           Text(
-                            " ${widget.short.coinsPerPart} / part",
+                            " ${1} / part",
                             style: TextStyle(
                               color: theme.canvasColor,
                               fontWeight: FontWeight.bold,
@@ -85,11 +154,9 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                           ),
                         ],
                       ),
-                      SizedBox(
-                        height: 10,
-                      ),
+                      const SizedBox(height: 10),
                       Text(
-                        widget.short.title,
+                        short.data!.title??"",
                         style: TextStyle(
                           color: theme.canvasColor,
                           fontSize: 20,
@@ -98,35 +165,37 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        "Creator: ${widget.short.creatorName}",
+                        "Creator: ${short.data!.creatorName}",
                         style: TextStyle(
                             color: theme.canvasColor.withOpacity(0.7)),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "Category: ${widget.short.category}",
+                        "Category: ${short.data!.category}",
                         style: TextStyle(
                             color: theme.canvasColor.withOpacity(0.7)),
                       ),
                       const SizedBox(height: 10),
-                      if (widget.short.isTrending)
+                      if (short.data!.isTrending!)
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: theme.primaryColor.withOpacity(0.9),
+                            color: theme.primaryColor,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Text(
                             "TRENDING",
                             style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold),
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
+                      const SizedBox(height: 10),
                       Text(
-                        widget.short.description,
+                        short.data!.description??"",
                         style: TextStyle(
                             color: theme.canvasColor.withOpacity(0.7)),
                       ),
@@ -139,7 +208,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
             const SizedBox(height: 22),
 
             // -----------------------------------------------------------------
-            // PART COUNTERS
+            // STATS
             // -----------------------------------------------------------------
             Container(
               padding: const EdgeInsets.all(14),
@@ -151,8 +220,10 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildInfoTile("Total Parts", totalParts.toString(), theme),
-                  _buildInfoTile("Views", "156", theme),
+                  _buildInfoTile(
+                      "Total Parts", short.data!.totalParts.toString(), theme),
+                  _buildInfoTile(
+                      "Views", short.data!.viewCount.toString(), theme),
                 ],
               ),
             ),
@@ -160,26 +231,78 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
             const SizedBox(height: 32),
 
             // -----------------------------------------------------------------
-            // SHORT PARTS GRID TITLE
+            // SHORT PARTS
             // -----------------------------------------------------------------
-            Text(
-              "Short Videos",
-              style: TextStyle(
-                color: theme.canvasColor,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Short Videos",
+                  style: TextStyle(
+                    color: theme.canvasColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add, size: 18),
+                  label: Text(
+                    createdPartCount >= short.data!.totalParts!
+                        ? "All Parts Added"
+                        : "Add Parts",
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: createdPartCount >= short.data!.totalParts!
+                        ? Colors.grey
+                        : theme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 4,
+                  ),
+                  onPressed: createdPartCount >= short.data!.totalParts!
+                      ? null
+                      : () async {
+                    final result = await showDialog<bool>(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) => Dialog(
+                        backgroundColor: Colors.transparent,
+                        insetPadding: const EdgeInsets.all(24),
+                        child: Center(
+                          child: CreateShortPartsDialog(
+                            shortId: short.data!.id??0,
+                            totalParts: short.data!.totalParts??0,
+                          ),
+                        ),
+                      ),
+                    );
+
+                    if (result == true && mounted) {
+                      await context.read<ShortProvider>().fetchShortDetail(
+                        shortId: short.data!.id??0,
+                        userId: 1,
+                      );
+
+                      setState(() {
+                        createdPartCount = short.data!.totalParts!;
+                      });
+                    }
+
+                  },
+                ),
+              ],
             ),
 
             const SizedBox(height: 14),
 
-            // -----------------------------------------------------------------
-            // RESPONSIVE GRID FOR SHORT PARTS
-            // -----------------------------------------------------------------
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: totalParts,
+              itemCount: short.data!.parts!.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: crossAxisCount,
                 crossAxisSpacing: 14,
@@ -187,9 +310,19 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                 mainAxisExtent: tileHeight,
               ),
               itemBuilder: (_, index) {
-                // TODO: replace with real ShortPart
-                return _buildPartTile(theme,
-                    index: index, partNumber: index + 1);
+                final part = short.data!.parts?[index];
+                return _buildPartTile(
+                  theme,
+                  partNumber: part!.partNumber.toString(),
+                  thumbnailUrl: part.thumbnail ?? "",
+                  isFreePreview: part.isFreePreview!,
+                  hasVideo: part.videoUrl!.isNotEmpty,
+                  videoUrl: part.videoUrl??'',
+                  views: part.views??0,
+                  likes: part.likes??0,
+                  partId:part.partId,
+                  part: part
+                );
               },
             ),
           ],
@@ -199,7 +332,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
   }
 
   // ==========================================================================
-  // REUSABLE WIDGETS
+  // WIDGETS
   // ==========================================================================
 
   Widget _buildInfoTile(String title, String value, ThemeData theme) {
@@ -225,51 +358,291 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
     );
   }
 
-  Widget _buildPlaceholderTile(ThemeData theme) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: theme.cardColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.canvasColor.withOpacity(0.1)),
-      ),
-      child: Center(
-        child: Text(
-          "No parts uploaded yet",
-          style: TextStyle(color: theme.canvasColor.withOpacity(0.6)),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPartTile(ThemeData theme,
-      {required int index, required int partNumber}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.cardColor.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.canvasColor.withOpacity(0.1)),
-      ),
+  Widget _buildPartTile(
+      ThemeData theme, {
+        required String partNumber,
+        required String thumbnailUrl,
+        required bool isFreePreview,
+        required bool hasVideo,
+        required String videoUrl,
+        int views = 0,
+        int likes = 0, String? partId, required ShortPartModel part,
+      }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
       child: Stack(
+        fit: StackFit.expand,
         children: [
-          Center(
-            child: Text(
-              "Part $partNumber",
-              style: TextStyle(
-                color: theme.canvasColor,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+          /// THUMBNAIL
+          Image.network(
+            thumbnailUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              color: theme.cardColor.withOpacity(0.2),
+              child: Center(
+                child: Text(
+                  "Part $partNumber",
+                  style: TextStyle(color: theme.canvasColor),
+                ),
               ),
             ),
           ),
+
+          /// ▶ PLAY ICON
+          if (hasVideo)
+            InkWell(
+              onTap: () {
+                _playVideo(context, videoUrl);
+              },
+              child: const Center(
+                child: Icon(
+                  Icons.play_circle_fill,
+                  color: Colors.white,
+                  size: 46,
+                ),
+              ),
+            ),
+
+          /// 🟢 FREE / PART TAG
           Positioned(
-            right: 8,
+            top: 8,
+            left: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: isFreePreview
+                    ? Colors.green
+                    : Colors.black.withOpacity(0.6),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                isFreePreview ? "FREE" : "Part $partNumber",
+                style: const TextStyle(color: Colors.white, fontSize: 11),
+              ),
+            ),
+          ),
+
+          /// ✏️ 🗑 EDIT / DELETE ACTIONS
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Row(
+              children: [
+                /// EDIT
+                _actionIcon(
+                  icon: Icons.edit,
+                  color: Colors.orange,
+                  onTap: () {
+                    _editPart(context, part);
+                  },
+                ),
+                const SizedBox(width: 6),
+
+                /// DELETE
+                _actionIcon(
+                  icon: Icons.delete,
+                  color: Colors.red,
+                  onTap: () {
+                    _confirmDeletePart(context, partId!);
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          /// 👁❤️ STATS OVERLAY
+          Positioned(
             bottom: 8,
-            child: Icon(Icons.play_circle_fill,
-                color: theme.canvasColor.withOpacity(0.7), size: 28),
+            left: 8,
+            right: 8,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                /// 👁 VIEWS
+                _statChip(
+                  icon: Icons.remove_red_eye,
+                  value: views??0,
+                ),
+
+                /// ❤️ LIKES
+                _statChip(
+                  icon: Icons.favorite,
+                  value: likes,
+                  color: Colors.redAccent,
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _actionIcon({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.6),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 18),
+      ),
+    );
+  }
+  void _confirmDeletePart(BuildContext context, String partId) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Delete Part"),
+        content: const Text("Are you sure you want to delete this part?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(context);
+
+              final provider = context.read<ShortProvider>();
+
+              final success = await provider.deleteShortPart(
+                partId: partId,
+              );
+
+              if (!mounted) return;
+
+              if (success) {
+                // 🔄 refresh short details
+                await provider.fetchShortDetail(
+                  shortId: widget.shortId,
+                  userId: 1,
+                );
+
+                globalMessengerKey.currentState?.showSnackBar(
+                  const SnackBar(content: Text("Part deleted successfully")),
+                );
+              } else {
+                globalMessengerKey.currentState?.showSnackBar(
+                  const SnackBar(content: Text("Failed to delete part")),
+                );
+              }
+            },
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _editPart(BuildContext context, ShortPartModel part) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(24),
+        child: EditShortPartDialog(
+          shortId: widget.shortId,
+          part: part,
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      await context.read<ShortProvider>().fetchShortDetail(
+        shortId: widget.shortId,
+        userId: 1,
+      );
+    }
+  }
+
+
+  Widget _statChip({
+    required IconData icon,
+    required int value,
+    Color color = Colors.white,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 4),
+          Text(
+            value.toString(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  // ==========================================================================
+  // DELETE
+  // ==========================================================================
+
+  void _confirmDelete(BuildContext context, int shortId) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Delete Short"),
+        content: const Text("Are you sure you want to delete this short?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(context);
+
+              final provider = context.read<ShortProvider>();
+              final success =
+              await provider.deleteShortMaster(shortId: shortId);
+
+              if (!mounted) return;
+
+              if (success) {
+                Navigator.pop(context, true);
+              }
+            },
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _playVideo(BuildContext context, String videoUrl) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(16),
+        child: AspectRatio(
+          aspectRatio: 16 / 9,
+          child: TrailerPage(trailerUrl: videoUrl),
+        ),
+      ),
+    );
+  }
+
 }

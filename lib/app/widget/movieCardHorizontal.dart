@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../domain/entities/content.dart';
 import '../ui/pages/movie details page/MovieDetailsPage.dart';
 import '../ui/pages/movie details page/component/setPercentageDialog.dart';
+import '../ui/pages/sereis/components/series_details_page.dart';
 
 class MovieCardHorizontal extends StatelessWidget {
   final Content movie;
@@ -24,10 +25,19 @@ class MovieCardHorizontal extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        Navigator.push(
+        movie.type=="MOVIE"?Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (content) => MovieDetailsPage(movieId: movie.id!),
+            builder: (context) => MovieDetailsPage(
+              movieId: movie.id!,
+            ),
+          ),
+        ):Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SeriesDetailsPage(
+              seriesId: movie.id!, content: movie,
+            ),
           ),
         );
       },

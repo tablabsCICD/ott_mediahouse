@@ -140,6 +140,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
                       poster_url: movie.posterUrlList?.first ?? "",
                       rating: movie.ratings ?? 0.0,
                       rating_count: movie.ratingCount ?? 0,
+                      movie:movie
                     );
                   },
                 ),

@@ -10,11 +10,15 @@ import 'package:media_house/app/core/constant/api_constant.dart';
 import 'package:media_house/data/models/shorts.dart';
 import 'package:universal_html/html.dart' as html;
 
+import '../../data/models/response/getAllVideoResponse.dart';
+import '../../data/models/response/series_detail_response.dart';
 import '../../data/models/response/short_detail_response.dart';
 import '../../data/models/response/video_upload_response.dart';
+import '../../domain/entities/content.dart';
+import '../core/network/api_helper.dart';
 import '../core/utils/sharepreferences.dart';
 
-class ShortProvider extends ChangeNotifier {
+class SeriesProvider extends ChangeNotifier {
   List<ShortModel> shorts = [];
   ShortDetailResponse? shortDetail;
   bool isLoading = false;
@@ -24,7 +28,108 @@ class ShortProvider extends ChangeNotifier {
 
   bool get isMovieUploading => _isMovieUploading;
 
+  List<Content> _contentList = [];
+  List<Content> _filteredContentList = [];
+    List<Content> get contentList => _contentList;
+  List<Content> get filteredContentList => _filteredContentList;
   final TextEditingController movieUrlController = TextEditingController();
+
+  SeriesDetailsResponse? _data;
+  bool _loading = false;
+  String? _error;
+
+  SeriesDetailsResponse? get data => _data;
+  bool get loading => _loading;
+  String? get error => _error;
+
+  Future<void> loadSeries(int seriesId) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final url = Uri.parse(ApiConstant.seriesDetails(seriesId));
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonMap =
+        jsonDecode(utf8.decode(response.bodyBytes));
+
+        _data = SeriesDetailsResponse.fromJson(jsonMap);
+      } else {
+        _error = "Failed to load series (${response.statusCode})";
+      }
+    } catch (e) {
+      _error = "Something went wrong while loading series";
+      debugPrint("SeriesProvider error: $e");
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  void clear() {
+    _data = null;
+    _error = null;
+    _loading = false;
+    notifyListeners();
+  }
+
+  // Fetch all moviesByStatusAndMediaHouseId
+  Future<void> fetchSeriesByMediaHouseId() async {
+    isLoading = true;
+    notifyListeners();
+
+    String apiUrl = ApiConstant.getSeriesByMediaHouse(1);
+    debugPrint("API => $apiUrl");
+
+    ApiHelper apiHelper = ApiHelper();
+
+    try {
+      final response = await apiHelper.getApi(apiUrl);
+      debugPrint("SERIES RESPONSE => ${response.body}");
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseBody =
+        json.decode(response.body);
+
+        final getAllContentResponse =
+        GetAllVideoResponse.fromJson(responseBody);
+
+        if (getAllContentResponse.success == true &&
+            getAllContentResponse.data?.contentList != null) {
+
+          final newList =
+          getAllContentResponse.data!.contentList!;
+
+          _contentList
+            ..clear()
+            ..addAll(newList);
+
+          _filteredContentList
+            ..clear()
+            ..addAll(newList);
+
+        } else {
+          _contentList.clear();
+          _filteredContentList.clear();
+        }
+
+      } else {
+        debugPrint("HTTP ERROR => ${response.statusCode}");
+        _contentList.clear();
+        _filteredContentList.clear();
+      }
+    } catch (e) {
+      debugPrint("FETCH SERIES ERROR => $e");
+      _contentList.clear();
+      _filteredContentList.clear();
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
 
   Future<void> uploadVideoWeb(bool isTrailer) async {
     html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
@@ -44,7 +149,7 @@ class ShortProvider extends ChangeNotifier {
         if (e.lengthComputable) {
           final progress = e.loaded! / e.total!;
 
-            movieUploadProgress = progress;
+          movieUploadProgress = progress;
           notifyListeners();
         }
       });
@@ -55,20 +160,20 @@ class ShortProvider extends ChangeNotifier {
           VideoUploadResponse contentImageUploadResponse = VideoUploadResponse.fromJson(response);
           final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
 
-            print(encryptedUrl);
+          print(encryptedUrl);
 
-            movieUrlController.text = encryptedUrl!;
+          movieUrlController.text = encryptedUrl!;
           //  movieFileName = file.name;
-            movieUploadProgress = 1.0;
-            _isMovieUploading = false;
+          movieUploadProgress = 1.0;
+          _isMovieUploading = false;
           notifyListeners();
         }
       });
 
       xhr.onError.listen((_) {
 
-          movieUploadProgress = 0.0;
-          _isMovieUploading = false;
+        movieUploadProgress = 0.0;
+        _isMovieUploading = false;
 
         notifyListeners();
       });
@@ -77,7 +182,7 @@ class ShortProvider extends ChangeNotifier {
       xhr.send(formData);
 
 
-        _isMovieUploading = true;
+      _isMovieUploading = true;
 
       notifyListeners();
     });
@@ -88,8 +193,8 @@ class ShortProvider extends ChangeNotifier {
 
     // Reset progress at start and set uploading status
 
-      movieUploadProgress = 0.0;
-      _isMovieUploading = true;
+    movieUploadProgress = 0.0;
+    _isMovieUploading = true;
     _isUploading = true;
     notifyListeners();
 
@@ -123,7 +228,7 @@ class ShortProvider extends ChangeNotifier {
 
                 // Update progress
 
-                  movieUploadProgress = progress;
+                movieUploadProgress = progress;
 
                 print(
                     "Upload progress: ${(progress * 100).toStringAsFixed(1)}%");
@@ -197,7 +302,7 @@ class ShortProvider extends ChangeNotifier {
       // ❌ DO NOTHING FOR WEB
       if (!kIsWeb) {
 
-          _isMovieUploading = false;
+        _isMovieUploading = false;
         _isUploading = false;
         notifyListeners();
       }
@@ -249,7 +354,7 @@ class ShortProvider extends ChangeNotifier {
       /// ✅ SUCCESS CHECK (THIS IS THE KEY FIX)
       if (data["success"] == true) {
         if (data["data"] != null) {
-         ShortModel shortModel = ShortModel.fromJson(data["data"]);
+          ShortModel shortModel = ShortModel.fromJson(data["data"]);
         }
 
         /// Refresh list
@@ -402,31 +507,37 @@ class ShortProvider extends ChangeNotifier {
 
   bool isSubmitting = false;
 
-  Future<bool> createShortPart(Map<String, dynamic> body) async {
+  Future<bool> createEpisodeApi(
+      Map<String, dynamic> body, int seasonId) async {
     try {
       isSubmitting = true;
       notifyListeners();
 
-      String apiUrl =  ApiConstant.createShortPart;
-      print(apiUrl);
-      print(jsonEncode(body));
+      String apiUrl =
+          '${ApiConstant.baseUrl}series/season/$seasonId/episode/add';
+
+      debugPrint("URL => $apiUrl");
+      debugPrint("BODY => ${jsonEncode(body)}");
+
       final response = await http.post(
-        Uri.parse(
-         apiUrl
-        ),
+        Uri.parse(apiUrl),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode(body),
       );
-      print(response.body);
+
+      debugPrint("STATUS => ${response.statusCode}");
+      debugPrint("RESPONSE => ${response.body}");
+
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      debugPrint("Create Short Part Error: $e");
+      debugPrint("Create Episode Error: $e");
       return false;
     } finally {
       isSubmitting = false;
       notifyListeners();
     }
   }
+
 
   bool isDetailLoading = false;
   String? detailError;

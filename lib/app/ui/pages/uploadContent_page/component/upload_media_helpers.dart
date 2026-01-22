@@ -5,138 +5,169 @@ import '../../../../provider/videoProvider.dart';
 
 
 class UploadMediaHelpers {
-  static Widget buildEnhancedUploadSection(String label, ThemeData selectedThemeData, BuildContext context) {
-    return Consumer<VideoProvider>(builder: (context, provider, child) {
-      bool isUploaded = UploadMediaHelpers.getUploadStatus(label, provider);
-      double progress = UploadMediaHelpers.getUploadProgress(label, provider);
-      bool isUploading = UploadMediaHelpers.getUploadingStatus(label, provider);
-      String? imageUrl = UploadMediaHelpers.getImageUrl(label, provider);
+  static Widget buildEnhancedUploadSection(
+      String label,
+      ThemeData selectedThemeData,
+      BuildContext context,
+      ) {
+    return Consumer<VideoProvider>(
+      builder: (context, provider, child) {
+        final bool isUploaded =
+        UploadMediaHelpers.getUploadStatus(label, provider);
 
-      Color containerColor = selectedThemeData.primaryColor.withOpacity(0.1);
-      Color borderColor = selectedThemeData.primaryColor.withOpacity(0.3);
-      IconData iconData = Icons.cloud_upload_outlined;
-      if (isUploaded) {
-        containerColor = Colors.green.withOpacity(0.1);
-        borderColor = Colors.green.withOpacity(0.3);
-        iconData = Icons.check_circle_outline;
-      } else if (isUploading) {
-        containerColor = selectedThemeData.primaryColor.withOpacity(0.2);
-        borderColor = selectedThemeData.primaryColor.withOpacity(0.5);
-        iconData = Icons.cloud_upload_outlined;
-      }
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: selectedThemeData.canvasColor,
-            ),
-          ),
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: isUploading ? null : () async {
-              if (label == "Movie File" || label == "Trailer File") {
-                provider.uploadVideo(label == "Trailer File");
-              } else if (label.contains("Audio")) {
-                await provider.pickAudioFile(label);
-              } else {
-                await provider.pickImage(label);
-              }
-            },
-            child: Container(
-              height: isUploaded && UploadMediaHelpers.isImageFile(label) ? 120 : 80,
-              decoration: BoxDecoration(
-                color: containerColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: borderColor, width: 2),
+        final double progress =
+        UploadMediaHelpers.getUploadProgress(label, provider);
+
+        final bool isUploading =
+        UploadMediaHelpers.getUploadingStatus(label, provider);
+
+        final String? imageUrl =
+        UploadMediaHelpers.getImageUrl(label, provider);
+
+        Color containerColor = selectedThemeData.primaryColor.withOpacity(0.1);
+        Color borderColor = selectedThemeData.primaryColor.withOpacity(0.3);
+        IconData iconData = Icons.cloud_upload_outlined;
+
+        if (isUploaded) {
+          containerColor = Colors.green.withOpacity(0.1);
+          borderColor = Colors.green.withOpacity(0.3);
+          iconData = Icons.check_circle_outline;
+        } else if (isUploading) {
+          containerColor = selectedThemeData.primaryColor.withOpacity(0.2);
+          borderColor = selectedThemeData.primaryColor.withOpacity(0.5);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: selectedThemeData.canvasColor,
               ),
-              child: Stack(
-                children: [
-                  if (isUploading && progress > 0)
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
+            ),
+            const SizedBox(height: 8),
+            InkWell(
+              onTap: isUploading
+                  ? null
+                  : () async {
+                if (label == "Movie File" || label == "Trailer File") {
+                  provider.uploadVideo(label == "Trailer File");
+                } else if (label.contains("Audio")) {
+                  await provider.pickAudioFile(label);
+                } else {
+                  await provider.pickImage(label);
+                }
+              },
+              child: Container(
+                height: isUploaded && UploadMediaHelpers.isImageFile(label)
+                    ? 120
+                    : 80,
+                decoration: BoxDecoration(
+                  color: containerColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderColor, width: 2),
+                ),
+                child: Stack(
+                  children: [
+                    /// 🔥 LINEAR PROGRESS (ALWAYS SHOW WHEN UPLOADING)
+                    if (isUploading)
+                      Positioned.fill(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(10),
                           child: LinearProgressIndicator(
-                            value: progress,
+                            value: progress.clamp(0.0, 1.0),
                             backgroundColor: Colors.transparent,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              selectedThemeData.primaryColor.withOpacity(0.3),
+                             Colors.green.withOpacity(0.35),
                             ),
-                            minHeight: isUploaded && UploadMediaHelpers.isImageFile(label) ? 120 : 80,
+                            minHeight: isUploaded &&
+                                UploadMediaHelpers.isImageFile(label)
+                                ? 120
+                                : 80,
                           ),
                         ),
                       ),
-                    ),
-                  if (isUploaded && UploadMediaHelpers.isImageFile(label) && imageUrl != null)
-                    UploadMediaHelpers.buildImagePreview(imageUrl, label, selectedThemeData, context) // Pass context
-                  else
-                    Center(
-                      child: isUploading
-                          ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            height: 24,
-                            width: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              value: progress > 0 ? progress : null,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                selectedThemeData.primaryColor,
+
+                    /// IMAGE PREVIEW
+                    if (isUploaded &&
+                        UploadMediaHelpers.isImageFile(label) &&
+                        imageUrl != null)
+                      UploadMediaHelpers.buildImagePreview(
+                          imageUrl, label, selectedThemeData, context)
+                    else
+                      Center(
+                        child: isUploading
+                            ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              height: 26,
+                              width: 26,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 3,
+                                value: progress.clamp(0.0, 1.0),
+                                valueColor:
+                                AlwaysStoppedAnimation<Color>(
+                                  selectedThemeData.primaryColor,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            progress > 0
-                                ? "Uploading... ${(progress * 100).toInt()}%"
-                                : "Preparing...",
-                            style: TextStyle(
-                              color: selectedThemeData.primaryColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      )
-                          : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            iconData,
-                            color: isUploaded ? Colors.green : selectedThemeData.primaryColor,
-                            size: 24,
-                          ),
-                          const SizedBox(width: 12),
-                          Flexible(
-                            child: Text(
-                              isUploaded ? "$label Uploaded" : "Upload $label",
+                            const SizedBox(height: 8),
+                            Text(
+                              "Uploading... ${(progress * 100).toInt()}%",
                               style: TextStyle(
-                                color: isUploaded ? Colors.green : selectedThemeData.primaryColor,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                                color:
+                                selectedThemeData.primaryColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
                               ),
-                              textAlign: TextAlign.center,
                             ),
-                          ),
-                        ],
+                          ],
+                        )
+                            : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              iconData,
+                              color: isUploaded
+                                  ? Colors.green
+                                  : selectedThemeData.primaryColor,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 12),
+                            Flexible(
+                              child: Text(
+                              isUploaded
+                              ? (label == "Trailer File"
+        ? provider.trailerFileName ?? "$label Uploaded"
+            : provider.movieFileName ?? "$label Uploaded")
+            : "Upload $label",
+                                style: TextStyle(
+                                  color: isUploaded
+                                      ? Colors.green
+                                      : selectedThemeData.primaryColor,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
-      );
-    });
+          ],
+        );
+      },
+    );
   }
+
 
   static Widget buildImagePreview(String imageUrl, String label, ThemeData themeData, BuildContext context) {
     return Container(
@@ -398,15 +429,15 @@ class UploadMediaHelpers {
   static bool getUploadingStatus(String label, VideoProvider provider) {
     switch (label) {
       case "Trailer File":
+        return provider.isTrailerUploading;
       case "Movie File":
-        return provider.isUploading;
+        return provider.isMovieUploading;
       case "Censor Certificate":
       case "Poster 1":
       case "Poster 2":
       case "Poster 3":
-        return provider.isUploading && !getUploadStatus(label, provider);
+        return provider.getUploadingStatusByLabel(label);
       default:
-      // Check for dynamically added audio languages
         if (label.endsWith(" Audio")) {
           return provider.getUploadingStatusByLabel(label);
         }

@@ -15,7 +15,7 @@ class SaveContentRequest {
   List<String>? genersList;
   bool? isDownloadable;
   bool? isFeatured;
-  List<String>? languageList;
+  List<LanguageList>? languageList;
   int? mediaHouseId;
   List<String>? posterUrlList;
   double? price;
@@ -81,7 +81,7 @@ class SaveContentRequest {
     genersList: json["genersList"] == null ? [] : List<String>.from(json["genersList"]!.map((x) => x)),
     isDownloadable: json["isDownloadable"],
     isFeatured: json["isFeatured"],
-    languageList: json["languageList"] == null ? [] : List<String>.from(json["languageList"]!.map((x) => x)),
+    languageList: json["languageList"] == null ? [] : List<LanguageList>.from(json["languageList"]!.map((x) => x)),
     mediaHouseId: json["mediaHouseId"],
     posterUrlList: json["posterUrlList"] == null ? [] : List<String>.from(json["posterUrlList"]!.map((x) => x)),
     price: json["price"],
@@ -114,7 +114,7 @@ class SaveContentRequest {
     "genersList": genersList == null ? [] : List<dynamic>.from(genersList!.map((x) => x)),
     "isDownloadable": isDownloadable,
     "isFeatured": isFeatured,
-    "languageList": languageList == null ? [] : List<dynamic>.from(languageList!.map((x) => x)),
+    "languageList": languageList == null ? [] : List<LanguageList>.from(languageList!.map((x) => x)),
     "mediaHouseId": mediaHouseId,
     "posterUrlList": posterUrlList == null ? [] : List<dynamic>.from(posterUrlList!.map((x) => x)),
     "price": price,

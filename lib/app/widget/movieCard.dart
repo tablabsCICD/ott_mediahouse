@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:media_house/app/ui/pages/movie%20details%20page/MovieDetailsPage.dart';
+import 'package:media_house/app/ui/pages/sereis/components/series_details_page.dart';
 import 'package:media_house/app/widget/StarRatingWidget.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
+import 'package:media_house/domain/entities/content.dart';
 
 class MovieCard extends StatelessWidget {
   int movieId;
@@ -9,6 +11,7 @@ class MovieCard extends StatelessWidget {
   String poster_url;
   double rating;
   int rating_count;
+  Content movie;
 
   MovieCard({
     super.key,
@@ -16,7 +19,7 @@ class MovieCard extends StatelessWidget {
     required this.movieName,
     required this.poster_url,
     required this.rating,
-    required this.rating_count,
+    required this.rating_count, required this.movie,
   });
 
   @override
@@ -24,11 +27,18 @@ class MovieCard extends StatelessWidget {
     return ResponsiveWidget.isDesktop(context)
         ? GestureDetector(
             onTap: () {
-              Navigator.push(
+              movie.type=="MOVIE"?Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => MovieDetailsPage(
                     movieId: movieId,
+                  ),
+                ),
+              ):Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SeriesDetailsPage(
+                   seriesId: movieId, content: movie,
                   ),
                 ),
               );

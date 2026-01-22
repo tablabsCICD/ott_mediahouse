@@ -5,8 +5,8 @@ import 'package:provider/provider.dart';
 
 class UploadFilesSlide extends StatelessWidget {
   final ThemeData themeData;
-
-  const UploadFilesSlide({super.key, required this.themeData});
+  String? type;
+  UploadFilesSlide({super.key, required this.themeData,required this.type});
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +29,7 @@ class UploadFilesSlide extends StatelessWidget {
             [
               UploadMediaHelpers.buildEnhancedUploadSection("Trailer File", themeData, context),
               const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection("Movie File", themeData, context),
+              type=="MOVIE"?UploadMediaHelpers.buildEnhancedUploadSection("Movie File", themeData, context):SizedBox.shrink(),
               const SizedBox(height: 16),
               UploadMediaHelpers.buildEnhancedUploadSection("Censor Certificate", themeData, context),
             ],

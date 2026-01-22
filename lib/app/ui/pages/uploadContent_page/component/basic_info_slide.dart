@@ -19,11 +19,11 @@ class BasicInfoSlide extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             UploadFormHelpers.buildSectionCard(
-              'Video Details',
+              'Content Details',
               [
                 CustomTextField(
                   controller: provider.titleController,
-                  hintText: "Video Name",
+                  hintText: "Content Name",
                   textInputType: TextInputType.text,
                 ),
                 const SizedBox(height: 16),

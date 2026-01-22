@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:media_house/data/models/response/getMediaHouseResponse.dart';
+import 'package:media_house/data/models/response/image_upload_response.dart';
 import 'package:media_house/data/models/response/mediaHouseDashboardCount.dart';
 
 import '../../data/models/response/chartResponse.dart';
@@ -48,7 +50,7 @@ class MediaHouseProvider extends ChangeNotifier {
 
   MediaHouse _mediaHouse = MediaHouse();
   MediaHouse get mediaHouse => _mediaHouse;
-
+  File? pickedProfileImage; // 👈 add this
   String? selectedImage;
 
   MediaHouseDashboardData _mediaHouseDashboardData = MediaHouseDashboardData();
@@ -129,6 +131,30 @@ class MediaHouseProvider extends ChangeNotifier {
     }
   }
 
+  ImageProvider? get profileImageProvider {
+    if (!kIsWeb && _imageFile != null) {
+      return FileImage(_imageFile!);
+    }
+
+    if (kIsWeb && selectedImage != null) {
+      return NetworkImage(selectedImage!);
+    }
+
+    if (profileController.text.isNotEmpty) {
+      return NetworkImage(
+        "${profileController.text}?v=${DateTime.now().millisecondsSinceEpoch}",
+      );
+    }
+
+    if (_mediaHouse.logo != null && _mediaHouse.logo!.isNotEmpty) {
+      return NetworkImage(
+        "${_mediaHouse.logo}?v=${DateTime.now().millisecondsSinceEpoch}",
+      );
+    }
+
+    return null;
+  }
+
   // Upload Image
   Future<void> uploadImage(String lable) async {
     if ((!kIsWeb && _imageFile == null) || (kIsWeb && _webFile == null)) {
@@ -149,7 +175,7 @@ class MediaHouseProvider extends ChangeNotifier {
 
         final byteData = reader.result as List<int>;
         final multipartFile = http.MultipartFile.fromBytes(
-          'profilePicture',
+          'file',
           byteData,
           filename: _webFile!.name,
         );
@@ -159,7 +185,8 @@ class MediaHouseProvider extends ChangeNotifier {
         debugPrint("Image upload response======${response.statusCode}");
         if (response.statusCode == 200) {
           final responseBody = await response.stream.bytesToString();
-          _uploadedImageUrl = jsonDecode(responseBody);
+          ImageUploadResponse imageUploadResponse = ImageUploadResponse.fromJson(jsonDecode(responseBody));
+          _uploadedImageUrl = imageUploadResponse.data!.fileUrl;
           print(lable + " = $_uploadedImageUrl");
           if ("Aadhaar Card" == lable) {
             adharCardController.text = _uploadedImageUrl!;
@@ -223,7 +250,7 @@ class MediaHouseProvider extends ChangeNotifier {
         // Mobile/desktop upload logic
         final request = http.MultipartRequest('POST', url);
         request.files.add(await http.MultipartFile.fromPath(
-          'profilePicture',
+          'file',
           _imageFile!.path,
           //  contentType: MediaType('image', 'jpeg'),
         ));
@@ -231,7 +258,8 @@ class MediaHouseProvider extends ChangeNotifier {
 
         if (response.statusCode == 200) {
           final responseBody = await response.stream.bytesToString();
-          _uploadedImageUrl = jsonDecode(responseBody);
+           ImageUploadResponse imageUploadResponse = ImageUploadResponse.fromJson(jsonDecode(responseBody));
+          _uploadedImageUrl = imageUploadResponse.data!.fileUrl;
           print(lable);
           if ("Aadhaar Card" == lable) {
             adharCardController.text = _uploadedImageUrl!;
