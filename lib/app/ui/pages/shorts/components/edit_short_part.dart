@@ -30,6 +30,7 @@ class EditShortPartDialog extends StatefulWidget {
 class _EditShortPartDialogState extends State<EditShortPartDialog> {
   late TextEditingController titleCtrl;
   late TextEditingController videoUrlCtrl;
+  late TextEditingController coinUrlCtrl;
 
   bool isFreePreview = false;
   Uint8List? previewBytes;
@@ -38,6 +39,7 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
   late String _initialVideoUrl;
   late String? _initialThumbnail;
   late bool _initialFreePreview;
+  late String? _intialCoin;
 
 
   @override
@@ -45,6 +47,7 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
     super.initState();
 
     titleCtrl = TextEditingController(text: widget.part.title);
+    coinUrlCtrl = TextEditingController(text: widget.part.coins.toString());
     videoUrlCtrl = TextEditingController(text: widget.part.videoUrl ?? "");
 
     isFreePreview = widget.part.isFreePreview ?? false;
@@ -54,7 +57,7 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
     _initialVideoUrl = videoUrlCtrl.text;
     _initialThumbnail = uploadedImageUrl;
     _initialFreePreview = isFreePreview;
-
+    _intialCoin = coinUrlCtrl.text;
     /// ✅ LISTEN FOR VIDEO UPLOAD RESULT
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<ShortProvider>();
@@ -76,6 +79,7 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
     return titleCtrl.text.trim() != _initialTitle ||
         videoUrlCtrl.text.trim() != _initialVideoUrl ||
         uploadedImageUrl != _initialThumbnail ||
+        coinUrlCtrl.text.trim() != _intialCoin ||
         isFreePreview != _initialFreePreview;
   }
 
@@ -104,6 +108,7 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
                 child: Column(
                   children: [
                     _darkField("Title", titleCtrl),
+                    _darkField("Coins", coinUrlCtrl),
                     _videoCard(provider),
                     _thumbnailCard(),
                     _freePreviewSwitch(),
@@ -418,7 +423,7 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
     final provider = context.read<ShortProvider>();
 
     final body = {
-      "coins": 0,
+      "coins": coinUrlCtrl.text.trim(),
       "durationSec": 0,
       "id": widget.part.partId,
       "isFreePreview": isFreePreview,

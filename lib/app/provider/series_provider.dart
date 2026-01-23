@@ -12,6 +12,7 @@ import 'package:universal_html/html.dart' as html;
 
 import '../../data/models/response/getAllVideoResponse.dart';
 import '../../data/models/response/series_detail_response.dart';
+import '../../data/models/response/series_response.dart';
 import '../../data/models/response/short_detail_response.dart';
 import '../../data/models/response/video_upload_response.dart';
 import '../../domain/entities/content.dart';
@@ -75,7 +76,6 @@ class SeriesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Fetch all moviesByStatusAndMediaHouseId
   Future<void> fetchSeriesByMediaHouseId() async {
     isLoading = true;
     notifyListeners();
@@ -93,8 +93,8 @@ class SeriesProvider extends ChangeNotifier {
         final Map<String, dynamic> responseBody =
         json.decode(response.body);
 
-        final getAllContentResponse =
-        GetAllVideoResponse.fromJson(responseBody);
+        SeriesResponse getAllContentResponse =
+        SeriesResponse.fromJson(responseBody);
 
         if (getAllContentResponse.success == true &&
             getAllContentResponse.data?.contentList != null) {
@@ -106,15 +106,16 @@ class SeriesProvider extends ChangeNotifier {
             ..clear()
             ..addAll(newList);
 
+          // ✅ FIX IS HERE
           _filteredContentList
             ..clear()
-            ..addAll(newList);
+            ..addAll(_contentList);
+          debugPrint("Filtered size => ${_filteredContentList.length}");
 
         } else {
           _contentList.clear();
           _filteredContentList.clear();
         }
-
       } else {
         debugPrint("HTTP ERROR => ${response.statusCode}");
         _contentList.clear();
@@ -129,6 +130,7 @@ class SeriesProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
 
 
   Future<void> uploadVideoWeb(bool isTrailer) async {

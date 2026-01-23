@@ -1,12 +1,10 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../device/utils/ResponsiveWidget.dart';
 import '../../../provider/series_provider.dart';
-import '../../../widget/custom_textfield.dart';
 import '../../../widget/movieCardHorizontal.dart';
+import '../../../../device/utils/ResponsiveWidget.dart';
+import '../../../widget/custom_textfield.dart';
 
 class SeriesPage extends StatefulWidget {
   const SeriesPage({super.key});
@@ -16,13 +14,12 @@ class SeriesPage extends StatefulWidget {
 }
 
 class _SeriesPageState extends State<SeriesPage> {
-  final _searchCtrl = TextEditingController();
+  final TextEditingController _searchCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
 
-    /// ⚠️ Ensure provider call happens AFTER widget tree build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SeriesProvider>().fetchSeriesByMediaHouseId();
     });
@@ -34,29 +31,13 @@ class _SeriesPageState extends State<SeriesPage> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        automaticallyImplyLeading: false,
-        title: SizedBox(
-          width: ResponsiveWidget.isMobile(context) ? double.infinity : 400,
-          child: CustomTextField(
-            controller: _searchCtrl,
-            hintText: "Search",
-            textInputType: TextInputType.text,
-           /* onChanged: (value) {
-              context.read<SeriesProvider>().filterSeries(value);
-            },*/
-          ),
-        ),
-      ),
+
       body: Consumer<SeriesProvider>(
         builder: (context, provider, _) {
-          /// 🔄 Always show loader while fetching
           if (provider.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          /// 🚫 Empty state
           if (provider.filteredContentList.isEmpty) {
             return const Center(
               child: Text(
@@ -67,17 +48,18 @@ class _SeriesPageState extends State<SeriesPage> {
           }
 
           return Padding(
-            padding: const EdgeInsets.fromLTRB(8, 70, 8, 10),
+            padding: const EdgeInsets.all(8),
             child: ResponsiveWidget.isMobile(context)
                 ? ListView.builder(
               itemCount: provider.filteredContentList.length,
               itemBuilder: (context, index) {
-                final movie =
-                provider.filteredContentList[index];
-                return MovieCardHorizontal(movie: movie);
+                return MovieCardHorizontal(
+                  movie: provider.filteredContentList[index],
+                );
               },
             )
                 : GridView.builder(
+              itemCount: provider.filteredContentList.length,
               gridDelegate:
               const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
@@ -85,11 +67,10 @@ class _SeriesPageState extends State<SeriesPage> {
                 mainAxisSpacing: 12,
                 childAspectRatio: 8 / 4,
               ),
-              itemCount: provider.filteredContentList.length,
               itemBuilder: (context, index) {
-                final movie =
-                provider.filteredContentList[index];
-                return MovieCardHorizontal(movie: movie);
+                return MovieCardHorizontal(
+                  movie: provider.filteredContentList[index],
+                );
               },
             ),
           );
