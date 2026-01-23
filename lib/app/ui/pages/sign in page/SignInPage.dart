@@ -23,7 +23,8 @@ class _SignInPageState extends State<SignInPage> {
 
   @override
   Widget build(BuildContext context) {
-    var selectedThemeData = Provider.of<ThemeProvider>(context, listen: false).getTheme;
+    var selectedThemeData =
+        Provider.of<ThemeProvider>(context, listen: false).getTheme;
 
     return Scaffold(
       backgroundColor: selectedThemeData.scaffoldBackgroundColor,
@@ -33,9 +34,18 @@ class _SignInPageState extends State<SignInPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset(
-                ImageConstant.logo,
-                width: ResponsiveWidget.isMobile(context) ? 150 : 200,
+              SizedBox(
+                height: ResponsiveWidget.isMobile(context) ? 90 : 150,
+                child: Hero(
+                  tag: "logo",
+                  child: ClipRRect(
+                    borderRadius: BorderRadiusGeometry.circular(25),
+                    child: Image.asset(
+                      ImageConstant.logo,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -52,10 +62,13 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Widget loginCard() {
-    var selectedThemeData = Provider.of<ThemeProvider>(context, listen: false).getTheme;
+    var selectedThemeData =
+        Provider.of<ThemeProvider>(context, listen: false).getTheme;
 
     return Padding(
-      padding: ResponsiveWidget.isMobile(context) ? EdgeInsets.zero : const EdgeInsets.all(16.0),
+      padding: ResponsiveWidget.isMobile(context)
+          ? EdgeInsets.zero
+          : const EdgeInsets.all(16.0),
       child: Card(
         elevation: 4,
         color: selectedThemeData.cardColor,
@@ -89,7 +102,8 @@ class _SignInPageState extends State<SignInPage> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: selectedThemeData.primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -99,16 +113,16 @@ class _SignInPageState extends State<SignInPage> {
                 },
                 child: _isLoading
                     ? const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                )
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      )
                     : Text(
-                  'Send OTP',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: selectedThemeData.canvasColor,
-                  ),
-                ),
+                        'Send OTP',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: selectedThemeData.canvasColor,
+                        ),
+                      ),
               ),
             ],
           ),

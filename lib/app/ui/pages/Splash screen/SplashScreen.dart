@@ -61,27 +61,32 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const SizedBox(height: 100),
-            Image.asset(
-              ImageConstant.logo,
-              width: ResponsiveWidget.isMobile(context) ? 350 : 450,
-              fit: BoxFit.contain,
+            Hero(
+              tag: "logo",
+              child: ClipRRect(
+                borderRadius: BorderRadiusGeometry.circular(25),
+                child: Image.asset(
+                  ImageConstant.logo,
+                  width: ResponsiveWidget.isMobile(context) ? 150 : 200,
+                  fit: BoxFit.contain,
+                ),
+              ),
             ),
             SizedBox(
-              height: ResponsiveWidget.isMobile(context) ? 150 : 10,
+              height: ResponsiveWidget.isMobile(context) ? 80 : 70,
             ),
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: Text(
-                'Discover, Watch & Collect the Latest Movies & TV',
+                'Discover, Watch & Collect the Latest Movies',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: ResponsiveWidget.isMobile(context) ? 18 : 20,
-                  color: theme.primaryColor,
+                  fontSize: ResponsiveWidget.isMobile(context) ? 13 : 18,
+                  color: theme.canvasColor,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
+            )
           ],
         ),
       ),

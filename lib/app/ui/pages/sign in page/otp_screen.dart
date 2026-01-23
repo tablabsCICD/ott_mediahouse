@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:media_house/app/core/constant/image_constant.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/ui/NavigationPage.dart';
 import 'package:media_house/app/widget/show_toast.dart';
@@ -23,7 +24,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
   @override
   Widget build(BuildContext context) {
-    var selectedThemeData = Provider.of<ThemeProvider>(context, listen: false).getTheme;
+    var selectedThemeData =
+        Provider.of<ThemeProvider>(context, listen: false).getTheme;
 
     return Scaffold(
       backgroundColor: selectedThemeData.scaffoldBackgroundColor,
@@ -33,9 +35,18 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset(
-                'assets/images/logo.png', // replace with your logo
-                width: ResponsiveWidget.isMobile(context) ? 150 : 200,
+              SizedBox(
+                height: ResponsiveWidget.isMobile(context) ? 90 : 150,
+                child: Hero(
+                  tag: "logo",
+                  child: ClipRRect(
+                    borderRadius: BorderRadiusGeometry.circular(25),
+                    child: Image.asset(
+                      ImageConstant.logo,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
@@ -53,7 +64,9 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
 
   Widget otpCard(ThemeData selectedThemeData) {
     return Padding(
-      padding: ResponsiveWidget.isMobile(context) ? EdgeInsets.zero : const EdgeInsets.all(16.0),
+      padding: ResponsiveWidget.isMobile(context)
+          ? EdgeInsets.zero
+          : const EdgeInsets.all(16.0),
       child: Card(
         elevation: 4,
         color: selectedThemeData.cardColor,
@@ -74,7 +87,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
               const SizedBox(height: 20),
               Text(
                 "Enter the OTP sent to ${widget.mobileNumber}",
-                style: TextStyle(color: selectedThemeData.primaryColor, fontSize: 16),
+                style: TextStyle(
+                    color: selectedThemeData.primaryColor, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 20),
@@ -91,7 +105,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: selectedThemeData.primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -101,16 +116,16 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                 },
                 child: _isLoading
                     ? const CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                )
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      )
                     : Text(
-                  'Verify',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: selectedThemeData.canvasColor,
-                  ),
-                ),
+                        'Verify',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: selectedThemeData.canvasColor,
+                        ),
+                      ),
               ),
             ],
           ),
