@@ -16,6 +16,7 @@ class SettlementPage extends StatefulWidget {
   @override
   _SettlementPageState createState() => _SettlementPageState();
 }
+
 class _SettlementPageState extends State<SettlementPage> {
   SettlementDataSource? _settlementDataSource; // Make this nullable
   bool _isLoading = true; // Track loading state
@@ -39,8 +40,9 @@ class _SettlementPageState extends State<SettlementPage> {
       if (user != null) {
         await Provider.of<SettelementProvider>(context, listen: false)
             .fetchWeeklySettelementDataByMediaHouseId(user.id!);
-        final settlements = Provider.of<SettelementProvider>(context, listen: false)
-            .weeklySettelement;
+        final settlements =
+            Provider.of<SettelementProvider>(context, listen: false)
+                .weeklySettelement;
         if (settlements != null && settlements.isNotEmpty) {
           _settlementDataSource = SettlementDataSource(settlements);
         }
@@ -75,7 +77,8 @@ class _SettlementPageState extends State<SettlementPage> {
             return Center(child: CircularProgressIndicator());
           }
 
-          if (provider.weeklySettelement == null || provider.weeklySettelement.isEmpty) {
+          if (provider.weeklySettelement == null ||
+              provider.weeklySettelement.isEmpty) {
             // Show message if data is null or empty
             return Center(
               child: Text(
@@ -152,29 +155,30 @@ class _SettlementPageState extends State<SettlementPage> {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: selectedThemeData.primaryColor,
-        onPressed: () => Navigator.pushNamed(
-            context,AppRoutes.helpSupport),
+        onPressed: () => Navigator.pushNamed(context, AppRoutes.helpSupport),
         child: Icon(Icons.message_rounded),
       ),
     );
   }
-List<DataColumn> _buildColumns(ThemeData selectedThemeData, List<WeeklySettelementData> weeklySettelement) {
+
+  List<DataColumn> _buildColumns(ThemeData selectedThemeData,
+      List<WeeklySettelementData> weeklySettelement) {
     return [
       _buildSortableColumn(
         'Transaction ID',
-            (d) => d['transactionId'],
+        (d) => d['transactionId'],
         0,
         selectedThemeData,
       ),
       _buildSortableColumn(
         'Start Date',
-            (d) => d['startDate'],
+        (d) => d['startDate'],
         1,
         selectedThemeData,
       ),
       _buildSortableColumn(
         'End Date',
-            (d) => d['endDate'],
+        (d) => d['endDate'],
         2,
         selectedThemeData,
       ),
@@ -191,14 +195,14 @@ List<DataColumn> _buildColumns(ThemeData selectedThemeData, List<WeeklySetteleme
           selectedThemeData,
           numeric: true),
       _buildSortableColumn('Media House Share',
-              (d) => d['MediaHouseRevenueShare'], 7, selectedThemeData,
+          (d) => d['MediaHouseRevenueShare'], 7, selectedThemeData,
           numeric: true),
       _buildSortableColumn(
           'Total Purchases', (d) => d['TotalPurchases'], 8, selectedThemeData,
           numeric: true),
       _buildSortableColumn(
         'Most Purchased Movie',
-            (d) => d['MostPurchasedMovie'],
+        (d) => d['MostPurchasedMovie'],
         9,
         selectedThemeData,
       ),
@@ -225,7 +229,6 @@ List<DataColumn> _buildColumns(ThemeData selectedThemeData, List<WeeklySetteleme
     );
   }
 }
-
 
 class SettlementDataSource extends DataTableSource {
   List<WeeklySettelementData> _settlements;
@@ -254,16 +257,16 @@ class SettlementDataSource extends DataTableSource {
     DateTime date1 = DateTime.fromMillisecondsSinceEpoch(settlement.endDate!);
     String? endDate = DateFormat('dd-MM-yyyy').format(date1);
     return DataRow(cells: [
-      DataCell(Text(settlement.transactionId??'N/A')),
+      DataCell(Text(settlement.transactionId ?? 'N/A')),
       DataCell(Text(startDate.toString())),
       DataCell(Text(endDate.toString())),
-      DataCell(Text('\$${settlement.grossRevenue??'N/A'}')),
-      DataCell(Text('\$${settlement.taxDeduction??'N/A'}')),
-      DataCell(Text('\$${settlement.netRevenue??'N/A'}')),
-      DataCell(Text('\$${settlement.ottPlatformRevenueShare??'N/A'}')),
-      DataCell(Text('\$${settlement.mediaHouseSharePercentage??'N/A'}')),
-      DataCell(Text('${settlement.totalPurchases??'N/A'}')),
-      DataCell(Text(settlement.mostPurchasedMovie??'N/A')),
+      DataCell(Text('\$${settlement.grossRevenue ?? 'N/A'}')),
+      DataCell(Text('\$${settlement.taxDeduction ?? 'N/A'}')),
+      DataCell(Text('\$${settlement.netRevenue ?? 'N/A'}')),
+      DataCell(Text('\$${settlement.ottPlatformRevenueShare ?? 'N/A'}')),
+      DataCell(Text('\$${settlement.mediaHouseSharePercentage ?? 'N/A'}')),
+      DataCell(Text('${settlement.totalPurchases ?? 'N/A'}')),
+      DataCell(Text(settlement.mostPurchasedMovie ?? 'N/A')),
     ]);
   }
 

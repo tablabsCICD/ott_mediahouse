@@ -21,37 +21,39 @@ class BasicInfoSlide extends StatelessWidget {
             UploadFormHelpers.buildSectionCard(
               'Content Details',
               [
-                CustomTextField(
-                  controller: provider.titleController,
-                  hintText: "Content Name",
-                  textInputType: TextInputType.text,
-                ),
-                const SizedBox(height: 16),
-                CustomTextField(
-                  controller: provider.descriptionController,
-                  hintText: "Description",
-                  textInputType: TextInputType.text,
-                ),
-                const SizedBox(height: 16),
-                UploadFormHelpers.buildModernDateField(context, provider, themeData, (pickedDate) {
+                UploadFormHelpers.buildModernDateField(
+                    context, provider, themeData, (pickedDate) {
                   provider.setDate(pickedDate);
                 }),
                 const SizedBox(height: 16),
                 CustomTextField(
+                  controller: provider.titleController,
+                  hintText: "Enter content name",
+                  label: "Content Name",
+                  textInputType: TextInputType.text,
+                ),
+                CustomTextField(
+                  controller: provider.descriptionController,
+                  hintText: "Enter description",
+                  label: 'Description',
+                  textInputType: TextInputType.text,
+                ),
+                CustomTextField(
                   controller: provider.runTimeController,
-                  hintText: "Runtime (e.g., 181 minutes)",
+                  hintText: "Enter runtime in min.",
+                  label: "Runtime",
                   textInputType: TextInputType.number,
                 ),
-                const SizedBox(height: 16),
                 CustomTextField(
                   controller: provider.priceController,
-                  hintText: "Price (e.g., 300)",
+                  hintText: "Enter price",
+                  label: "Price",
                   textInputType: TextInputType.text,
                 ),
               ],
               themeData,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
             UploadFormHelpers.buildSectionCard(
               'Classification',
               [
@@ -104,4 +106,3 @@ class BasicInfoSlide extends StatelessWidget {
     });
   }
 }
-

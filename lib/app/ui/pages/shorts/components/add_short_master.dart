@@ -180,7 +180,7 @@ class AddShortMaster {
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: theme.canvasColor,
+                              color: theme.primaryColor,
                             ),
                           ),
                           IconButton(
@@ -218,7 +218,10 @@ class AddShortMaster {
                       if (uploadProgress > 0 && uploadProgress < 1)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
-                          child: LinearProgressIndicator(value: uploadProgress),
+                          child: LinearProgressIndicator(
+                            value: uploadProgress,
+                            color: theme.primaryColor,
+                          ),
                         ),
 
                       const SizedBox(height: 15),
@@ -284,53 +287,59 @@ class AddShortMaster {
                         onPressed: isSubmitting
                             ? null
                             : () async {
-                          final error = validate();
-                          if (error != null) {
-                            showGlobalSnack(error);
-                            return;
-                          }
+                                final error = validate();
+                                if (error != null) {
+                                  showGlobalSnack(error);
+                                  return;
+                                }
 
-                          setState(() => isSubmitting = true);
+                                setState(() => isSubmitting = true);
 
-                          final localSharePreferences = LocalSharePreferences();
-                          final mediaHouse =
-                          await localSharePreferences.getMediaHouse();
+                                final localSharePreferences =
+                                    LocalSharePreferences();
+                                final mediaHouse =
+                                    await localSharePreferences.getMediaHouse();
 
-                          if (mediaHouse == null) {
-                            setState(() => isSubmitting = false);
-                            showGlobalSnack("Sorry, Media House is not available.");
-                            return;
-                          }
+                                if (mediaHouse == null) {
+                                  setState(() => isSubmitting = false);
+                                  showGlobalSnack(
+                                      "Sorry, Media House is not available.");
+                                  return;
+                                }
 
-                          final body = {
-                            "title": titleCtrl.text.trim(),
-                            "description": descCtrl.text.trim(),
-                            "creatorName": creatorCtrl.text.trim(),
-                            "category": categoryCtrl.text.trim(),
-                            "totalParts": int.parse(partsCtrl.text),
-                            "coinsPerPart": int.parse(coinsCtrl.text),
-                            "isTrending": isTrending,
-                            "mediaHouseId": mediaHouse.id,
-                            "posterUrl": uploadedImageUrl,
-                            "likeCount": 0,
-                            "viewCount": 0,
-                          };
+                                final body = {
+                                  "title": titleCtrl.text.trim(),
+                                  "description": descCtrl.text.trim(),
+                                  "creatorName": creatorCtrl.text.trim(),
+                                  "category": categoryCtrl.text.trim(),
+                                  "totalParts": int.parse(partsCtrl.text),
+                                  "coinsPerPart": int.parse(coinsCtrl.text),
+                                  "isTrending": isTrending,
+                                  "mediaHouseId": mediaHouse.id,
+                                  "posterUrl": uploadedImageUrl,
+                                  "likeCount": 0,
+                                  "viewCount": 0,
+                                };
 
-                          final success = await provider.addShortMaster(body);
+                                final success =
+                                    await provider.addShortMaster(body);
 
-                          setState(() => isSubmitting = false);
+                                setState(() => isSubmitting = false);
 
-                          if (success) {
-                            if (Navigator.of(rootContext, rootNavigator: true).canPop()) {
-                              Navigator.of(rootContext, rootNavigator: true).pop();
-                            }
+                                if (success) {
+                                  if (Navigator.of(rootContext,
+                                          rootNavigator: true)
+                                      .canPop()) {
+                                    Navigator.of(rootContext,
+                                            rootNavigator: true)
+                                        .pop();
+                                  }
 
-                            Future.microtask(() {
-                              showGlobalSnack("Short added successfully");
-                            });
-                          }
-                        },
-
+                                  Future.microtask(() {
+                                    showGlobalSnack("Short added successfully");
+                                  });
+                                }
+                              },
                         child: isSubmitting
                             ? const SizedBox(
                                 height: 22,

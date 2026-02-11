@@ -59,17 +59,17 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   @override
   Widget build(BuildContext context) {
     ThemeProvider themeProvider =
-    Provider.of<ThemeProvider>(context, listen: false);
+        Provider.of<ThemeProvider>(context, listen: false);
     var selectedThemeData = themeProvider.getTheme;
 
     return Scaffold(
-      backgroundColor: selectedThemeData.scaffoldBackgroundColor,
+      backgroundColor: Colors.transparent,
       body: Center(
         child: Container(
           constraints: BoxConstraints(
             maxWidth: ResponsiveWidget.isMobile(context)
-                ? MediaQuery.of(context).size.width - 40
-                : MediaQuery.of(context).size.width - 700,
+                ? MediaQuery.of(context).size.width - 5
+                : MediaQuery.of(context).size.width - 70,
             maxHeight: MediaQuery.of(context).size.height - 40,
           ),
           margin: const EdgeInsets.all(20.0),
@@ -95,8 +95,12 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                     physics: const NeverScrollableScrollPhysics(),
                     children: [
                       BasicInfoSlide(themeData: selectedThemeData),
-                      UploadFilesSlide(themeData: selectedThemeData,type:provider.typeController.text.trim()),
-                      PricingSlide(themeData: selectedThemeData,type:provider.typeController.text.trim()),
+                      UploadFilesSlide(
+                          themeData: selectedThemeData,
+                          type: provider.typeController.text.trim()),
+                      PricingSlide(
+                          themeData: selectedThemeData,
+                          type: provider.typeController.text.trim()),
                     ],
                   ),
                 ),
@@ -116,71 +120,74 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       'Settings & Pricing'
     ];
 
-    return Container(
-      padding: const EdgeInsets.all(24.0),
-      decoration: BoxDecoration(
-        color: themeData.primaryColor.withOpacity(0.1),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        children: [
-          Row(
+    return Stack(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(24.0),
+          width: double.infinity,
+          decoration: BoxDecoration(
+              color: themeData.canvasColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12)),
+          child: Column(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: themeData.primaryColor.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Icon(
-                    Icons.arrow_back_ios_new,
-                    color: themeData.primaryColor,
-                    size: 20,
-                  ),
-                ),
+              SizedBox(
+                height: 12,
               ),
-              const Spacer(),
               Text(
                 'Upload Content',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: themeData.primaryColor,
                 ),
               ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: themeData.primaryColor,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Step ${_currentPage + 1}/3',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
+              const SizedBox(height: 16),
+              Text(
+                stepTitles[_currentPage],
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w500,
+                  color: themeData.canvasColor,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            stepTitles[_currentPage],
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: themeData.canvasColor,
+        ),
+        Positioned(
+          top: 5,
+          right: 5,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: themeData.primaryColor,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              'Step ${_currentPage + 1}/3',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
             ),
           ),
-        ],
-      ),
+        ),
+        Positioned(
+          top: 5,
+          left: 5,
+          child: IconButton(
+            onPressed: () => Navigator.pop(context),
+            style: IconButton.styleFrom(
+                backgroundColor:
+                    themeData.scaffoldBackgroundColor.withOpacity(0.3)),
+            icon: Icon(
+              Icons.close,
+              color: themeData.canvasColor,
+              size: 20,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -296,7 +303,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   void _handleButtonPress(VideoProvider provider, ThemeData themeData) {
     if (_currentPage == 2) {
       String type = provider.typeController.text.trim();
-      _handleAdd(provider, themeData,type);
+      _handleAdd(provider, themeData, type);
     } else {
       // Validation logic (keeping original logic)
       String releaseDate = provider.releaseDateController.text.trim();
@@ -307,7 +314,12 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       String priceText = provider.priceController.text.trim();
       double? price = double.tryParse(priceText);
 
-      if (releaseDate.isEmpty || title.isEmpty || price == null || price <= 0 || type.isEmpty || type==null) {
+      if (releaseDate.isEmpty ||
+          title.isEmpty ||
+          price == null ||
+          price <= 0 ||
+          type.isEmpty ||
+          type == null) {
         CustomToast.show(
           "Please enter valid title, price, and release date and content type",
           isSuccess: false,
@@ -316,14 +328,15 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       }
 
       if (_currentPage == 1) {
-        if(type=="MOVIE"){
-        if (movieUrl.isEmpty || trailerUrl.isEmpty) {
-          CustomToast.show(
-            "Please upload movie url and trailer url",
-            isSuccess: false,
-          );
-          return;
-        }}else{
+        if (type == "MOVIE") {
+          if (movieUrl.isEmpty || trailerUrl.isEmpty) {
+            CustomToast.show(
+              "Please upload movie url and trailer url",
+              isSuccess: false,
+            );
+            return;
+          }
+        } else {
           if (trailerUrl.isEmpty) {
             CustomToast.show(
               "Please upload trailer url",
@@ -332,7 +345,6 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             return;
           }
         }
-
       }
 
       try {
@@ -353,27 +365,26 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     }
   }
 
-  Future<void> _handleAdd(VideoProvider provider, ThemeData selectedThemeData, String type) async {
-   if(type=="MOVIE"){
-     Content? content = await provider.uploadContent(context);
-     if (content != null) {
-       Navigator.of(context).pop();
-     } else {
-       CustomToast.show(
-           "Failed to add content. Please check your inputs and try again.",
-           isSuccess: false);
-     }
-   }else{
-     Content? content = await provider.uploadSeries(context);
-     if (content != null) {
-       Navigator.of(context).pop();
-     } else {
-       CustomToast.show(
-           "Failed to add content. Please check your inputs and try again.",
-           isSuccess: false);
-     }
-   }
-
+  Future<void> _handleAdd(
+      VideoProvider provider, ThemeData selectedThemeData, String type) async {
+    if (type == "MOVIE") {
+      Content? content = await provider.uploadContent(context);
+      if (content != null) {
+        Navigator.of(context).pop();
+      } else {
+        CustomToast.show(
+            "Failed to add content. Please check your inputs and try again.",
+            isSuccess: false);
+      }
+    } else {
+      Content? content = await provider.uploadSeries(context);
+      if (content != null) {
+        Navigator.of(context).pop();
+      } else {
+        CustomToast.show(
+            "Failed to add content. Please check your inputs and try again.",
+            isSuccess: false);
+      }
+    }
   }
 }
-

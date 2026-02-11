@@ -148,7 +148,10 @@ class SeriesProvider extends ChangeNotifier {
       formData.appendBlob('video', file, file.name);
 
       xhr.upload.onProgress.listen((e) {
-        if (e.lengthComputable) {
+        if (e.lengthComputable == true &&
+            e.loaded != null &&
+            e.total != null &&
+            e.total! > 0) {
           final progress = e.loaded! / e.total!;
 
           movieUploadProgress = progress;

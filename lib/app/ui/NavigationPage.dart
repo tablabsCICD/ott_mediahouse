@@ -47,7 +47,7 @@ class _NavigationPageState extends State<NavigationPage> {
     Icons.bar_chart_sharp,
     Icons.document_scanner_outlined,
     Icons.transform_sharp,
-    Icons.person_outlined,
+    Icons.person,
   ];
 
   @override
@@ -80,9 +80,16 @@ class _NavigationPageState extends State<NavigationPage> {
               ),
               actions: [
                 // IconButton(
-                //   onPressed: () {},
+                //   onPressed: () async {
+                //     final localSharePreferences = LocalSharePreferences();
+                //     await localSharePreferences.logOut();
+                //     Navigator.pushReplacement(
+                //       context,
+                //       MaterialPageRoute(builder: (context) => SignInPage()),
+                //     );
+                //   },
                 //   icon: Icon(
-                //     Icons.notifications_on_sharp,
+                //     Icons.logout,
                 //     color: Colors.white,
                 //   ),
                 // ),
@@ -107,13 +114,13 @@ class _NavigationPageState extends State<NavigationPage> {
                   },
                   icon: Icon(
                     Icons.file_upload_outlined,
-                    color: selectedThemeData.canvasColor,
+                    color: Colors.white,
                   ),
                 ),
                 IconButton(
                   onPressed: () {
                     setState(() {
-                      _selectedIndex = 5;
+                      _selectedIndex = 8;
                     });
                   },
                   icon: Icon(

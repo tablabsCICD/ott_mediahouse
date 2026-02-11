@@ -28,11 +28,11 @@ class _ShortsPageState extends State<ShortsPage> {
     final crossAxisCount = ResponsiveWidget.isDesktop(context)
         ? 5
         : ResponsiveWidget.isTablet(context)
-        ? 4
-        : 2;
+            ? 4
+            : 2;
 
     final tileHeight = ResponsiveWidget.isDesktop(context) ||
-        ResponsiveWidget.isTablet(context)
+            ResponsiveWidget.isTablet(context)
         ? 300.0
         : 240.0;
 
@@ -57,10 +57,10 @@ class _ShortsPageState extends State<ShortsPage> {
           }
 
           if (provider.shorts.isEmpty) {
-            return const Center(
+            return Center(
               child: Text(
                 "No short films available",
-                style: TextStyle(color: Colors.white70),
+                style: TextStyle(color: theme.canvasColor),
               ),
             );
           }
@@ -105,6 +105,7 @@ class _ShortsPageState extends State<ShortsPage> {
           color: Colors.white,
         ),
       ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
@@ -147,14 +148,18 @@ class _ShortsPageState extends State<ShortsPage> {
   Widget _buildShortTile(dynamic short, ThemeData theme) {
     return GestureDetector(
       onTap: () async {
-        await context.read<ShortProvider>().fetchShortDetail(shortId:short.id, userId: 1);
+        await context
+            .read<ShortProvider>()
+            .fetchShortDetail(shortId: short.id, userId: 1);
       },
       child: GestureDetector(
         onTap: () async {
           final deleted = await Navigator.push<bool>(
             context,
             MaterialPageRoute(
-              builder: (_) => ShortMasterPage(shortId: short.id,),
+              builder: (_) => ShortMasterPage(
+                shortId: short.id,
+              ),
             ),
           );
 
@@ -168,7 +173,6 @@ class _ShortsPageState extends State<ShortsPage> {
 
             context.read<ShortProvider>().fetchShorts(); // refresh list
           }
-
         },
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
@@ -204,7 +208,7 @@ class _ShortsPageState extends State<ShortsPage> {
                   left: 10,
                   child: Container(
                     padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: theme.primaryColor.withOpacity(0.9),
                       borderRadius: BorderRadius.circular(8),

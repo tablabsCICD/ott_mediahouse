@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:media_house/app/config/routes/app_routes.dart';
+import 'package:media_house/app/core/constant/app_constant.dart';
 import 'package:media_house/app/provider/mediaHouseProvider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/provider/user_provider.dart';
@@ -42,15 +43,14 @@ class _ProfilePageState extends State<ProfilePage> {
     var selectedThemeData = themeProvider.getTheme;
     bool isDark = selectedThemeData.brightness == Brightness.dark;
 
-    return  Consumer<MediaHouseProvider>(
-        builder: (context, provider, child) {
+    return Consumer<MediaHouseProvider>(builder: (context, provider, child) {
       final mediaHouse = provider.mediaHouse;
 
       if (mediaHouse == null) {
         return const Center(child: CircularProgressIndicator());
       }
 
-      return  Scaffold(
+      return Scaffold(
         body: SingleChildScrollView(
           child: Center(
             child: Column(
@@ -71,24 +71,25 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       CircleAvatar(
                         radius: 50,
-                        backgroundImage: NetworkImage(provider.mediaHouse.logo??""),
+                        backgroundImage:
+                            NetworkImage(provider.mediaHouse.logo ?? ""),
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        provider.mediaHouse.mediaHouseName??"",
+                        provider.mediaHouse.mediaHouseName ?? "",
                         style: theme.textTheme.titleLarge?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        provider.mediaHouse.email??'',
+                        provider.mediaHouse.email ?? '',
                         style: theme.textTheme.titleSmall?.copyWith(
                           color: Colors.white70,
                         ),
                       ),
                       Text(
-                        provider.mediaHouse.user!.mobileNumber??"",
+                        provider.mediaHouse.user!.mobileNumber ?? "",
                         style: theme.textTheme.titleSmall?.copyWith(
                           color: Colors.white70,
                         ),
@@ -117,12 +118,10 @@ class _ProfilePageState extends State<ProfilePage> {
                 ProfileOption(
                   icon: Icons.support_agent_sharp,
                   title: "Help",
-                  onTap: () => Navigator.pushNamed(
-                    context,
-                   AppRoutes.helpSupport
-                  ),
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.helpSupport),
                 ),
-            /*    ProfileOption(
+                /*    ProfileOption(
                   icon: Icons.notifications,
                   title: "Notifications",
                   onTap: () => Navigator.push(
@@ -136,24 +135,53 @@ class _ProfilePageState extends State<ProfilePage> {
                   title: "Logout",
                   onTap: () async {
                     final localSharePreferences = LocalSharePreferences();
-                  await localSharePreferences.logOut();
+                    await localSharePreferences.logOut();
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(builder: (context) => SignInPage()),
                     );
                   },
                 ),
-                const SizedBox(height: 350),
+                const SizedBox(height: 550),
+                provider.mediaHouse.user!.refferedBy == null
+                    ? SizedBox()
+                    : Text(
+                        'Referred by: ${provider.mediaHouse.user!.refferedBy}',
+                        style: const TextStyle(color: Colors.grey),
+                      ),
                 Text(
-                  'Referred by: ${provider.mediaHouse.user!.refferedBy}',
-                  style: const TextStyle(color: Colors.grey),
-                )
+                  "Version · ${AppConstant.appVersion}",
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+
+                // Text(
+                //   'Joining date: ${userProvider.userObject.joinDate}',
+                //   style: const TextStyle(
+                //     color: Colors.grey,
+                //     fontWeight: FontWeight.bold,
+                //     fontSize: 12,
+                //   ),
+                // ),
+                const SizedBox(height: 2),
+                Text(
+                  "© Filmytell - All Rights Reserved.",
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 8,
+                  ),
+                ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
         ),
-      );}
-    );
+      );
+    });
   }
 }
 

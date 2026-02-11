@@ -31,7 +31,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
       backgroundColor: selectedThemeData.scaffoldBackgroundColor,
       body: Column(
         children: [
-          SizedBox(height: ResponsiveWidget.isMobile(context) ? 35 : 60),
+          SizedBox(height: ResponsiveWidget.isMobile(context) ? 95 : 60),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -50,7 +50,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 120),
           Center(
             child: SizedBox(
               width: ResponsiveWidget.isMobile(context) ? double.infinity : 400,

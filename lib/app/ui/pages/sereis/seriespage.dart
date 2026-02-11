@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../../provider/series_provider.dart';
 import '../../../widget/movieCardHorizontal.dart';
 import '../../../../device/utils/ResponsiveWidget.dart';
-import '../../../widget/custom_textfield.dart';
 
 class SeriesPage extends StatefulWidget {
   const SeriesPage({super.key});
@@ -31,7 +30,6 @@ class _SeriesPageState extends State<SeriesPage> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-
       body: Consumer<SeriesProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading) {
@@ -39,10 +37,10 @@ class _SeriesPageState extends State<SeriesPage> {
           }
 
           if (provider.filteredContentList.isEmpty) {
-            return const Center(
+            return Center(
               child: Text(
                 "No Series available",
-                style: TextStyle(color: Colors.white70),
+                style: TextStyle(color: theme.canvasColor),
               ),
             );
           }
@@ -51,28 +49,28 @@ class _SeriesPageState extends State<SeriesPage> {
             padding: const EdgeInsets.all(8),
             child: ResponsiveWidget.isMobile(context)
                 ? ListView.builder(
-              itemCount: provider.filteredContentList.length,
-              itemBuilder: (context, index) {
-                return MovieCardHorizontal(
-                  movie: provider.filteredContentList[index],
-                );
-              },
-            )
+                    itemCount: provider.filteredContentList.length,
+                    itemBuilder: (context, index) {
+                      return MovieCardHorizontal(
+                        movie: provider.filteredContentList[index],
+                      );
+                    },
+                  )
                 : GridView.builder(
-              itemCount: provider.filteredContentList.length,
-              gridDelegate:
-              const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 15,
-                mainAxisSpacing: 12,
-                childAspectRatio: 8 / 4,
-              ),
-              itemBuilder: (context, index) {
-                return MovieCardHorizontal(
-                  movie: provider.filteredContentList[index],
-                );
-              },
-            ),
+                    itemCount: provider.filteredContentList.length,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      crossAxisSpacing: 15,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 8 / 4,
+                    ),
+                    itemBuilder: (context, index) {
+                      return MovieCardHorizontal(
+                        movie: provider.filteredContentList[index],
+                      );
+                    },
+                  ),
           );
         },
       ),

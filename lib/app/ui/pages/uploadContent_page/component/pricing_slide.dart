@@ -10,7 +10,7 @@ import '../../../../provider/videoProvider.dart';
 class PricingSlide extends StatelessWidget {
   final ThemeData themeData;
   final String type;
-  const PricingSlide({super.key, required this.themeData,required this.type});
+  const PricingSlide({super.key, required this.themeData, required this.type});
 
   @override
   Widget build(BuildContext context) {
@@ -25,9 +25,21 @@ class PricingSlide extends StatelessWidget {
                 UploadFormHelpers.buildModernMultiSelectDropdownField(
                   'Genres',
                   [
-                    'Action', 'Drama', 'Comedy', 'Thriller', 'Horror',
-                    'Romance', 'Sci-Fi', 'Fantasy', 'Mystery', 'Documentary',
-                    'Animation', 'Adventure', 'Musical', 'Historical', 'Crime'
+                    'Action',
+                    'Drama',
+                    'Comedy',
+                    'Thriller',
+                    'Horror',
+                    'Romance',
+                    'Sci-Fi',
+                    'Fantasy',
+                    'Mystery',
+                    'Documentary',
+                    'Animation',
+                    'Adventure',
+                    'Musical',
+                    'Historical',
+                    'Crime'
                   ],
                   context,
                   themeData,
@@ -36,11 +48,31 @@ class PricingSlide extends StatelessWidget {
                 UploadFormHelpers.buildModernMultiSelectDropdownField(
                   'Languages',
                   [
-                    'Hindi', 'English', 'Bengali', 'Marathi', 'Telugu',
-                    'Tamil', 'Gujarati', 'Urdu', 'Kannada', 'Odia',
-                    'Malayalam', 'Punjabi', 'Assamese', 'Rajasthani',
-                    'Bhojpuri', 'Sindhi', 'Konkani', 'Maithili', 'Santali',
-                    'Manipuri', 'Kashmiri', 'Dogri', 'Tulu', 'Mizo', 'Bodo'
+                    'Hindi',
+                    'English',
+                    'Bengali',
+                    'Marathi',
+                    'Telugu',
+                    'Tamil',
+                    'Gujarati',
+                    'Urdu',
+                    'Kannada',
+                    'Odia',
+                    'Malayalam',
+                    'Punjabi',
+                    'Assamese',
+                    'Rajasthani',
+                    'Bhojpuri',
+                    'Sindhi',
+                    'Konkani',
+                    'Maithili',
+                    'Santali',
+                    'Manipuri',
+                    'Kashmiri',
+                    'Dogri',
+                    'Tulu',
+                    'Mizo',
+                    'Bodo'
                   ],
                   context,
                   themeData,
@@ -48,15 +80,19 @@ class PricingSlide extends StatelessWidget {
               ],
               themeData,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 8),
             UploadFormHelpers.buildSectionCard(
               'Audio & Subtitles',
               [
                 UploadFormHelpers.buildModernMultiSelectDropdownField(
                   'Audio Formats',
                   [
-                    'Stereo', 'Dolby', 'Mono', 'Surround Sound',
-                    'Dolby Atmos', 'Dolby Digital (AC-3)'
+                    'Stereo',
+                    'Dolby',
+                    'Mono',
+                    'Surround Sound',
+                    'Dolby Atmos',
+                    'Dolby Digital (AC-3)'
                   ],
                   context,
                   themeData,
@@ -65,17 +101,38 @@ class PricingSlide extends StatelessWidget {
                 UploadFormHelpers.buildModernMultiSelectDropdownField(
                   'Subtitle Languages',
                   [
-                    'Hindi', 'English', 'Bengali', 'Marathi', 'Telugu',
-                    'Tamil', 'Gujarati', 'Urdu', 'Kannada', 'Odia',
-                    'Malayalam', 'Punjabi', 'Assamese', 'Rajasthani',
-                    'Bhojpuri', 'Sindhi', 'Konkani', 'Maithili', 'Santali',
-                    'Manipuri', 'Kashmiri', 'Dogri', 'Tulu', 'Mizo', 'Bodo'
+                    'Hindi',
+                    'English',
+                    'Bengali',
+                    'Marathi',
+                    'Telugu',
+                    'Tamil',
+                    'Gujarati',
+                    'Urdu',
+                    'Kannada',
+                    'Odia',
+                    'Malayalam',
+                    'Punjabi',
+                    'Assamese',
+                    'Rajasthani',
+                    'Bhojpuri',
+                    'Sindhi',
+                    'Konkani',
+                    'Maithili',
+                    'Santali',
+                    'Manipuri',
+                    'Kashmiri',
+                    'Dogri',
+                    'Tulu',
+                    'Mizo',
+                    'Bodo'
                   ],
                   context,
                   themeData,
                 ),
                 const SizedBox(height: 24),
-                UploadMediaHelpers.buildDynamicLanguageAudioSection(context, themeData),
+                UploadMediaHelpers.buildDynamicLanguageAudioSection(
+                    context, themeData),
               ],
               themeData,
             ),
@@ -87,7 +144,7 @@ class PricingSlide extends StatelessWidget {
                   'Downloadable Content',
                   'Allow users to download this content',
                   provider.isDownloadable,
-                      (value) => provider.toggleDownloadable(value),
+                  (value) => provider.toggleDownloadable(value),
                   themeData,
                 ),
                 const SizedBox(height: 16),
@@ -95,16 +152,16 @@ class PricingSlide extends StatelessWidget {
                   'Featured Content',
                   'Mark as featured content',
                   provider.isFeatured,
-                      (value) {
+                  (value) {
                     provider.isFeatured == true
                         ? CustomToast.show(
-                      "You cannot disable this flag because the movie release date is still upcoming ${provider.releaseDateController.text}",
-                      isWarning: true,
-                    )
+                            "You cannot disable this flag because the movie release date is still upcoming ${provider.releaseDateController.text}",
+                            isWarning: true,
+                          )
                         : CustomToast.show(
-                      "You cannot enable this flag because the movie release date has already passed. ${provider.releaseDateController.text}",
-                      isWarning: true,
-                    );
+                            "You cannot enable this flag because the movie release date has already passed. ${provider.releaseDateController.text}",
+                            isWarning: true,
+                          );
                   },
                   themeData,
                 ),

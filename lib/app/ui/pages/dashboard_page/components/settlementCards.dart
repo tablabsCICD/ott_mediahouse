@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,9 +10,8 @@ import 'package:intl/intl.dart';
 
 import '../../../../provider/themeProvider.dart';
 import '../../../../widget/custom_textfield.dart';
+
 class SettlementCard extends StatefulWidget {
-
-
   @override
   _SettlementCardState createState() => _SettlementCardState();
 }
@@ -66,24 +64,29 @@ class _SettlementCardState extends State<SettlementCard> {
   Widget build(BuildContext context) {
     var selectedThemeData = Provider.of<ThemeProvider>(context).getTheme;
 
-
-    return Consumer<SettelementProvider>(
-        builder: (context, provider, child) {
-          return Column(
-            children: [
-              _buildSearchBar(selectedThemeData),
-              const SizedBox(height: 5),
-              provider.filleterdWeeklySettelement.isEmpty
-                  ? Center(
-                child: Text(
-                  "No settlement data available",
-                  style: TextStyle(color: selectedThemeData.primaryColor),
-                ),
-              )
-                  : _buildSettlementList(provider),
-            ],
-          );}
-    );
+    return Consumer<SettelementProvider>(builder: (context, provider, child) {
+      return Column(
+        children: [
+          _buildSearchBar(selectedThemeData),
+          const SizedBox(height: 5),
+          provider.filleterdWeeklySettelement.isEmpty
+              ? Center(
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 70,
+                      ),
+                      Text(
+                        "No settlement data available",
+                        style: TextStyle(color: selectedThemeData.primaryColor),
+                      ),
+                    ],
+                  ),
+                )
+              : _buildSettlementList(provider),
+        ],
+      );
+    });
   }
 
   Widget _buildSearchBar(ThemeData selectedThemeData) {
@@ -91,34 +94,34 @@ class _SettlementCardState extends State<SettlementCard> {
       padding: const EdgeInsets.symmetric(horizontal: 10.0),
       child: ResponsiveWidget.isMobile(context)
           ? SizedBox(
-        width: 400,
-        child: CustomTextField(
-          controller: searchController,
-          hintText: 'Search by dates, transaction ID ...',
-          textInputType: TextInputType.text,
-        ),
-      )
+              width: 400,
+              child: CustomTextField(
+                controller: searchController,
+                hintText: 'Search by dates, transaction ID ...',
+                textInputType: TextInputType.text,
+              ),
+            )
           : Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            'Weekly Settlement',
-            style: TextStyle(
-              color: selectedThemeData.primaryColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Weekly Settlement',
+                  style: TextStyle(
+                    color: selectedThemeData.primaryColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                SizedBox(
+                  width: 400,
+                  child: CustomTextField(
+                    controller: searchController,
+                    hintText: 'Search by dates, transaction ID ...',
+                    textInputType: TextInputType.text,
+                  ),
+                ),
+              ],
             ),
-          ),
-          SizedBox(
-            width: 400,
-            child: CustomTextField(
-              controller: searchController,
-              hintText: 'Search by dates, transaction ID ...',
-              textInputType: TextInputType.text,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -136,7 +139,8 @@ class _SettlementCardState extends State<SettlementCard> {
     );
   }
 
-  Widget _buildSettlementCard(BuildContext context, WeeklySettelementData data) {
+  Widget _buildSettlementCard(
+      BuildContext context, WeeklySettelementData data) {
     var selectedThemeData = Provider.of<ThemeProvider>(context).getTheme;
     DateTime date = DateTime.fromMillisecondsSinceEpoch(data.startDate!);
     String? startDate = DateFormat('dd-MM-yyyy').format(date);
@@ -271,8 +275,7 @@ class _SettlementCardState extends State<SettlementCard> {
                     'Gross Revenue', _parseNumber(data.grossRevenue)),
                 _buildDetailRow(
                     'Tax Deduction', _parseNumber(data.taxDeduction)),
-                _buildDetailRow(
-                    'Net Revenue', _parseNumber(data.netRevenue)),
+                _buildDetailRow('Net Revenue', _parseNumber(data.netRevenue)),
                 Divider(
                   color: selectedThemeData.canvasColor.withOpacity(0.2),
                 ),

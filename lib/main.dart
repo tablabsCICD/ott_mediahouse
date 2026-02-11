@@ -14,7 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app/config/routes/routes.dart';
 
 final GlobalKey<ScaffoldMessengerState> globalMessengerKey =
-GlobalKey<ScaffoldMessengerState>();
+    GlobalKey<ScaffoldMessengerState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:media_house/app/core/constant/image_constant.dart';
 import 'package:media_house/app/provider/mediaHouseProvider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/provider/user_provider.dart';
@@ -76,13 +77,38 @@ class _DashboardPageState extends State<DashboardPage> {
                     children: [
                       ListTile(
                         //tileColor: selectedThemeData.cardColor,
-                        leading: CircleAvatar(
-                          radius: 50,
-                          backgroundImage:
-                              NetworkImage(provider.mediaHouse.logo ?? ""),
+                        leading: Stack(
+                          alignment: AlignmentGeometry.center,
+                          children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundImage:
+                                  NetworkImage(provider.mediaHouse.logo ?? ""),
+                            ),
+                            (provider.mediaHouse.status ?? 'PENDING')
+                                        .toUpperCase() ==
+                                    'APPROVED'
+                                ? Positioned(
+                                    bottom: 2,
+                                    right: 2,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: selectedThemeData
+                                            .scaffoldBackgroundColor,
+                                      ),
+                                      child: Icon(
+                                        Icons.verified,
+                                        color: Colors.blue,
+                                        size: 14,
+                                      ),
+                                    ),
+                                  )
+                                : SizedBox(),
+                          ],
                         ),
                         title: Text(
-                          provider.mediaHouse.mediaHouseName ?? '',
+                          provider.mediaHouse.mediaHouseName ?? 'NA',
                           style: TextStyle(
                             color: selectedThemeData.primaryColor,
                             fontSize: 18,
@@ -105,9 +131,8 @@ class _DashboardPageState extends State<DashboardPage> {
                             BuildSummaryCard(
                               icon: Icons.currency_rupee_sharp,
                               title: "Revenue",
-                              value: provider
-                                  .mediaHouseDashboardData.viewRevenue
-                                  .toString(),
+                              value:
+                                  "${provider.mediaHouseDashboardData.viewRevenue ?? 0.0}",
                               onTap: () {
                                 showDialog(
                                   context: context,
@@ -131,8 +156,8 @@ class _DashboardPageState extends State<DashboardPage> {
                             BuildSummaryCard(
                               icon: Icons.visibility_outlined,
                               title: "Views",
-                              value: provider.mediaHouseDashboardData.totalViews
-                                  .toString(),
+                              value:
+                                  "${provider.mediaHouseDashboardData.totalViews ?? 0}",
                               onTap: () {
                                 showDialog(
                                   context: context,
@@ -156,9 +181,8 @@ class _DashboardPageState extends State<DashboardPage> {
                             BuildSummaryCard(
                               icon: Icons.play_circle_outline_sharp,
                               title: "Released Content",
-                              value: provider
-                                  .mediaHouseDashboardData.approvedContent
-                                  .toString(),
+                              value:
+                                  "${provider.mediaHouseDashboardData.approvedContent ?? 0}",
                               onTap: () {
                                 showDialog(
                                   context: context,
@@ -182,18 +206,16 @@ class _DashboardPageState extends State<DashboardPage> {
                             BuildSummaryCard(
                               icon: Icons.hourglass_top_outlined,
                               title: "Pending Content",
-                              value: provider
-                                  .mediaHouseDashboardData.pendingContentCount
-                                  .toString(),
+                              value:
+                                  "${provider.mediaHouseDashboardData.pendingContentCount ?? 0}",
                               onTap: () {},
                             ),
                             SizedBox(width: 10),
                             BuildSummaryCard(
                               icon: Icons.schedule,
                               title: "Upcoming Content",
-                              value: provider
-                                  .mediaHouseDashboardData.upcomingContentCount
-                                  .toString(),
+                              value:
+                                  "${provider.mediaHouseDashboardData.upcomingContentCount ?? 0}",
                               onTap: () {},
                             ),
                           ],
@@ -230,33 +252,53 @@ class _DashboardPageState extends State<DashboardPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          SizedBox(
-                            height: 50,
-                            child: CircleAvatar(
-                              radius: 50,
+                      ListTile(
+                        //tileColor: selectedThemeData.cardColor,
+                        leading: Stack(
+                          alignment: AlignmentGeometry.center,
+                          children: [
+                            CircleAvatar(
+                              radius: 30,
                               backgroundImage:
                                   NetworkImage(provider.mediaHouse.logo ?? ""),
                             ),
+                            (provider.mediaHouse.status ?? 'PENDING')
+                                        .toUpperCase() ==
+                                    'APPROVED'
+                                ? Positioned(
+                                    bottom: 3,
+                                    right: 3,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: selectedThemeData
+                                            .scaffoldBackgroundColor,
+                                      ),
+                                      child: Icon(
+                                        Icons.verified,
+                                        color: Colors.blue,
+                                        size: 14,
+                                      ),
+                                    ),
+                                  )
+                                : SizedBox(),
+                          ],
+                        ),
+                        title: Text(
+                          provider.mediaHouse.mediaHouseName ?? 'NA',
+                          style: TextStyle(
+                            color: selectedThemeData.primaryColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
-                          Text(
-                            provider.mediaHouse.mediaHouseName ?? "",
-                            style: TextStyle(
-                              color: selectedThemeData.primaryColor,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Spacer(),
-                          _buildActionButton(
-                              selectedThemeData,
-                              Icons.file_upload_outlined,
-                              "Upload Content",
-                              context,
-                              provider),
-                        ],
+                        ),
+                        subtitle: Text(provider.mediaHouse.email ?? ""),
+                        trailing: _buildActionButton(
+                            selectedThemeData,
+                            Icons.file_upload_outlined,
+                            "Upload Content",
+                            context,
+                            provider),
                       ),
                       SizedBox(height: 10),
                       Row(
@@ -269,9 +311,8 @@ class _DashboardPageState extends State<DashboardPage> {
                                   BuildSummaryCard(
                                     icon: Icons.currency_rupee_sharp,
                                     title: "Revenue",
-                                    value: provider
-                                        .mediaHouseDashboardData.viewRevenue
-                                        .toString(),
+                                    value:
+                                        "${provider.mediaHouseDashboardData.viewRevenue ?? 0.0}",
                                     onTap: () {
                                       showDialog(
                                         context: context,
@@ -295,9 +336,8 @@ class _DashboardPageState extends State<DashboardPage> {
                                   BuildSummaryCard(
                                     icon: Icons.visibility_outlined,
                                     title: "Views",
-                                    value: provider
-                                        .mediaHouseDashboardData.totalViews
-                                        .toString(),
+                                    value:
+                                        "${provider.mediaHouseDashboardData.totalViews ?? 0}",
                                     onTap: () {
                                       showDialog(
                                         context: context,
@@ -321,9 +361,8 @@ class _DashboardPageState extends State<DashboardPage> {
                                   BuildSummaryCard(
                                     icon: Icons.play_circle_outline_sharp,
                                     title: "Released Content",
-                                    value: provider
-                                        .mediaHouseDashboardData.approvedContent
-                                        .toString(),
+                                    value:
+                                        "${provider.mediaHouseDashboardData.approvedContent ?? 0}",
                                     onTap: () {
                                       showDialog(
                                         context: context,
@@ -347,18 +386,16 @@ class _DashboardPageState extends State<DashboardPage> {
                                   BuildSummaryCard(
                                     icon: Icons.hourglass_top_outlined,
                                     title: "Pending Content",
-                                    value: provider.mediaHouseDashboardData
-                                        .pendingContentCount
-                                        .toString(),
+                                    value:
+                                        "${provider.mediaHouseDashboardData.pendingContentCount ?? 0}",
                                     onTap: () {},
                                   ),
                                   SizedBox(width: 10),
                                   BuildSummaryCard(
                                     icon: Icons.schedule,
                                     title: "Upcoming Content",
-                                    value: provider.mediaHouseDashboardData
-                                        .upcomingContentCount
-                                        .toString(),
+                                    value:
+                                        "${provider.mediaHouseDashboardData.upcomingContentCount ?? 0}",
                                     onTap: () {},
                                   ),
                                 ],
@@ -419,7 +456,8 @@ class _DashboardPageState extends State<DashboardPage> {
           highlightColor: theme.primaryColor,
           tooltip: tooltip,
           onPressed: () {
-            provider.mediaHouse.status == "APPROVED"
+            (provider.mediaHouse.status ?? 'PENDING').toUpperCase() ==
+                    "APPROVED"
                 ? showDialog(
                     context: context,
                     builder: (BuildContext context) {
@@ -427,7 +465,7 @@ class _DashboardPageState extends State<DashboardPage> {
                         backgroundColor: theme.cardColor,
                         child: SizedBox(
                             width: ResponsiveWidget.isMobile(context)
-                                ? MediaQuery.of(context).size.width * 0.8
+                                ? MediaQuery.of(context).size.width * 0.9
                                 : MediaQuery.of(context).size.width *
                                     0.5, // 80% of screen width,
                             child: UploadVideoWidget()),

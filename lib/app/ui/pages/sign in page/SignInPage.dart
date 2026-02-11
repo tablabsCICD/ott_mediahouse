@@ -29,13 +29,14 @@ class _SignInPageState extends State<SignInPage> {
     return Scaffold(
       backgroundColor: selectedThemeData.scaffoldBackgroundColor,
       body: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           SizedBox(height: ResponsiveWidget.isMobile(context) ? 35 : 60),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                height: ResponsiveWidget.isMobile(context) ? 90 : 150,
+                height: ResponsiveWidget.isMobile(context) ? 120 : 150,
                 child: Hero(
                   tag: "logo",
                   child: ClipRRect(
@@ -49,13 +50,14 @@ class _SignInPageState extends State<SignInPage> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 50),
           Center(
             child: SizedBox(
               width: ResponsiveWidget.isMobile(context) ? double.infinity : 400,
               child: loginCard(),
             ),
           ),
+          const SizedBox(height: 200),
         ],
       ),
     );
