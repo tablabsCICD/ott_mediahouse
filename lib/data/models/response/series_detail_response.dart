@@ -35,74 +35,124 @@ class SeasonBundle {
   }
 }
 
-class Season {
-  final int id;
-  final String title;
-  final String description;
-  final String? posterUrl;
-  final int seasonNumber;
-  final int releaseDate;
-  final bool active;
-
-  Season({
-    required this.id,
-    required this.title,
-    required this.description,
-    this.posterUrl,
-    required this.seasonNumber,
-    required this.releaseDate,
-    required this.active,
-  });
-
-  factory Season.fromJson(Map<String, dynamic> json) {
-    return Season(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      posterUrl: json['posterUrl'],
-      seasonNumber: json['seasonNumber'],
-      releaseDate: json['releaseDate'],
-      active: json['active'],
-    );
-  }
-}
-
 class Episode {
-  final int id;
-  final int episodeNumber;
-  final String title;
-  final String description;
-  final String videoUrl;
-  final String posterUrl;
-  final int runtime;
-  final int releaseDate;
-  final bool free;
+  int? id;
+  int? episodeNumber;
+  String? title;
+  String? description;
+  String? videoUrl;
+  String? posterUrl;
+  int? runtime;
+  int? releaseDate;
+  int? seasonId;
+  int? amount;
+  int? viewCount;
+  String? partName;
+  bool? free;
+  bool? active;
 
   Episode({
-    required this.id,
-    required this.episodeNumber,
-    required this.title,
-    required this.description,
-    required this.videoUrl,
-    required this.posterUrl,
-    required this.runtime,
-    required this.releaseDate,
-    required this.free,
+    this.id,
+    this.episodeNumber,
+    this.title,
+    this.description,
+    this.videoUrl,
+    this.posterUrl,
+    this.runtime,
+    this.releaseDate,
+    this.seasonId,
+    this.amount,
+    this.viewCount,
+    this.partName,
+    this.free,
+    this.active,
   });
 
-  factory Episode.fromJson(Map<String, dynamic> json) {
-    return Episode(
-      id: json['id'],
-      episodeNumber: json['episodeNumber'],
-      title: json['title'],
-      description: json['description'],
-      videoUrl: json['videoUrl'],
-      posterUrl: json['posterUrl'],
-      runtime: json['runtime'],
-      releaseDate: json['releaseDate'],
-      free: json['free'],
-    );
-  }
+  factory Episode.fromJson(Map<String, dynamic> json) => Episode(
+    id: json["id"],
+    episodeNumber: json["episodeNumber"],
+    title: json["title"],
+    description: json["description"],
+    videoUrl: json["videoUrl"],
+    posterUrl: json["posterUrl"],
+    runtime: json["runtime"],
+    releaseDate: json["releaseDate"],
+    seasonId: json["seasonId"],
+    amount: json["amount"],
+    viewCount: json["viewCount"],
+    partName: json["partName"],
+    free: json["free"],
+    active: json["active"],
+  );
+
+  Map<String, dynamic> toJson() => {
+    "id": id,
+    "episodeNumber": episodeNumber,
+    "title": title,
+    "description": description,
+    "videoUrl": videoUrl,
+    "posterUrl": posterUrl,
+    "runtime": runtime,
+    "releaseDate": releaseDate,
+    "seasonId": seasonId,
+    "amount": amount,
+    "viewCount": viewCount,
+    "partName": partName,
+    "free": free,
+    "active": active,
+  };
+}
+
+class Season {
+  int? id;
+  String? title;
+  String? description;
+  dynamic posterUrl;
+  int? seasonNumber;
+  int? amount;
+  int? releaseDate;
+  int? viewCount;
+  int? contentId;
+  bool? active;
+
+  Season({
+    this.id,
+    this.title,
+    this.description,
+    this.posterUrl,
+    this.seasonNumber,
+    this.amount,
+    this.releaseDate,
+    this.viewCount,
+    this.contentId,
+    this.active,
+  });
+
+  factory Season.fromJson(Map<String, dynamic> json) => Season(
+    id: json["id"],
+    title: json["title"],
+    description: json["description"],
+    posterUrl: json["posterUrl"],
+    seasonNumber: json["seasonNumber"],
+    amount: json["amount"],
+    releaseDate: json["releaseDate"],
+    viewCount: json["viewCount"],
+    contentId: json["contentId"],
+    active: json["active"],
+  );
+
+  Map<String, dynamic> toJson() => {
+    "id": id,
+    "title": title,
+    "description": description,
+    "posterUrl": posterUrl,
+    "seasonNumber": seasonNumber,
+    "amount": amount,
+    "releaseDate": releaseDate,
+    "viewCount": viewCount,
+    "contentId": contentId,
+    "active": active,
+  };
 }
 
 class Series {

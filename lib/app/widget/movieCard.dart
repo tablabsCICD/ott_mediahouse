@@ -61,6 +61,7 @@ class MovieCard extends StatelessWidget {
                 child: Stack(
                   children: [
                     // Movie Poster
+
                     Positioned.fill(
                       child: Image.network(
                         poster_url,

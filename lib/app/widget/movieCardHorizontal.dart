@@ -18,6 +18,7 @@ class MovieCardHorizontal extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context, listen: true);
     final theme = themeProvider.getTheme;
@@ -29,7 +30,8 @@ class MovieCardHorizontal extends StatelessWidget {
             ? Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => MovieDetailsPage(movieId: movie.id!),
+            builder: (context) =>
+                MovieDetailsPage(movieId: movie.id!),
           ),
         )
             : Navigator.push(
@@ -45,6 +47,7 @@ class MovieCardHorizontal extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         padding: const EdgeInsets.all(12),
+        height: 175, // 👈 HARD FIX HEIGHT
         decoration: BoxDecoration(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(16),
@@ -52,17 +55,18 @@ class MovieCardHorizontal extends StatelessWidget {
         ),
         child: Column(
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _poster(),
-                const SizedBox(width: 14),
-                Expanded(child: _details(context)),
-              ],
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _poster(),
+                  const SizedBox(width: 14),
+                  Expanded(child: _details(context,theme)),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             _metaRow(),
-            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -72,24 +76,46 @@ class MovieCardHorizontal extends StatelessWidget {
   Widget _poster() {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
-      child: movie.posterUrlList != null &&
-          movie.posterUrlList!.isNotEmpty
-          ? Image.network(
-        movie.posterUrlList!.first,
+      child: SizedBox(
         width: 110,
         height: 155,
-        fit: BoxFit.cover,
-      )
-          : Container(
-        width: 110,
-        height: 155,
-        color: Colors.grey.shade300,
-        child: const Icon(Icons.movie, size: 45),
+        child: movie.posterUrlList != null &&
+            movie.posterUrlList!.isNotEmpty
+            ? Image.network(
+          movie.posterUrlList!.first,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return _errorPoster();
+          },
+        )
+            : _errorPoster(),
       ),
     );
   }
 
-  Widget _details(BuildContext context) {
+  Widget _errorPoster() {
+    return Container(
+      width: 110,
+      height: 155,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade300,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(Icons.movie, size: 45, color: Colors.black54),
+    );
+  }
+
+  Widget _details(BuildContext context, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -106,29 +132,37 @@ class MovieCardHorizontal extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            _contentTypeBadge(),
+            _contentTypeBadge(theme),
           ],
         ),
-        const SizedBox(height: 6),
 
-        _keyValue("Director", _join(movie.directorList)),
-        _keyValue("Cast", _join(movie.castList)),
-        _keyValue("Price", movie.price.toString() ?? "N/A"),
-        _keyValue("Total Revenue", movie.totalRevenue.toString() ?? "N/A"),
+        const SizedBox(height: 4),
 
-        const SizedBox(height: 8),
+        Expanded(   // 👈 THIS IS THE MAGIC FIX
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _keyValue("Director", _join(movie.directorList)),
+              _keyValue("Cast", _join(movie.castList)),
+              _keyValue("Price", movie.price?.toString() ?? "N/A"),
+              _keyValue(
+                  "Total Revenue", movie.totalRevenue?.toString() ?? "N/A"),
+            ],
+          ),
+        ),
+
         _ratingBar(),
       ],
     );
   }
 
-  Widget _contentTypeBadge() {
+  Widget _contentTypeBadge(ThemeData theme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: movie.type == "MOVIE"
-            ? Colors.blue.withOpacity(.12)
-            : Colors.purple.withOpacity(.12),
+            ? theme.primaryColor
+            : theme.primaryColor,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -136,7 +170,7 @@ class MovieCardHorizontal extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: movie.type == "MOVIE" ? Colors.blue : Colors.purple,
+          color: movie.type == "MOVIE" ?  theme.canvasColor : theme.canvasColor,
         ),
       ),
     );

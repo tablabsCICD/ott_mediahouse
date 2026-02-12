@@ -206,7 +206,7 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
 
     /// ✅ EXACT BODY AS SWAGGER
     final body = {
-      "amount": titleCtrl.text.trim(),
+      "amount": amountCtrl.text.trim(),
       "title": titleCtrl.text.trim(),
       "description": descCtrl.text.trim(),
       "episodeNumber": int.parse(episodeNoCtrl.text.trim()),
@@ -245,7 +245,7 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
             !provider.isMovieUploading;
 
     return _uploadCard(
-      title: "Movie File",
+      title: "Episode File",
       uploading: provider.isMovieUploading,
       progress: provider.movieUploadProgress,
       uploadedFileName: isUploaded ? "Video Uploaded" : null,
@@ -260,7 +260,7 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
     return StatefulBuilder(
       builder: (_, setState) {
         return _uploadCard(
-          title: "Thumbnail",
+          title: "Episode Poster",
           uploading: uploadProgress > 0 && uploadProgress < 1,
           progress: uploadProgress,
           preview: previewBytes,

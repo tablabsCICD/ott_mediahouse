@@ -33,6 +33,11 @@ class Content {
   double? adminIncentivePecentage;
   double? mediaHouseIncentivePecentage;
   String? reason;
+  dynamic active;
+  dynamic watchedSeconds;
+  dynamic watchedPercentage;
+  dynamic seasonId;
+  dynamic episodeId;
 
   Content({
     this.id,
@@ -68,7 +73,12 @@ class Content {
     this.rentlDuration,
     this.adminIncentivePecentage,
     this.mediaHouseIncentivePecentage,
-    this.reason
+    this.reason,
+    this.active,
+    this.watchedSeconds,
+    this.watchedPercentage,
+    this.seasonId,
+    this.episodeId
   });
 
   factory Content.fromJson(Map<String, dynamic> json) => Content(
@@ -105,7 +115,12 @@ class Content {
     rentlDuration: json["rentlDuration"],
     adminIncentivePecentage: json["adminIncentivePecentage"],
     mediaHouseIncentivePecentage: json["mediaHouseIncentivePecentage"],
-      reason: json['reason']
+      reason: json['reason'],
+    active: json["active"],
+    watchedSeconds: json["watchedSeconds"],
+    watchedPercentage: json["watchedPercentage"],
+    seasonId: json["seasonId"],
+    episodeId: json["episodeId"]
   );
 
   Map<String, dynamic> toJson() => {
@@ -142,7 +157,12 @@ class Content {
     "rentlDuration": rentlDuration,
     "adminIncentivePecentage":adminIncentivePecentage,
     "mediaHouseIncentivePecentage": mediaHouseIncentivePecentage,
-    "reason": reason
+    "active": active,
+    "reason": reason,
+    "watchedSeconds": watchedSeconds,
+    "watchedPercentage": watchedPercentage,
+    "seasonId": seasonId,
+    "episodeId": episodeId
   };
 }
 

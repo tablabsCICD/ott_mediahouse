@@ -25,7 +25,7 @@ class SeasonDetailPage extends StatelessWidget {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          seasonBundle.season.title,
+          seasonBundle.season.title??"",
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
@@ -115,7 +115,7 @@ class SeasonDetailPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      season.title,
+                      season.title??"",
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -124,7 +124,7 @@ class SeasonDetailPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      season.description,
+                      season.description??"",
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: Colors.white70),
@@ -141,7 +141,7 @@ class SeasonDetailPage extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _statChip(Icons.visibility, "Views", 0),
+              _statChip(Icons.visibility, "Views", season.viewCount??0),
               _statChip(Icons.favorite, "Likes", 0),
               _statChip(Icons.currency_rupee, "Revenue",0),
             ],
@@ -238,21 +238,32 @@ class SeasonDetailPage extends StatelessWidget {
               /// Thumbnail
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: ep.posterUrl.isNotEmpty
-                    ? Image.network(
-                  ep.posterUrl,
+                child: SizedBox(
                   height: 70,
                   width: 110,
-                  fit: BoxFit.cover,
-                )
-                    : Container(
-                  height: 70,
-                  width: 110,
-                  color: Colors.grey.shade800,
-                  child:
-                  const Icon(Icons.image_not_supported),
+                  child: (ep.posterUrl != null && ep.posterUrl!.isNotEmpty)
+                      ? Image.network(
+                    ep.posterUrl![0],
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return _errorImage();
+                    },
+                  )
+                      : _errorImage(),
                 ),
               ),
+
+
 
               const SizedBox(width: 14),
 
@@ -262,7 +273,7 @@ class SeasonDetailPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      ep.title,
+                      ep.title??"",
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -278,11 +289,11 @@ class SeasonDetailPage extends StatelessWidget {
                         _metaChip(Icons.timer,
                             "${ep.runtime ?? 0} min"),
                         _metaChip(Icons.visibility,
-                            "${0} views"),
+                            "${ep.viewCount} views"),
                         _metaChip(Icons.favorite,
                             "${0} likes"),
                         _metaChip(Icons.currency_rupee,
-                            "₹${0}"),
+                            "₹${ep.amount}"),
                       ],
                     ),
                   ],
@@ -304,7 +315,7 @@ class SeasonDetailPage extends StatelessWidget {
                     icon: const Icon(Icons.delete_outline,
                         color: Colors.red),
                     onPressed: () =>
-                        _deleteEpisode(context, ep.id),
+                        _deleteEpisode(context, ep.id!),
                   ),
                 ],
               ),
@@ -312,6 +323,19 @@ class SeasonDetailPage extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+  Widget _errorImage() {
+    return Container(
+      height: 70,
+      width: 110,
+      color: Colors.grey.shade800,
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.image_not_supported,
+        color: Colors.white54,
+        size: 24,
+      ),
     );
   }
 
@@ -382,7 +406,7 @@ class SeasonDetailPage extends StatelessWidget {
       barrierDismissible: false,
       builder: (_) => AddEpisodeDialog(
         seriesId: seriesId,
-        seasonId: seasonBundle.season.id,
+        seasonId: seasonBundle.season.id!,
         onSuccess: () {
           Provider.of<SeriesProvider>(context, listen: false)
               .loadSeries(seriesId);

@@ -49,8 +49,10 @@ class SeriesProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final url = Uri.parse(ApiConstant.seriesDetails(seriesId));
-      final response = await http.get(url);
+      final url = ApiConstant.seriesDetails(seriesId);
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.getApi(url);
+
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> jsonMap =
@@ -323,8 +325,9 @@ class SeriesProvider extends ChangeNotifier {
       final localSharePreferences = LocalSharePreferences();
       final mediaHouse =
       await localSharePreferences.getMediaHouse();
-      var url = Uri.parse(ApiConstant.shortsMaster(mediaHouse!.id));
-      var response = await http.get(url);
+      var url = ApiConstant.shortsMaster(mediaHouse!.id);
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.getApi(url);
       final data = jsonDecode(response.body);
 
       shorts =
@@ -342,13 +345,10 @@ class SeriesProvider extends ChangeNotifier {
       isLoading = true;
       notifyListeners();
 
-      final url = Uri.parse(ApiConstant.addShortMaster);
+      final url = ApiConstant.addShortMaster;
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.postApiWithBody(url,body);
 
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
-      );
 
       debugPrint("Request Body → ${jsonEncode(body)}");
       debugPrint("Response Code → ${response.statusCode}");
@@ -389,18 +389,12 @@ class SeriesProvider extends ChangeNotifier {
       isLoading = true;
       notifyListeners();
 
-      final url = Uri.parse(
-        "${ApiConstant.deleteShortMaster}/$shortId",
-      );
+      final url =
+        "${ApiConstant.deleteShortMaster}/$shortId";
 
       debugPrint("DELETE SHORT → $url");
-
-      final response = await http.delete(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      );
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.deleteApi(url);
 
       debugPrint("Delete Response Code → ${response.statusCode}");
       debugPrint("Delete Response Body → ${response.body}");
@@ -523,12 +517,8 @@ class SeriesProvider extends ChangeNotifier {
 
       debugPrint("URL => $apiUrl");
       debugPrint("BODY => ${jsonEncode(body)}");
-
-      final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
-      );
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.postApiWithBody(apiUrl,body);
 
       debugPrint("STATUS => ${response.statusCode}");
       debugPrint("RESPONSE => ${response.body}");
@@ -556,8 +546,9 @@ class SeriesProvider extends ChangeNotifier {
       detailError = null;
       notifyListeners();
 
-      var url = Uri.parse(ApiConstant.shortsDetails(shortId, userId));
-      var response = await http.get(url);
+      var url = ApiConstant.shortsDetails(shortId, userId);
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.getApi(url);
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -582,13 +573,12 @@ class SeriesProvider extends ChangeNotifier {
       isPartDeleting = true;
       notifyListeners();
 
-      final uri = Uri.parse(
-        "${ApiConstant.deletePart(partId)}",
-      );
+      final url =
+        "${ApiConstant.deletePart(partId)}";
 
       print("${ApiConstant.deletePart(partId)}");
-
-      final response = await http.delete(uri);
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.deleteApi(url);
       debugPrint(response.body);
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -616,13 +606,11 @@ class SeriesProvider extends ChangeNotifier {
     try {
       isSubmitting = true;
       notifyListeners();
-      debugPrint("${ApiConstant.baseUrl}api/short-parts/$partId");
 
-      final response = await http.put(
-        Uri.parse("${ApiConstant.baseUrl}api/short-parts/$partId"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
-      );
+      String url = "${ApiConstant.baseUrl}api/short-parts/$partId";
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.putApiWithBody(url,body);
+
       debugPrint(jsonEncode(body));
       debugPrint(response.body);
 
@@ -640,13 +628,10 @@ class SeriesProvider extends ChangeNotifier {
     try {
       isSubmitting = true;
       notifyListeners();
-      debugPrint("${ApiConstant.baseUrl}api/shortsMaster/$shortId");
 
-      final response = await http.put(
-        Uri.parse("${ApiConstant.baseUrl}api/shortsMaster/$shortId"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
-      );
+      String url = "${ApiConstant.baseUrl}api/shortsMaster/$shortId";
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.putApiWithBody(url,body);
       debugPrint(jsonEncode(body));
       debugPrint(response.body);
 

@@ -1,45 +1,129 @@
+import '../../domain/entities/content.dart';
+
+class ShortMasterResponse {
+  String? message;
+  Data? data;
+  bool? success;
+
+  ShortMasterResponse({
+    this.message,
+    this.data,
+    this.success,
+  });
+
+  factory ShortMasterResponse.fromJson(Map<String, dynamic> json) => ShortMasterResponse(
+    message: json["message"],
+    data: json["data"] == null ? null : Data.fromJson(json["data"]),
+    success: json["success"],
+  );
+
+  Map<String, dynamic> toJson() => {
+    "message": message,
+    "data": data?.toJson(),
+    "success": success,
+  };
+}
+
+class Data {
+  int? totalItems;
+  int? totalPages;
+  int? pageSize;
+  List<ShortModel>? shorts;
+  int? currentPage;
+
+  Data({
+    this.totalItems,
+    this.totalPages,
+    this.pageSize,
+    this.shorts,
+    this.currentPage,
+  });
+
+  factory Data.fromJson(Map<String, dynamic> json) => Data(
+    totalItems: json["totalItems"],
+    totalPages: json["totalPages"],
+    pageSize: json["pageSize"],
+    shorts: json["shorts"] == null ? [] : List<ShortModel>.from(json["shorts"]!.map((x) => ShortModel.fromJson(x))),
+    currentPage: json["currentPage"],
+  );
+
+  Map<String, dynamic> toJson() => {
+    "totalItems": totalItems,
+    "totalPages": totalPages,
+    "pageSize": pageSize,
+    "shorts": shorts == null ? [] : List<ShortModel>.from(shorts!.map((x) => x.toJson())),
+    "currentPage": currentPage,
+  };
+}
+
 class ShortModel {
-  final int id;
-  final String title;
-  final String posterUrl;
-  final int totalParts;
-  final int coinsPerPart;
-  final String creatorName;
-  final bool isTrending;
-  final String category;
-  final int viewCount;
-  final int likeCount;
-  final String description;
+  int? id;
+  String? title;
+  String? description;
+  String? posterUrl;
+  int? totalParts;
+  int? coinsPerPart;
+  String? creatorName;
+  int? viewCount;
+  int? likeCount;
+  bool? isTrending;
+  String? category;
+  int? mediaHouseId;
+  String? rentlDuration;
+  List<LanguageList>? languageList;
 
   ShortModel({
-    required this.id,
-    required this.title,
-    required this.posterUrl,
-    required this.totalParts,
-    required this.coinsPerPart,
-    required this.creatorName,
-    required this.isTrending,
-    required this.category,
-    required this.viewCount,
-    required this.likeCount,
-    required this.description,
+    this.id,
+    this.title,
+    this.description,
+    this.posterUrl,
+    this.totalParts,
+    this.coinsPerPart,
+    this.creatorName,
+    this.viewCount,
+    this.likeCount,
+    this.isTrending,
+    this.category,
+    this.mediaHouseId,
+    this.rentlDuration,
+    this.languageList,
   });
 
   factory ShortModel.fromJson(Map<String, dynamic> json) {
     return ShortModel(
       id: json["id"],
-      title: json["title"] ?? "",
-      posterUrl: json["posterUrl"] ?? "",
-      totalParts: json["totalParts"] ?? 0,
-      coinsPerPart: json["totalParts"] ?? 0,
-      creatorName: json["creatorName"] ?? "",
-      isTrending: json["isTrending"] ?? false,
-      category: json["category"] ?? "",
-      viewCount: json["viewCount"] ?? 0,
-      likeCount: json["likeCount"] ?? 0,
-      description: json["description"] ?? '',
+      title: json["title"],
+      description: json["description"],
+      posterUrl: json["posterUrl"],
+      totalParts: json["totalParts"],
+      coinsPerPart: json["coinsPerPart"],
+      creatorName: json["creatorName"],
+      viewCount: json["viewCount"],
+      likeCount: json["likeCount"],
+      isTrending: json["isTrending"],
+      category: json["category"],
+      mediaHouseId: json["mediaHouseId"],
+      rentlDuration: json["rentlDuration"],
+      languageList: json["languageList"] == null ? [] : List<LanguageList>.from(json["languageList"]!.map((x) => LanguageList.fromJson(x))),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    "id": id,
+    "title": title,
+    "description": description,
+    "posterUrl": posterUrl,
+    "totalParts": totalParts,
+    "coinsPerPart": coinsPerPart,
+    "creatorName": creatorName,
+    "viewCount": viewCount,
+    "likeCount": likeCount,
+    "isTrending": isTrending,
+    "category": category,
+    "mediaHouseId": mediaHouseId,
+    "rentlDuration": rentlDuration,
+    "languageList": languageList == null ? [] : List<dynamic>.from(languageList!.map((x) => x.toJson())),
+  };
 }
 
 class ShortDetailModel {

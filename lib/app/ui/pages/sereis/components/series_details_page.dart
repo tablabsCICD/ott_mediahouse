@@ -375,7 +375,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => SeasonDetailPage(
-                            seriesId: season.season.id,
+                            seriesId: season.season.id!,
                             seasonBundle: season,
                           ),
                         ),
@@ -561,7 +561,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            ep.title,
+                            ep.title??"",
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -575,7 +575,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
                             children: [
                               _metaChip(Icons.timer, "${ep.runtime} min"),
                               _metaChip(Icons.visibility,
-                                  "${0} views"),
+                                  "${ep.viewCount} views"),
                             ],
                           ),
                         ],

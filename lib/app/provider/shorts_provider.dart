@@ -12,6 +12,7 @@ import 'package:universal_html/html.dart' as html;
 
 import '../../data/models/response/short_detail_response.dart';
 import '../../data/models/response/video_upload_response.dart';
+import '../core/network/api_helper.dart';
 import '../core/utils/sharepreferences.dart';
 
 class ShortProvider extends ChangeNotifier {
@@ -216,12 +217,12 @@ class ShortProvider extends ChangeNotifier {
       final localSharePreferences = LocalSharePreferences();
       final mediaHouse =
       await localSharePreferences.getMediaHouse();
-      var url = Uri.parse(ApiConstant.shortsMaster(mediaHouse!.id));
-      var response = await http.get(url);
+      var url = ApiConstant.shortsMaster(mediaHouse!.id);
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.getApi(url);
       final data = jsonDecode(response.body);
-
-      shorts =
-          (data["data"] as List).map((e) => ShortModel.fromJson(e)).toList();
+      ShortMasterResponse shortMasterResponse = ShortMasterResponse.fromJson(data);
+      shorts = shortMasterResponse.data!.shorts!;
     } catch (e) {
       print("Shorts Fetch Error → $e");
     }
@@ -235,13 +236,11 @@ class ShortProvider extends ChangeNotifier {
       isLoading = true;
       notifyListeners();
 
-      final url = Uri.parse(ApiConstant.addShortMaster);
+      final url = ApiConstant.addShortMaster;
 
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
-      );
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.postApiWithBody(url,body);
+
 
       debugPrint("Request Body → ${jsonEncode(body)}");
       debugPrint("Response Code → ${response.statusCode}");
@@ -282,18 +281,14 @@ class ShortProvider extends ChangeNotifier {
       isLoading = true;
       notifyListeners();
 
-      final url = Uri.parse(
-        "${ApiConstant.deleteShortMaster}/$shortId",
-      );
+      final url =
+        "${ApiConstant.deleteShortMaster}/$shortId";
 
       debugPrint("DELETE SHORT → $url");
 
-      final response = await http.delete(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      );
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.deleteApi(url);
+
 
       debugPrint("Delete Response Code → ${response.statusCode}");
       debugPrint("Delete Response Body → ${response.body}");
@@ -412,14 +407,8 @@ class ShortProvider extends ChangeNotifier {
 
       String apiUrl =  ApiConstant.createShortPart;
       print(apiUrl);
-      print(jsonEncode(body));
-      final response = await http.post(
-        Uri.parse(
-         apiUrl
-        ),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
-      );
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.postApiWithBody(apiUrl,body);
       print(response.body);
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
@@ -443,8 +432,9 @@ class ShortProvider extends ChangeNotifier {
       detailError = null;
       notifyListeners();
 
-      var url = Uri.parse(ApiConstant.shortsDetails(shortId, userId));
-      var response = await http.get(url);
+      var url = ApiConstant.shortsDetails(shortId, userId);
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.getApi(url);
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -469,13 +459,10 @@ class ShortProvider extends ChangeNotifier {
       isPartDeleting = true;
       notifyListeners();
 
-      final uri = Uri.parse(
-        "${ApiConstant.deletePart(partId)}",
-      );
-
-      print("${ApiConstant.deletePart(partId)}");
-
-      final response = await http.delete(uri);
+      final url =
+        "${ApiConstant.deletePart(partId)}";
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.deleteApi(url);
       debugPrint(response.body);
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -503,13 +490,10 @@ class ShortProvider extends ChangeNotifier {
     try {
       isSubmitting = true;
       notifyListeners();
-      debugPrint("${ApiConstant.baseUrl}api/short-parts/$partId");
 
-      final response = await http.put(
-        Uri.parse("${ApiConstant.baseUrl}api/short-parts/$partId"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
-      );
+      String url = "${ApiConstant.baseUrl}api/short-parts/$partId";
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.postApiWithBody(url,body);
       debugPrint(jsonEncode(body));
       debugPrint(response.body);
 
@@ -527,13 +511,9 @@ class ShortProvider extends ChangeNotifier {
     try {
       isSubmitting = true;
       notifyListeners();
-      debugPrint("${ApiConstant.baseUrl}api/shortsMaster/$shortId");
-
-      final response = await http.put(
-        Uri.parse("${ApiConstant.baseUrl}api/shortsMaster/$shortId"),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(body),
-      );
+      String url = "${ApiConstant.baseUrl}api/shortsMaster/$shortId";
+      ApiHelper apiHelper = ApiHelper();
+      var response = await apiHelper.postApiWithBody(url,body);
       debugPrint(jsonEncode(body));
       debugPrint(response.body);
 

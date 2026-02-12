@@ -228,7 +228,7 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
                       _darkField("Title", titleCtrl),
                       _videoUploadCard(provider),
                       _thumbnailUploadCard(),
-                      _darkField("Coins", coinsCtrl),
+                      _darkField("Price Per Short", coinsCtrl),
                       _freePreviewSwitch(),
                     ],
                   ),
@@ -328,7 +328,7 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
             !provider.isMovieUploading;
 
     return _uploadCard(
-      title: "Movie File",
+      title: "Short File",
       uploading: provider.isMovieUploading,
       progress: provider.movieUploadProgress,
       uploadedFileName: isUploaded ? uploadedVideoName : null,
@@ -346,7 +346,7 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
     return StatefulBuilder(
       builder: (_, setState) {
         return _uploadCard(
-          title: "Thumbnail",
+          title: "Short Poster",
           uploading: uploadProgress > 0 && uploadProgress < 1,
           progress: uploadProgress,
           preview: previewBytes,
@@ -438,24 +438,6 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 6),
-
-            /// 🎬 META INFO
-            Row(
-              children: [
-                if (duration != null)
-                  Text(
-                    "⏱ $duration",
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
-                const SizedBox(width: 12),
-                if (size != null)
-                  Text(
-                    "📦 $size",
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  ),
               ],
             ),
 

@@ -104,20 +104,21 @@ class _PendingContentPageState extends State<PendingContentPage> {
               },
             )
                 : GridView.builder(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              padding: const EdgeInsets.only(bottom: 12),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 crossAxisSpacing: 15,
-                mainAxisSpacing: 1,
-                childAspectRatio: 8 / 4,
+                mainAxisSpacing: 15,
+                mainAxisExtent: 210, // 👈 Perfect fixed height
               ),
               itemCount: provider.filteredContentList.length,
               itemBuilder: (context, index) {
                 final movie = provider.filteredContentList[index];
-                return MovieCardHorizontal(
-                  movie: movie,
-                );
+                return MovieCardHorizontal(movie: movie);
               },
-            ),
+            )
+
+
           ),
           floatingActionButton: Padding(
             padding: const EdgeInsets.all(8.0),
