@@ -49,7 +49,7 @@ class CustomTextField extends StatefulWidget {
   });
 
   @override
-  _CustomTextFieldState createState() => _CustomTextFieldState();
+  State<CustomTextField> createState() => _CustomTextFieldState();
 }
 
 class _CustomTextFieldState extends State<CustomTextField> {
@@ -57,6 +57,9 @@ class _CustomTextFieldState extends State<CustomTextField> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final inputTheme = theme.inputDecorationTheme;
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
@@ -80,34 +83,21 @@ class _CustomTextFieldState extends State<CustomTextField> {
             textCapitalization: widget.capitalization,
             readOnly: widget.readOnly ?? false,
             maxLines: widget.maxLine,
-            cursorColor: const Color(0xFFE50914),
+            cursorColor: theme.primaryColor,
             inputFormatters: widget.isPhoneNumber
                 ? [FilteringTextInputFormatter.digitsOnly]
                 : [FilteringTextInputFormatter.singleLineFormatter],
             validator: _buildValidator(),
             onChanged: widget.onValueChange,
             decoration: InputDecoration(
-              filled: true,
-              fillColor: Theme.of(context).cardColor,
+              filled: inputTheme.filled,
+              fillColor: inputTheme.fillColor,
               hintText: widget.hintText,
-              hintStyle: const TextStyle(fontSize: 14),
-              // Border properties
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(
-                    color: Colors.grey[400]!), // Default border color
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(
-                    color: Colors.grey[400]!), // Border color when enabled
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(
-                    color: Theme.of(context).primaryColor,
-                    width: 2), // Border color when focused
-              ),
+              hintStyle: inputTheme.hintStyle,
+              border: inputTheme.border,
+              enabledBorder: inputTheme.enabledBorder,
+              focusedBorder: inputTheme.focusedBorder,
+              contentPadding: inputTheme.contentPadding,
               suffixIcon: widget.isPassword
                   ? IconButton(
                       icon: Icon(

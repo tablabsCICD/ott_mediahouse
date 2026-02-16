@@ -21,7 +21,7 @@ class ApiConstant {
   static String deleteMediaHouseById(id) =>
       "${baseUrl}api/deleteMediaHouseBy/$id";
   static String searchMediaHouse(char) =>
-      "${baseUrl}api/searchByanyKey%20?search=$char";
+      "${baseUrl}api/searchByanyKey?search=$char";
   static String getMediaHouseByStatus(status) =>
       "${baseUrl}api/MediaHouse/getByStatus?status=$status";
   static String changeMediaHouseStatus(status, id) =>
@@ -36,14 +36,14 @@ class ApiConstant {
   static String getVideoByMediaHouseId(id) =>
       "${baseUrl}api/content/byMediaHouse?mediaHouseId=$id";
   static String searchContent(char) =>
-      "${baseUrl}api/searchByanyKey%20?search=$char";
+      "${baseUrl}api/searchByanyKey?search=$char";
   static String deleteVideoById(id) => "${baseUrl}api/deleteContentBy/$id";
   static String getVideoByStatusAndMediaHouse(status, id) =>
       "${baseUrl}api/Approvalstatus/mediahouseid2?approvalStatus=$status&mediaHouseId=$id";
   static String changeContentStatus(status, id) =>
       "${baseUrl}api/ApprovecontentListBy?contentListId=$id&status=$status";
   static String getReleaseVideoByMediaHouse(id) =>
-      "${baseUrl}api/getReleaseContentByMediahouseId%20?mediaHouseId=$id";
+      "${baseUrl}api/getReleaseContentByMediahouseId?mediaHouseId=$id";
 
   static String savePromoter = '${baseUrl}api/savePromoters2';
   static String editPromoterById = "${baseUrl}user/updateUserBy/%7Bid%7D";

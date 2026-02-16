@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:media_house/app/provider/graphProvider.dart';
 import 'package:media_house/app/ui/pages/movie%20details%20page/MovieDetailsPage.dart';
 import 'package:media_house/app/widget/TopMoviesLineGraph.dart';
@@ -6,127 +7,17 @@ import 'package:media_house/data/models/response/reportAndDataResponse.dart';
 import 'package:provider/provider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 
-import '../../../core/utils/sharepreferences.dart';
-
 class AnalyticsPage extends StatefulWidget {
+  const AnalyticsPage({super.key});
+
   @override
-  _AnalyticsPageState createState() => _AnalyticsPageState();
+  State<AnalyticsPage> createState() => _AnalyticsPageState();
 }
 
 class _AnalyticsPageState extends State<AnalyticsPage> {
- /* final List<Map<String, dynamic>> movies = [
-    {
-      "id": 1,
-      "name": "Inception",
-      "releaseDate": "2025-01-10",
-      "views": 5000,
-      "revenue": 1500000,
-      "commission": 35,
-      "profit": 1500000 - (35 / 100 * 1500000),
-    },
-    {
-      "id": 2,
-      "name": "Batman",
-      "releaseDate": "2025-01-12",
-      "views": 6200,
-      "revenue": 1800000,
-      "commission": 46,
-      "profit": 1800000 - (46 / 100 * 1800000),
-    },
-    {
-      "id": 3,
-      "name": "The Dark Knight",
-      "releaseDate": "2025-01-15",
-      "views": 8500,
-      "revenue": 2500000,
-      "commission": 40,
-      "profit": 2500000 - (40 / 100 * 2500000),
-    },
-    {
-      "id": 4,
-      "name": "Avengers: Endgame",
-      "releaseDate": "2025-01-18",
-      "views": 10000,
-      "revenue": 3500000,
-      "commission": 35,
-      "profit": 3500000 - (35 / 100 * 3500000),
-    },
-    {
-      "id": 5,
-      "name": "Zero",
-      "releaseDate": "2025-01-22",
-      "views": 7800,
-      "revenue": 2200000,
-      "commission": 39,
-      "profit": 2200000 - (39 / 100 * 2200000),
-    },
-    {
-      "id": 6,
-      "name": "The Matrix",
-      "releaseDate": "2025-01-25",
-      "views": 5400,
-      "revenue": 1600000,
-      "commission": 56,
-      "profit": 1600000 - (56 / 100 * 1600000),
-    },
-    {
-      "id": 1,
-      "name": "Inception",
-      "releaseDate": "2025-01-10",
-      "views": 5000,
-      "revenue": 1500000,
-      "commission": 35,
-      "profit": 1500000 - (35 / 100 * 1500000),
-    },
-    {
-      "id": 2,
-      "name": "Batman",
-      "releaseDate": "2025-01-12",
-      "views": 6200,
-      "revenue": 1800000,
-      "commission": 46,
-      "profit": 1800000 - (46 / 100 * 1800000),
-    },
-    {
-      "id": 3,
-      "name": "The Dark Knight",
-      "releaseDate": "2025-01-15",
-      "views": 8500,
-      "revenue": 2500000,
-      "commission": 40,
-      "profit": 2500000 - (40 / 100 * 2500000),
-    },
-    {
-      "id": 4,
-      "name": "Avengers: Endgame",
-      "releaseDate": "2025-01-18",
-      "views": 10000,
-      "revenue": 3500000,
-      "commission": 35,
-      "profit": 3500000 - (35 / 100 * 3500000),
-    },
-    {
-      "id": 5,
-      "name": "Zero",
-      "releaseDate": "2025-01-22",
-      "views": 7800,
-      "revenue": 2200000,
-      "commission": 39,
-      "profit": 2200000 - (39 / 100 * 2200000),
-    },
-    {
-      "id": 6,
-      "name": "The Matrix",
-      "releaseDate": "2025-01-25",
-      "views": 5400,
-      "revenue": 1600000,
-      "commission": 56,
-      "profit": 1600000 - (56 / 100 * 1600000),
-    },
-  ];
-*/
   bool _isAscending = true;
   bool _sortByRevenue = true;
+  final NumberFormat _numberFormat = NumberFormat("#,##0.##");
 
   void _toggleSortOrder() {
     setState(() {
@@ -141,147 +32,181 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   }
 
   List<ReportAndDataObject> getSortedMovies(GraphProvider provider) {
-    List<ReportAndDataObject> sortedMovies = List.from(provider.reportAndDataList);
+    List<ReportAndDataObject> sortedMovies =
+        List.from(provider.reportAndDataList);
     sortedMovies.sort((a, b) {
       if (_sortByRevenue) {
         return _isAscending
-            ? a.totalRevenue.compareTo(b.totalRevenue)
-            : b.totalRevenue.compareTo(a.totalRevenue);
+            ? _toDouble(a.totalRevenue).compareTo(_toDouble(b.totalRevenue))
+            : _toDouble(b.totalRevenue).compareTo(_toDouble(a.totalRevenue));
       } else {
         return _isAscending
-            ? a.contentName!.compareTo(b.contentName!)
-            : b.contentName!.compareTo(a.contentName!);
+            ? (a.contentName ?? '').compareTo(b.contentName ?? '')
+            : (b.contentName ?? '').compareTo(a.contentName ?? '');
       }
     });
     return sortedMovies;
   }
 
-  Widget buildMovieTable(GraphProvider provider) {
+  double _toDouble(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString()) ?? 0;
+  }
+
+  int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  String _formatNumber(num value) {
+    return _numberFormat.format(value);
+  }
+
+  Widget _buildSummaryCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
     var selectedThemeData =
         Provider.of<ThemeProvider>(context, listen: true).getTheme;
-   // List<ReportAndDataObject> sortedMovies = getSortedMovies(provider);
 
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: selectedThemeData.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: selectedThemeData.primaryColor.withValues(alpha: 0.75),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: selectedThemeData.primaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMovieTable(
+      List<ReportAndDataObject> movies, ThemeData selectedThemeData) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.end,
           children: [
-            TextButton(
-              style: TextButton.styleFrom(
-                backgroundColor: selectedThemeData.cardColor,
-                foregroundColor: selectedThemeData.canvasColor,
-              ),
+            OutlinedButton.icon(
               onPressed: _toggleSortCriteria,
-              child: Text(
-                _sortByRevenue ? "Sort by Name" : "Sort by Revenue",
-                style: TextStyle(
-                  color: selectedThemeData.primaryColor,
-                ),
-              ),
+              icon: const Icon(Icons.swap_horiz),
+              label: Text(_sortByRevenue ? "Sort: Revenue" : "Sort: Name"),
             ),
-            SizedBox(
-              width: 5,
-            ),
-            TextButton(
-              style: TextButton.styleFrom(
-                backgroundColor: selectedThemeData.cardColor,
-                foregroundColor: selectedThemeData.canvasColor,
-              ),
+            OutlinedButton.icon(
               onPressed: _toggleSortOrder,
-              child: Text(
-                _isAscending ? "Descending" : "Ascending",
-                style: TextStyle(
-                  color: selectedThemeData.primaryColor,
-                ),
-              ),
+              icon: Icon(_isAscending
+                  ? Icons.arrow_upward_rounded
+                  : Icons.arrow_downward_rounded),
+              label: Text(_isAscending ? "Ascending" : "Descending"),
             ),
           ],
         ),
-        SizedBox(height: 10),
-        Table(
-          border: TableBorder.all(color: Colors.grey),
-          columnWidths: {
-            0: FlexColumnWidth(2),
-            1: FlexColumnWidth(1),
-            2: FlexColumnWidth(1),
-            3: FlexColumnWidth(1),
-            4: FlexColumnWidth(1),
-            5: FlexColumnWidth(1),
-            6: FlexColumnWidth(1),
-          },
-          children: [
-            TableRow(children: [
-              _tableHeader("Movie Name", selectedThemeData.primaryColor),
-              _tableHeader("Release Date", selectedThemeData.primaryColor),
-              _tableHeader("Views", selectedThemeData.primaryColor),
-              _tableHeader("Revenue", selectedThemeData.primaryColor),
-              _tableHeader("Commission %", selectedThemeData.primaryColor),
-              _tableHeader("Net Revenue", selectedThemeData.primaryColor),
-              _tableHeader("Movie Details", selectedThemeData.primaryColor),
-            ]),
-            ...provider.reportAndDataList
-                .map((movie) => TableRow(children: [
-                      _tableCell(movie.contentName??''),
-                      _tableCell(movie.releasedDate??'0'),
-                      _tableCell("${movie.totalViews??'0'}"),
-                      _tableCell("${movie.totalRevenue??'0'}"),
-                      _tableCell("${movie.currentPecentageIncentive??'0'}%"),
-                      _tableCell("${movie.earnedIncentive}"),
-                      Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: TextButton(
-                          style: TextButton.styleFrom(
-                            backgroundColor: selectedThemeData.cardColor,
-                            foregroundColor: selectedThemeData.primaryColor,
-                          ),
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => MovieDetailsPage(
-                                  movieId: movie.contentId!,
-                                ),
-                              ),
-                            );
-                          },
-                          child: Text("See Details"),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingTextStyle: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: selectedThemeData.primaryColor,
+            ),
+            columns: const [
+              DataColumn(label: Text("Content")),
+              DataColumn(label: Text("Release Date")),
+              DataColumn(label: Text("Views"), numeric: true),
+              DataColumn(label: Text("Revenue"), numeric: true),
+              DataColumn(label: Text("Commission %"), numeric: true),
+              DataColumn(label: Text("Net Revenue"), numeric: true),
+              DataColumn(label: Text("Details")),
+            ],
+            rows: movies
+                .map(
+                  (movie) => DataRow(
+                    cells: [
+                      DataCell(Text(movie.contentName ?? '-')),
+                      DataCell(Text("${movie.releasedDate ?? '-'}")),
+                      DataCell(Text(_formatNumber(_toInt(movie.totalViews)))),
+                      DataCell(Text(_formatNumber(_toDouble(movie.totalRevenue)))),
+                      DataCell(Text("${movie.currentPecentageIncentive ?? 0}%")),
+                      DataCell(Text(_formatNumber(_toInt(movie.earnedIncentive)))),
+                      DataCell(
+                        TextButton(
+                          onPressed: movie.contentId == null
+                              ? null
+                              : () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => MovieDetailsPage(
+                                        movieId: movie.contentId!,
+                                      ),
+                                    ),
+                                  );
+                                },
+                          child: const Text("Open"),
                         ),
                       ),
-                    ]))
+                    ],
+                  ),
+                )
                 .toList(),
-          ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _tableHeader(String title, Color color) {
-    return Padding(
-      padding: EdgeInsets.all(8.0),
-      child: Text(
-        title,
-        style: TextStyle(fontWeight: FontWeight.bold, color: color),
-      ),
-    );
-  }
-
-  Widget _tableCell(String value) {
-    return Padding(
-      padding: EdgeInsets.all(8.0),
-      child: Text(value),
-    );
-  }
-
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     _initData();
   }
 
-  _initData() async {
-    await Provider.of<GraphProvider>(context, listen: false).getReportAndData(context);
+  Future<void> _initData() async {
+    await Provider.of<GraphProvider>(context, listen: false)
+        .getReportAndData(context);
   }
 
   @override
@@ -293,40 +218,156 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       backgroundColor: selectedThemeData.scaffoldBackgroundColor,
       body: Consumer<GraphProvider>(
         builder: (context, provider, child) {
-          return Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("Performance Overview",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                SizedBox(height: 10),
-                Container(
-                  height: 400,
-                  padding: EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: selectedThemeData.cardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 5)],
+          final sortedMovies = getSortedMovies(provider);
+          final totalViews = sortedMovies.fold<int>(
+            0,
+            (sum, movie) => sum + _toInt(movie.totalViews),
+          );
+          final totalRevenue = sortedMovies.fold<double>(
+            0,
+            (sum, movie) => sum + _toDouble(movie.totalRevenue),
+          );
+          final totalNetRevenue = sortedMovies.fold<int>(
+            0,
+            (sum, movie) => sum + _toInt(movie.earnedIncentive),
+          );
+
+          return RefreshIndicator(
+            onRefresh: _initData,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Analytics",
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      color: selectedThemeData.primaryColor,
+                    ),
                   ),
-                  child: TopMoviesLineGraph(isRevenue:false),
-                ),
-                SizedBox(height: 20),
-                Text("Reports & Data",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                SizedBox(height: 10),
-                Card(
+                  const SizedBox(height: 4),
+                  Text(
+                    "Monitor performance and revenue across all published content.",
+                    style: TextStyle(
+                      color: selectedThemeData.primaryColor.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = constraints.maxWidth > 900;
+                      final cardWidth = isWide
+                          ? (constraints.maxWidth - 24) / 3
+                          : constraints.maxWidth;
+
+                      return Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          SizedBox(
+                            width: cardWidth,
+                            child: _buildSummaryCard(
+                              title: "Total Content",
+                              value: "${sortedMovies.length}",
+                              icon: Icons.movie_creation_outlined,
+                              color: Colors.blue,
+                            ),
+                          ),
+                          SizedBox(
+                            width: cardWidth,
+                            child: _buildSummaryCard(
+                              title: "Total Views",
+                              value: _formatNumber(totalViews),
+                              icon: Icons.visibility_outlined,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          SizedBox(
+                            width: cardWidth,
+                            child: _buildSummaryCard(
+                              title: "Total Revenue",
+                              value: _formatNumber(totalRevenue),
+                              icon: Icons.attach_money_rounded,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "Performance Overview",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: selectedThemeData.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    height: 360,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: selectedThemeData.cardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black26, blurRadius: 5)
+                      ],
+                    ),
+                    child: TopMoviesLineGraph(isRevenue: false),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    "Reports & Data",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: selectedThemeData.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Card(
                     color: selectedThemeData.cardColor,
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: buildMovieTable(provider),
-                    )),
-              ],
+                      padding: const EdgeInsets.all(16),
+                      child: sortedMovies.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 24),
+                                child: Text(
+                                  "No report data found.",
+                                  style: TextStyle(
+                                    color: selectedThemeData.primaryColor
+                                        .withValues(alpha: 0.7),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : _buildMovieTable(sortedMovies, selectedThemeData),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      "Net Revenue: ${_formatNumber(totalNetRevenue)}",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: selectedThemeData.primaryColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );}
-      )
+          );
+        },
+      ),
     );
   }
 }

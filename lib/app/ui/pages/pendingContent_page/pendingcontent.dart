@@ -23,9 +23,14 @@ class _PendingContentPageState extends State<PendingContentPage> {
   String selectedStatus = "All"; // Default status
   bool isLoading = true; // Simulating loading state
 
+  late ScrollController _scrollController;
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+
     // Simulate loading state
     Future.delayed(Duration(milliseconds: 500), () {
       setState(() {
@@ -38,6 +43,7 @@ class _PendingContentPageState extends State<PendingContentPage> {
       final localSharePreferences = LocalSharePreferences();
       final mediaHouse = await localSharePreferences.getMediaHouse();
       final provider = Provider.of<VideoProvider>(context, listen: false);
+      provider.setItemsPerPage(10);
       provider.fetchMoviesByStatusAndMediaHouseId(selectedStatus, mediaHouse!.id!);
     });
 
@@ -46,28 +52,44 @@ class _PendingContentPageState extends State<PendingContentPage> {
       setState(() {
         searchQuery = _searchController.text.toLowerCase();
       });
+      final provider = Provider.of<VideoProvider>(context, listen: false);
+      provider.resetPagination();
     });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
+  void _onScroll() {
+    if (_scrollController.position.pixels ==
+        _scrollController.position.maxScrollExtent) {
+      _loadMoreItems();
+    }
+  }
+
+  void _loadMoreItems() {
+    final provider = Provider.of<VideoProvider>(context, listen: false);
+    if (provider.hasMoreItems && !provider.isLoadingMore) {
+      provider.loadNextPage();
+    }
+  }
 
   Future<void> updateStatus(String status) async {
-
     setState(() {
       selectedStatus = status;
-      isLoading = true; // Display loading during status change
+      isLoading = true;
     });
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
     final provider = Provider.of<VideoProvider>(context, listen: false);
-    provider.fetchMoviesByStatusAndMediaHouseId(status,mediaHouse!.id! ).then((_) {
+    provider.resetPagination();
+    provider.fetchMoviesByStatusAndMediaHouseId(status, mediaHouse!.id!).then((_) {
       setState(() {
-        isLoading = false; // Loading complete
+        isLoading = false;
       });
     });
   }
@@ -79,6 +101,8 @@ class _PendingContentPageState extends State<PendingContentPage> {
 
     return Consumer<VideoProvider>(
       builder: (context, provider, child) {
+        final displayedItems = provider.getAllItemsUpToCurrentPage();
+        final hasMoreItems = provider.hasMoreItems;
 
         return Scaffold(
           backgroundColor: selectedThemeData.scaffoldBackgroundColor,
@@ -92,33 +116,70 @@ class _PendingContentPageState extends State<PendingContentPage> {
             ),
           )
               : Padding(
-            padding: const EdgeInsets.only(left: 8.0,right: 8,top: 70,bottom: 10),
+            padding: const EdgeInsets.only(left: 8.0, right: 8, top: 70, bottom: 10),
             child: ResponsiveWidget.isMobile(context)
                 ? ListView.builder(
-              itemCount: provider.filteredContentList.length,
+              controller: _scrollController,
+              itemCount: displayedItems.length + (hasMoreItems ? 1 : 0),
               itemBuilder: (context, index) {
-                Content movie = provider.filteredContentList[index];
-                return MovieCardHorizontal(
-                  movie: movie,
-                );
-              },
-            )
-                : GridView.builder(
-              padding: const EdgeInsets.only(bottom: 12),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                crossAxisSpacing: 15,
-                mainAxisSpacing: 15,
-                mainAxisExtent: 210, // 👈 Perfect fixed height
-              ),
-              itemCount: provider.filteredContentList.length,
-              itemBuilder: (context, index) {
-                final movie = provider.filteredContentList[index];
+                if (index == displayedItems.length) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 12),
+                        Text(
+                          provider.getPageInfo(),
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                Content movie = displayedItems[index];
                 return MovieCardHorizontal(movie: movie);
               },
             )
-
-
+                : Stack(
+              children: [
+                GridView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.only(bottom: 12),
+                  gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    crossAxisSpacing: 15,
+                    mainAxisSpacing: 15,
+                    mainAxisExtent: 210,
+                  ),
+                  itemCount: displayedItems.length,
+                  itemBuilder: (context, index) {
+                    final movie = displayedItems[index];
+                    return MovieCardHorizontal(movie: movie);
+                  },
+                ),
+                if (hasMoreItems)
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 8),
+                          Text(
+                            provider.getPageInfo(),
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           floatingActionButton: Padding(
             padding: const EdgeInsets.all(8.0),
