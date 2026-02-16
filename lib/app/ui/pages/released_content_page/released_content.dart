@@ -6,31 +6,34 @@ import 'package:media_house/app/widget/custom_textfield.dart';
 import 'package:media_house/app/widget/movieCard.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:provider/provider.dart';
+import '../../../../domain/entities/content.dart';
 import '../../../core/utils/sharepreferences.dart';
 
 class ReleasedContentPage extends StatefulWidget {
+  const ReleasedContentPage({super.key});
+
   @override
-  _ReleasedContentPageState createState() => _ReleasedContentPageState();
+  State<ReleasedContentPage> createState() => _ReleasedContentPageState();
 }
 
 class _ReleasedContentPageState extends State<ReleasedContentPage> {
-  final TextEditingController _searchController = TextEditingController();
-  String searchQuery = "";
+  String selectedContentType = "MOVIE";
   String? selectedGenre;
   String? selectedLanguage;
   double? selectedRating;
   bool isLoading = true;
+  late final ScrollController _scrollController;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(_onScroll);
     _fetchData();
-    _initializeSearchController();
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -41,22 +44,63 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
 
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
+    if (!mounted) return;
+
     if (mediaHouse != null) {
-      await Provider.of<VideoProvider>(context, listen: false)
-          .fetchReleasedMoviesByMediaHouseId(mediaHouse.id!);
+      final provider = Provider.of<VideoProvider>(context, listen: false);
+      provider.setItemsPerPage(10);
+      provider.resetPagination();
+      await provider.fetchReleasedMoviesByMediaHouseId(mediaHouse.id!);
     }
 
+    if (!mounted) return;
     setState(() {
       isLoading = false;
     });
   }
 
-  void _initializeSearchController() {
-    _searchController.addListener(() {
-      setState(() {
-        searchQuery = _searchController.text.toLowerCase();
-      });
-    });
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 100) {
+      _loadMoreItems();
+    }
+  }
+
+  void _loadMoreItems() {
+    final provider = Provider.of<VideoProvider>(context, listen: false);
+    final movies = _filteredMovies(provider);
+    if (provider.hasMoreForCount(movies.length) && !provider.isLoadingMore) {
+      provider.loadNextPageForCount(movies.length);
+    }
+  }
+
+  bool _isSeries(Content movie) {
+    final type = (movie.type ?? "").toLowerCase();
+    return type.contains("series") || movie.seasonId != null;
+  }
+
+  List<Content> _filteredMovies(VideoProvider provider) {
+    final query = provider.searchContentController.text.toLowerCase();
+
+    return provider.filteredContentList.where((movie) {
+      final title = movie.title?.toLowerCase() ?? "";
+      final genres = movie.genreList ?? <String>[];
+      final rating = movie.ratings ?? 0.0;
+      final movieLanguages = movie.languageList ?? [];
+      final isSeries = _isSeries(movie);
+      final typeMatches = selectedContentType == "SERIES" ? isSeries : !isSeries;
+
+      final languageMatches = selectedLanguage == null ||
+          movieLanguages.any((lang) =>
+              (lang.language ?? '').toLowerCase() ==
+              selectedLanguage!.toLowerCase());
+
+      return typeMatches &&
+          (query.isEmpty || title.contains(query)) &&
+          (selectedGenre == null || genres.contains(selectedGenre)) &&
+          languageMatches &&
+          (selectedRating == null || rating >= selectedRating!);
+    }).toList();
   }
 
   void clearFilters() {
@@ -65,6 +109,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
       selectedLanguage = null;
       selectedRating = null;
     });
+    Provider.of<VideoProvider>(context, listen: false).resetPagination();
   }
 
   void applyFilter(String? genre, String? language, double? rating) {
@@ -73,6 +118,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
       selectedLanguage = language;
       selectedRating = rating;
     });
+    Provider.of<VideoProvider>(context, listen: false).resetPagination();
     Navigator.pop(context); // Close the dialog
   }
 
@@ -89,21 +135,13 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final movies = provider.filteredContentList.where((movie) {
-            final title = movie.title?.toLowerCase() ?? "";
-            final genres = movie.genreList ?? [];
-            final language = movie.languageList ?? "";
-            final rating = movie.ratings ?? 0.0;
-
-            return (searchQuery.isEmpty || title.contains(searchQuery)) &&
-                (selectedGenre == null || genres.contains(selectedGenre)) &&
-                (selectedLanguage == null || language == selectedLanguage) &&
-                (selectedRating == null || rating >= selectedRating!);
-          }).toList();
+          final movies = _filteredMovies(provider);
+          final displayedCount = provider.visibleCountFor(movies.length);
+          final displayedItems = movies.take(displayedCount).toList();
 
           return Stack(
             children: [
-              movies.isEmpty
+              displayedItems.isEmpty
                   ? Center(
                 child: Text(
                   "No movies found",
@@ -121,6 +159,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
                   right: ResponsiveWidget.isMobile(context) ? 8 : 16,
                 ),
                 child: GridView.builder(
+                  controller: _scrollController,
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: ResponsiveWidget.isDesktop(context)
                         ? 5
@@ -131,9 +170,14 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
                     mainAxisSpacing: 8,
                     childAspectRatio: 3 / 5,
                   ),
-                  itemCount: movies.length,
+                  itemCount:
+                  displayedItems.length + (provider.isLoadingMore ? 1 : 0),
                   itemBuilder: (context, index) {
-                    final movie = movies[index];
+                    if (index == displayedItems.length) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final movie = displayedItems[index];
                     return MovieCard(
                       movieId: movie.id!,
                       movieName: movie.title ?? "",
@@ -143,6 +187,56 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
                       movie:movie
                     );
                   },
+                ),
+              ),
+              Positioned(
+                left: 16,
+                top: 10,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: selectedThemeData.cardColor,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Row(
+                    children: [
+                      ChoiceChip(
+                        label: const Text("Movies"),
+                        selected: selectedContentType == "MOVIE",
+                        selectedColor: selectedThemeData.primaryColor,
+                        labelStyle: TextStyle(
+                          color: selectedContentType == "MOVIE"
+                              ? selectedThemeData.scaffoldBackgroundColor
+                              : selectedThemeData.primaryColor,
+                        ),
+                        onSelected: (_) {
+                          setState(() {
+                            selectedContentType = "MOVIE";
+                          });
+                          Provider.of<VideoProvider>(context, listen: false)
+                              .resetPagination();
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: const Text("Series"),
+                        selected: selectedContentType == "SERIES",
+                        selectedColor: selectedThemeData.primaryColor,
+                        labelStyle: TextStyle(
+                          color: selectedContentType == "SERIES"
+                              ? selectedThemeData.scaffoldBackgroundColor
+                              : selectedThemeData.primaryColor,
+                        ),
+                        onSelected: (_) {
+                          setState(() {
+                            selectedContentType = "SERIES";
+                          });
+                          Provider.of<VideoProvider>(context, listen: false)
+                              .resetPagination();
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
               Positioned(
@@ -177,9 +271,15 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
         child: SizedBox(
           width: ResponsiveWidget.isMobile(context) ? double.infinity : 400,
           child: CustomTextField(
-            controller: _searchController,
-            hintText: "Search movies...",
+            controller:
+            Provider.of<VideoProvider>(context, listen: false)
+                .searchContentController,
+            hintText: "Search released content...",
             prefixIcon: const Icon(Icons.search),
+            onValueChange: (_) {
+              Provider.of<VideoProvider>(context, listen: false)
+                  .resetPagination();
+            },
             textInputType: TextInputType.text,
           ),
         ),

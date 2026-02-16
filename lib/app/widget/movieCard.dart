@@ -22,6 +22,50 @@ class MovieCard extends StatelessWidget {
     required this.rating_count, required this.movie,
   });
 
+  num _toNum(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value;
+    return num.tryParse(value.toString()) ?? 0;
+  }
+
+  String _compact(num value) {
+    if (value >= 10000000) {
+      return "${(value / 10000000).toStringAsFixed(1)}Cr";
+    }
+    if (value >= 100000) {
+      return "${(value / 100000).toStringAsFixed(1)}L";
+    }
+    if (value >= 1000) {
+      return "${(value / 1000).toStringAsFixed(1)}K";
+    }
+    return value.toStringAsFixed(0);
+  }
+
+  Widget _metricChip(IconData icon, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.white),
+          const SizedBox(width: 3),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 10,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ResponsiveWidget.isDesktop(context)
@@ -113,6 +157,24 @@ class MovieCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _metricChip(
+                                Icons.visibility_outlined,
+                                _compact(_toNum(movie.views)),
+                              ),
+                              _metricChip(
+                                Icons.thumb_up_alt_outlined,
+                                _compact(_toNum(movie.ratingCount)),
+                              ),
+                              _metricChip(
+                                Icons.currency_rupee,
+                                _compact(_toNum(movie.totalRevenue)),
+                              ),
+                            ],
+                          ),
 
                           // Text(
                           //   '${movie['rating']}',
@@ -229,6 +291,24 @@ class MovieCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _metricChip(
+                                Icons.visibility_outlined,
+                                _compact(_toNum(movie.views)),
+                              ),
+                              _metricChip(
+                                Icons.thumb_up_alt_outlined,
+                                _compact(_toNum(movie.ratingCount)),
+                              ),
+                              _metricChip(
+                                Icons.currency_rupee,
+                                _compact(_toNum(movie.totalRevenue)),
+                              ),
+                            ],
+                          ),
 
                           // Text(
                           //   '${movie['rating']}',

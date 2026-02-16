@@ -5,11 +5,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:media_house/data/models/request/save_series_request.dart';
+import 'package:media_house/data/models/response/allContentResponse.dart';
 import 'package:media_house/data/models/response/content_image_upload_response.dart';
 import 'package:media_house/data/models/response/video_upload_response.dart';
-//import 'dart:html' as html;
 import 'package:universal_html/html.dart' as html;
-
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:media_house/app/widget/get_date_time.dart';
@@ -30,12 +29,34 @@ import '../core/constant/api_constant.dart';
 import '../core/network/api_helper.dart';
 import '../core/utils/sharepreferences.dart';
 import '../widget/show_toast.dart';
-import 'dart:io';
 import 'dart:typed_data';
 
 class VideoProvider extends ChangeNotifier {
   VideoProvider() : super() {
     searchContentController.addListener(filterContent);
+  }
+
+  // ===========================
+  // PAGINATION PROPERTIES (MINIMAL)
+  // ===========================
+  int _currentPage = 1;
+  int _itemsPerPage = 10;
+  int _totalItems = 0;
+  bool _isLoadingMore = false;
+  bool _hasMoreItems = true;
+
+  // Getters for pagination
+  int get currentPage => _currentPage;
+  int get itemsPerPage => _itemsPerPage;
+  int get totalItems => _totalItems;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMoreItems => _hasMoreItems;
+
+  // Setter to change items per page
+  void setItemsPerPage(int items) {
+    _itemsPerPage = items;
+    resetPagination();
+    notifyListeners();
   }
 
   TextEditingController searchContentController = TextEditingController();
@@ -49,7 +70,7 @@ class VideoProvider extends ChangeNotifier {
   final TextEditingController releaseDateController = TextEditingController();
   final TextEditingController rentlDurationController = TextEditingController();
   final TextEditingController censorCertificateController =
-      TextEditingController();
+  TextEditingController();
   final TextEditingController titleController = TextEditingController();
   final TextEditingController reasonController = TextEditingController();
   final TextEditingController typeController = TextEditingController();
@@ -60,7 +81,7 @@ class VideoProvider extends ChangeNotifier {
   final TextEditingController castController = TextEditingController();
   final TextEditingController directorController = TextEditingController();
   final TextEditingController rentalDurationController =
-      TextEditingController();
+  TextEditingController();
 
   bool isEnbale = false;
   List<Content> _contentList = [];
@@ -115,14 +136,125 @@ class VideoProvider extends ChangeNotifier {
   // Dynamic audio language controllers and lists
   final Map<String, TextEditingController> audioControllers = {};
   final List<String> _audioLanguages = [];
-  List<String> get audioLanguages =>
-      _audioLanguages; // Public getter for the private list
+  List<String> get audioLanguages => _audioLanguages;
 
   // Specific upload statuses and progress for dynamic audio files
   final Map<String, double> _audioUploadProgress = {};
   final Map<String, bool> _isAudioUploading = {};
 
-  // Helper method to get uploading status by label
+  // ===========================
+  // PAGINATION METHODS (MINIMAL)
+  // ===========================
+
+  /// Reset pagination to initial state
+  void resetPagination() {
+    _currentPage = 1;
+    _hasMoreItems = true;
+    _isLoadingMore = false;
+    notifyListeners();
+  }
+
+  /// Load next page of items
+  void loadNextPage() {
+    if (!_isLoadingMore && _hasMoreItems) {
+      _isLoadingMore = true;
+      notifyListeners();
+
+      Future.delayed(Duration(milliseconds: 300), () {
+        _currentPage++;
+        _updateHasMoreItems();
+        _isLoadingMore = false;
+        notifyListeners();
+      });
+    }
+  }
+
+  /// Load next page based on an externally filtered total count.
+  Future<void> loadNextPageForCount(int totalCount) async {
+    if (_isLoadingMore) return;
+
+    if ((_currentPage * _itemsPerPage) >= totalCount) {
+      _hasMoreItems = false;
+      notifyListeners();
+      return;
+    }
+
+    _isLoadingMore = true;
+    notifyListeners();
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    _currentPage++;
+    _hasMoreItems = (_currentPage * _itemsPerPage) < totalCount;
+    _isLoadingMore = false;
+    notifyListeners();
+  }
+
+  /// Load previous page
+  void loadPreviousPage() {
+    if (_currentPage > 1) {
+      _currentPage--;
+      _updateHasMoreItems();
+      notifyListeners();
+    }
+  }
+
+  /// Jump to specific page
+  void jumpToPage(int pageNumber) {
+    final maxPages = getTotalPages();
+    if (pageNumber > 0 && pageNumber <= maxPages) {
+      _currentPage = pageNumber;
+      _updateHasMoreItems();
+      notifyListeners();
+    }
+  }
+
+  /// Update whether more items are available
+  void _updateHasMoreItems() {
+    final endIndex = _currentPage * _itemsPerPage;
+    _hasMoreItems = endIndex < _filteredContentList.length;
+  }
+
+  /// Get all items up to current page (for infinite scroll)
+  List<Content> getAllItemsUpToCurrentPage() {
+    final endIndex = _currentPage * _itemsPerPage;
+    if (_filteredContentList.isEmpty) return [];
+
+    return _filteredContentList.sublist(
+      0,
+      endIndex > _filteredContentList.length
+          ? _filteredContentList.length
+          : endIndex,
+    );
+  }
+
+  /// Get visible item count up to current page for custom filtered lists.
+  int visibleCountFor(int totalCount) {
+    if (totalCount <= 0) return 0;
+    final endIndex = _currentPage * _itemsPerPage;
+    return endIndex > totalCount ? totalCount : endIndex;
+  }
+
+  /// Whether more items are available for custom filtered lists.
+  bool hasMoreForCount(int totalCount) {
+    return visibleCountFor(totalCount) < totalCount;
+  }
+
+  /// Get current page number
+  int getCurrentPageNumber() => _currentPage;
+
+  /// Get total number of pages
+  int getTotalPages() {
+    if (_filteredContentList.isEmpty) return 0;
+    return (_filteredContentList.length / _itemsPerPage).ceil();
+  }
+
+  /// Get page info as string
+  String getPageInfo() {
+    int totalPages = getTotalPages();
+    return "Page $_currentPage of $totalPages";
+  }
+
+  /// Helper method to get uploading status by label
   bool getUploadStatus(String label) {
     switch (label) {
       case "Trailer File":
@@ -166,7 +298,6 @@ class VideoProvider extends ChangeNotifier {
     }
   }
 
-
   // Merged helper method to get upload progress by label for all file types
   double getProgressByLabel(String label) {
     if (label == "Trailer File") {
@@ -174,8 +305,6 @@ class VideoProvider extends ChangeNotifier {
     } else if (label == "Movie File") {
       return movieUploadProgress;
     } else if (label == "Censor Certificate" || label.startsWith("Poster")) {
-      // For images, we assume 1.0 progress if uploaded, otherwise 0.0,
-      // as granular progress for images is not currently tracked.
       return getUploadStatus(label) ? 1.0 : 0.0;
     } else if (label.endsWith(" Audio")) {
       final language = label.replaceAll(" Audio", "");
@@ -254,10 +383,8 @@ class VideoProvider extends ChangeNotifier {
         directorController.clear();
       }
     }
-    // Debug print
     print("Cast List: $_castList");
     print("Director List: $_directorList");
-    // Notify listeners after updating
     notifyListeners();
   }
 
@@ -288,10 +415,10 @@ class VideoProvider extends ChangeNotifier {
       if (selectedLanguages.contains(item)) {
         selectedLanguages.remove(item);
       } else {
-        selectedLanguages.add(LanguageList(language: item,fileUrl: ''));
+        selectedLanguages.add(LanguageList(language: item, fileUrl: ''));
       }
     }
-    notifyListeners(); // Notify listeners to update the UI
+    notifyListeners();
   }
 
   void dropDownSelection(String item, String label) {
@@ -302,7 +429,7 @@ class VideoProvider extends ChangeNotifier {
     } else if (label == "Rental Duration") {
       rentalDurationController.text = item;
     }
-    notifyListeners(); // Notify listeners to update the UI
+    notifyListeners();
   }
 
   void clearSelections() {
@@ -335,13 +462,15 @@ class VideoProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetAllVideoResponse getAllContentResponse =
-            GetAllVideoResponse.fromJson(responseBody);
+        GetAllVideoResponse.fromJson(responseBody);
         if (getAllContentResponse.success == true) {
           if (getAllContentResponse.data!.contentList != null) {
             _contentList.clear();
             _filteredContentList.clear();
             _contentList = getAllContentResponse.data!.contentList!;
             _filteredContentList.addAll(_contentList);
+            _totalItems = _filteredContentList.length;
+            resetPagination();
             notifyListeners();
           } else {
             debugPrint("empty list: ${getAllContentResponse.message}");
@@ -374,6 +503,8 @@ class VideoProvider extends ChangeNotifier {
             _filteredContentList = searchResponse.data!
                 .map((item) => Content.fromJson(item as Map<String, dynamic>))
                 .toList();
+            _totalItems = _filteredContentList.length;
+            resetPagination();
             notifyListeners();
           } else {
             debugPrint("empty list: ${searchResponse.message}");
@@ -401,6 +532,8 @@ class VideoProvider extends ChangeNotifier {
           (content.type!.toLowerCase().contains(query) ?? false) ||
           (content.ageRating!.toLowerCase().contains(query) ?? false);
     }).toList();
+    _totalItems = _filteredContentList.length;
+    resetPagination();
     notifyListeners();
   }
 
@@ -421,13 +554,15 @@ class VideoProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetAllVideoResponse getAllContentResponse =
-            GetAllVideoResponse.fromJson(responseBody);
+        GetAllVideoResponse.fromJson(responseBody);
         if (getAllContentResponse.success == true) {
           if (getAllContentResponse.data!.contentList != null) {
             _contentList.clear();
             _contentList = getAllContentResponse.data!.contentList!;
             _filteredContentList.clear();
             _filteredContentList = getAllContentResponse.data!.contentList!;
+            _totalItems = _filteredContentList.length;
+            resetPagination();
             notifyListeners();
           } else {
             debugPrint("empty list: ${getAllContentResponse.message}");
@@ -449,7 +584,7 @@ class VideoProvider extends ChangeNotifier {
   Future<void> fetchMoviesByStatusAndMediaHouseId(
       String status, int mediaHouseId) async {
     String apiUrl =
-        ApiConstant.getVideoByStatusAndMediaHouse(status, mediaHouseId);
+    ApiConstant.getVideoByStatusAndMediaHouse(status, mediaHouseId);
     debugPrint(apiUrl);
     ApiHelper apiHelper = ApiHelper();
     try {
@@ -458,33 +593,42 @@ class VideoProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetAllVideoResponse getAllContentResponse =
-            GetAllVideoResponse.fromJson(responseBody);
+        GetAllVideoResponse.fromJson(responseBody);
         if (getAllContentResponse.success == true) {
           if (getAllContentResponse.data!.contentList != null) {
             _contentList.clear();
             _contentList = getAllContentResponse.data!.contentList!;
             _filteredContentList.clear();
             _filteredContentList = getAllContentResponse.data!.contentList!;
+            _totalItems = _filteredContentList.length;
+            resetPagination();
             notifyListeners();
           } else {
             debugPrint("empty list: ${getAllContentResponse.message}");
           }
         } else {
           _filteredContentList.clear();
+          _totalItems = 0;
+          resetPagination();
           debugPrint("Error: ${getAllContentResponse.message}");
+          notifyListeners();
         }
       } else if (response.statusCode == 404) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetAllVideoResponse getAllContentResponse =
-            GetAllVideoResponse.fromJson(responseBody);
+        GetAllVideoResponse.fromJson(responseBody);
         if (getAllContentResponse.success == false) {
           _filteredContentList.clear();
+          _totalItems = 0;
+          resetPagination();
           notifyListeners();
         }
       } else {
         if (status == "ALL") {
-          filteredContentList.clear();
+          _filteredContentList.clear();
           _filteredContentList.addAll(_contentList);
+          _totalItems = _filteredContentList.length;
+          resetPagination();
           notifyListeners();
         }
         throw Exception(
@@ -499,14 +643,15 @@ class VideoProvider extends ChangeNotifier {
   // Fetch all moviesByStatusAndMediaHouseId
   Future<void> fetchReleasedMoviesByMediaHouseId(int mediaHouseId) async {
     String apiUrl = ApiConstant.getReleaseVideoByMediaHouse(mediaHouseId);
+    debugPrint("get movie response api::: " + apiUrl);
     ApiHelper apiHelper = ApiHelper();
     try {
       var response = await apiHelper.getApi(apiUrl);
       debugPrint("get movie response by status::: " + response.body);
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
-        GetAllVideoResponse getAllContentResponse =
-            GetAllVideoResponse.fromJson(responseBody);
+        AllContentResponse getAllContentResponse =
+        AllContentResponse.fromJson(responseBody);
         if (getAllContentResponse.success == true) {
           if (getAllContentResponse.data!.contentList != null) {
             _contentList.clear();
@@ -514,12 +659,17 @@ class VideoProvider extends ChangeNotifier {
             _contentList = getAllContentResponse.data!.contentList!;
             notifyListeners();
             _filteredContentList = _contentList;
+            _totalItems = _filteredContentList.length;
+            resetPagination();
           } else {
             debugPrint("empty list: ${getAllContentResponse.message}");
           }
         } else {
           _filteredContentList.clear();
+          _totalItems = 0;
+          resetPagination();
           debugPrint("Error: ${getAllContentResponse.message}");
+          notifyListeners();
         }
       } else {}
     } catch (error) {
@@ -580,7 +730,7 @@ class VideoProvider extends ChangeNotifier {
     saveContent.languageList = selectedLanguages;
     saveContent.mediaHouseId = mediaHouse.id!;
     saveContent.price =
-        double.tryParse(priceController.text) ?? 0.0; // Handle invalid input
+        double.tryParse(priceController.text) ?? 0.0;
     saveContent.posterUrlList = [
       poster1Controller.text,
       poster2Controller.text,
@@ -661,7 +811,7 @@ class VideoProvider extends ChangeNotifier {
     saveContent.languageList = selectedLanguages;
     saveContent.mediaHouseId = mediaHouse.id!;
     saveContent.price =
-        double.tryParse(priceController.text) ?? 0.0; // Handle invalid input
+        double.tryParse(priceController.text) ?? 0.0;
     saveContent.posterUrlList = [
       poster1Controller.text,
       poster2Controller.text,
@@ -676,7 +826,6 @@ class VideoProvider extends ChangeNotifier {
     saveContent.sensorCertificate = censorCertificateController.text;
     saveContent.title = titleController.text;
     saveContent.trailerUrl = trailerUrlController.text;
-
 
     ApiHelper apiHelper = ApiHelper();
     try {
@@ -728,7 +877,6 @@ class VideoProvider extends ChangeNotifier {
     String isoDate = now.toUtc().toIso8601String();
     String apiUrl = ApiConstant.editVideoById(movieId);
 
-    // Create the content request object
     SaveContentRequest saveContent = SaveContentRequest();
     try {
       saveContent.ageRating = ageRatingController.text;
@@ -777,7 +925,7 @@ class VideoProvider extends ChangeNotifier {
           CustomToast.show("Video edited successfully", isSuccess: true);
           fetchMoviesByStatusAndMediaHouseId("All", mediaHouse.id!);
           notifyListeners();
-          return addVideoResponse.data; // Return the content object
+          return addVideoResponse.data;
         } else {
           debugPrint(
               "Edit failed: ${addVideoResponse.message ?? 'Unknown error'}");
@@ -794,7 +942,7 @@ class VideoProvider extends ChangeNotifier {
       CustomToast.show("An unexpected error occurred. Please try again.",
           isSuccess: false);
     }
-    return null; // Return null if the edit fails
+    return null;
   }
 
   File? selectedImage;
@@ -807,7 +955,6 @@ class VideoProvider extends ChangeNotifier {
   List<User> users = [];
   List<User> get userList => users;
 
-  // Fetch all users
   Future<void> fetchUsers() async {
     String apiUrl = ApiConstant.getAllUser;
     ApiHelper apiHelper = ApiHelper();
@@ -816,7 +963,7 @@ class VideoProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetAllUserResponse getAllUserResponse =
-            GetAllUserResponse.fromJson(responseBody);
+        GetAllUserResponse.fromJson(responseBody);
         if (getAllUserResponse.success == true) {
           if (getAllUserResponse.data != null) {
             users = getAllUserResponse.data!.user!;
@@ -838,23 +985,20 @@ class VideoProvider extends ChangeNotifier {
     }
   }
 
-  io.File? _imageFile; // For mobile platforms
-  html.File? _webFile; // For web platform
+  io.File? _imageFile;
+  html.File? _webFile;
   String? _uploadedImageUrl;
   bool _isUploading = false;
 
-  // Getters
   io.File? get imageFile => _imageFile;
   html.File? get webFile => _webFile;
   String? get uploadedImageUrl => _uploadedImageUrl;
   bool get isUploading => _isUploading;
 
-  // Pick Image
   Future<void> pickImage(String label) async {
     if (kIsWeb) {
-      // Web file picker
       final html.FileUploadInputElement uploadInput =
-          html.FileUploadInputElement();
+      html.FileUploadInputElement();
       uploadInput.accept = 'image/*';
       uploadInput.click();
       uploadInput.onChange.listen((event) async {
@@ -865,7 +1009,6 @@ class VideoProvider extends ChangeNotifier {
         }
       });
     } else {
-      // Mobile/desktop file picker
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
@@ -876,15 +1019,13 @@ class VideoProvider extends ChangeNotifier {
     }
   }
 
-  // Enhanced Upload Image with Progress Tracking
   Future<void> uploadImage(String label) async {
     if ((!kIsWeb && _imageFile == null) || (kIsWeb && _webFile == null)) {
-      return; // No file selected
+      return;
     }
 
     final url = Uri.parse(ApiConstant.uploadContentImg);
 
-    // Set uploading status and reset progress
     _setUploadingStatus(label, true);
     _setProgressByLabel(label, 0.0);
     _isUploading = true;
@@ -892,7 +1033,6 @@ class VideoProvider extends ChangeNotifier {
 
     try {
       if (kIsWeb && _webFile != null) {
-        // Web upload logic with progress tracking
         final request = http.MultipartRequest('POST', url);
         final reader = html.FileReader();
         reader.readAsArrayBuffer(_webFile!);
@@ -906,7 +1046,6 @@ class VideoProvider extends ChangeNotifier {
         );
         request.files.add(multipartFile);
 
-        // Simulate progress for web (since we can't track actual progress easily)
         Timer.periodic(Duration(milliseconds: 100), (timer) {
           if (_getProgressByLabel(label) < 0.9) {
             _setProgressByLabel(label, _getProgressByLabel(label) + 0.1);
@@ -919,7 +1058,8 @@ class VideoProvider extends ChangeNotifier {
         final response = await request.send();
         if (response.statusCode == 200) {
           final responseBody = await response.stream.bytesToString();
-          ContentImageUploadResponse contentImageUploadResponse = ContentImageUploadResponse.fromJson(jsonDecode(responseBody));
+          ContentImageUploadResponse contentImageUploadResponse =
+          ContentImageUploadResponse.fromJson(jsonDecode(responseBody));
           _uploadedImageUrl = contentImageUploadResponse.data!.thumbnailUrl;
           _setControllerText(label, _uploadedImageUrl!);
           _setProgressByLabel(label, 1.0);
@@ -928,7 +1068,6 @@ class VideoProvider extends ChangeNotifier {
           _setProgressByLabel(label, 0.0);
         }
       } else if (!kIsWeb && _imageFile != null) {
-        // Mobile/desktop upload logic with progress tracking
         final totalBytes = await _imageFile!.length();
         int bytesSent = 0;
 
@@ -974,7 +1113,6 @@ class VideoProvider extends ChangeNotifier {
     }
   }
 
-  // Helper method to set controller text based on label
   void _setControllerText(String label, String url) {
     switch (label) {
       case "Trailer File":
@@ -998,7 +1136,6 @@ class VideoProvider extends ChangeNotifier {
     }
   }
 
-  // Helper method to get progress by label (for internal use)
   double _getProgressByLabel(String label) {
     switch (label) {
       case "Trailer File":
@@ -1048,7 +1185,7 @@ class VideoProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetContentResponse addUserResponse =
-            GetContentResponse.fromJson(responseBody);
+        GetContentResponse.fromJson(responseBody);
         print("\ncontent by id response " + responseBody.toString());
         if (addUserResponse.success == true) {
           if (addUserResponse.data != null &&
@@ -1089,17 +1226,17 @@ class VideoProvider extends ChangeNotifier {
     _selectedGeners = movie.genreList ?? [];
     if (movie.posterUrlList != null && movie.posterUrlList!.isNotEmpty) {
       poster1Controller.text =
-          movie.posterUrlList!.length > 0 && movie.posterUrlList![0].isNotEmpty
-              ? movie.posterUrlList![0]
-              : ''; // Assign value or empty string if null/missing
+      movie.posterUrlList!.length > 0 && movie.posterUrlList![0].isNotEmpty
+          ? movie.posterUrlList![0]
+          : '';
       poster2Controller.text =
-          movie.posterUrlList!.length > 1 && movie.posterUrlList![1].isNotEmpty
-              ? movie.posterUrlList![1]
-              : ''; // Assign value or empty string if null/missing
+      movie.posterUrlList!.length > 1 && movie.posterUrlList![1].isNotEmpty
+          ? movie.posterUrlList![1]
+          : '';
       poster3Controller.text =
-          movie.posterUrlList!.length > 2 && movie.posterUrlList![2].isNotEmpty
-              ? movie.posterUrlList![2]
-              : ''; // Assign value or empty string if null/missing
+      movie.posterUrlList!.length > 2 && movie.posterUrlList![2].isNotEmpty
+          ? movie.posterUrlList![2]
+          : '';
     }
     trailerUrlController.text = movie.trailerUrl!;
     movieUrlController.text = movie.contentUrl!;
@@ -1200,7 +1337,6 @@ class VideoProvider extends ChangeNotifier {
       if (chartResponse.success == true) {
         chartData.clear();
         chartData = chartResponse.data!;
-        // Debug print to verify
         for (var item in chartData) {
           print('Label: ${item.label}, Value: ${item.value}');
         }
@@ -1214,8 +1350,6 @@ class VideoProvider extends ChangeNotifier {
       throw Exception('Failed to fetch graph data. Error: $error');
     }
   }
-
-// Replace the uploadVideo method in your VideoProvider with this enhanced version:
 
   Future<void> uploadVideoWeb(bool isTrailer) async {
     html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
@@ -1249,9 +1383,9 @@ class VideoProvider extends ChangeNotifier {
       xhr.onLoad.listen((_) {
         if (xhr.status == 200) {
           final response = json.decode(xhr.responseText!);
-          VideoUploadResponse contentImageUploadResponse = VideoUploadResponse.fromJson(response);
+          VideoUploadResponse contentImageUploadResponse =
+          VideoUploadResponse.fromJson(response);
           final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
-
 
           if (isTrailer) {
             trailerUrlController.text = encryptedUrl!;
@@ -1294,7 +1428,6 @@ class VideoProvider extends ChangeNotifier {
   Future<void> uploadVideo(bool isTrailer) async {
     final Uri uploadUri = Uri.parse(ApiConstant.uploadVideo);
 
-    // Reset progress at start and set uploading status
     if (isTrailer) {
       trailerUploadProgress = 0.0;
       _isTrailerUploading = true;
@@ -1310,7 +1443,6 @@ class VideoProvider extends ChangeNotifier {
         uploadVideoWeb(isTrailer);
         return;
       } else {
-        // Android/iOS implementation with proper progress tracking
         final picker = ImagePicker();
         final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
 
@@ -1321,46 +1453,41 @@ class VideoProvider extends ChangeNotifier {
           print(
               "Starting upload for ${isTrailer ? 'trailer' : 'movie'}, file size: $totalBytes bytes");
 
-          // Create a stream controller to track progress
           final StreamController<List<int>> streamController =
-              StreamController<List<int>>();
+          StreamController<List<int>>();
           int bytesSent = 0;
 
-          // Create the progress tracking stream
           final progressStream = file.openRead().transform(
-                StreamTransformer.fromHandlers(
-                  handleData: (List<int> data, EventSink<List<int>> sink) {
-                    bytesSent += data.length;
-                    final progress = bytesSent / totalBytes;
+            StreamTransformer.fromHandlers(
+              handleData: (List<int> data, EventSink<List<int>> sink) {
+                bytesSent += data.length;
+                final progress = bytesSent / totalBytes;
 
-                    // Update progress
-                    if (isTrailer) {
-                      trailerUploadProgress = progress;
-                    } else {
-                      movieUploadProgress = progress;
-                    }
+                if (isTrailer) {
+                  trailerUploadProgress = progress;
+                } else {
+                  movieUploadProgress = progress;
+                }
 
-                    print(
-                        "Upload progress: ${(progress * 100).toStringAsFixed(1)}%");
-                    notifyListeners();
+                print(
+                    "Upload progress: ${(progress * 100).toStringAsFixed(1)}%");
+                notifyListeners();
 
-                    sink.add(data);
-                  },
-                  handleError: (error, stackTrace, sink) {
-                    print("Stream error: $error");
-                    sink.addError(error, stackTrace);
-                  },
-                  handleDone: (sink) {
-                    print("Stream done");
-                    sink.close();
-                  },
-                ),
-              );
+                sink.add(data);
+              },
+              handleError: (error, stackTrace, sink) {
+                print("Stream error: $error");
+                sink.addError(error, stackTrace);
+              },
+              handleDone: (sink) {
+                print("Stream done");
+                sink.close();
+              },
+            ),
+          );
 
-          // Create the multipart request
           final request = http.MultipartRequest('POST', uploadUri);
 
-          // Add the file with progress tracking
           request.files.add(http.MultipartFile(
             'video',
             progressStream,
@@ -1374,14 +1501,13 @@ class VideoProvider extends ChangeNotifier {
           if (response.statusCode == 200) {
             final responseBody = await response.stream.bytesToString();
             final responseJson = json.decode(responseBody);
-            VideoUploadResponse contentImageUploadResponse = VideoUploadResponse.fromJson(responseJson);
+            VideoUploadResponse contentImageUploadResponse =
+            VideoUploadResponse.fromJson(responseJson);
             final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
-
 
             if (isTrailer) {
               trailerUrlController.text = encryptedUrl!;
               trailerUploadProgress = 1.0;
-
             } else {
               movieUrlController.text = encryptedUrl!;
               movieUploadProgress = 1.0;
@@ -1393,7 +1519,6 @@ class VideoProvider extends ChangeNotifier {
             final responseBody = await response.stream.bytesToString();
             print("Error response: $responseBody");
 
-            // Reset progress on failure
             if (isTrailer) {
               trailerUploadProgress = 0.0;
             } else {
@@ -1409,7 +1534,6 @@ class VideoProvider extends ChangeNotifier {
           notifyListeners();
         } else {
           print("No video selected");
-          // Reset progress if no video selected
           if (isTrailer) {
             trailerUploadProgress = 0.0;
           } else {
@@ -1420,7 +1544,6 @@ class VideoProvider extends ChangeNotifier {
       }
     } catch (e) {
       print('Error uploading video: $e');
-      // Reset progress on error
       if (isTrailer) {
         trailerUploadProgress = 0.0;
       } else {
@@ -1428,7 +1551,6 @@ class VideoProvider extends ChangeNotifier {
       }
       notifyListeners();
     } finally {
-      // ❌ DO NOTHING FOR WEB
       if (!kIsWeb) {
         if (isTrailer) {
           _isTrailerUploading = false;
@@ -1439,24 +1561,18 @@ class VideoProvider extends ChangeNotifier {
         notifyListeners();
       }
     }
-
   }
-
-// Also add these helper methods to better track video upload status:
 
   bool get isVideoUploading => _isTrailerUploading || _isMovieUploading;
 
-// Method to check if a specific video type is uploading
   bool isSpecificVideoUploading(bool isTrailer) {
     return isTrailer ? _isTrailerUploading : _isMovieUploading;
   }
 
-// Method to get specific video upload progress
   double getVideoUploadProgress(bool isTrailer) {
     return isTrailer ? trailerUploadProgress : movieUploadProgress;
   }
 
-// Method to reset specific video upload progress
   void resetVideoUploadProgress(bool isTrailer) {
     if (isTrailer) {
       trailerUploadProgress = 0.0;
@@ -1477,7 +1593,7 @@ class VideoProvider extends ChangeNotifier {
     trailerUrlController.clear();
     priceController.clear();
     releaseDateController.clear();
-    rentlDurationController.clear(); // double-check spelling here
+    rentlDurationController.clear();
     censorCertificateController.clear();
     titleController.clear();
     reasonController.clear();
@@ -1490,7 +1606,6 @@ class VideoProvider extends ChangeNotifier {
     directorController.clear();
     rentalDurationController.clear();
 
-    // Reset all progress indicators
     trailerUploadProgress = 0.0;
     movieUploadProgress = 0.0;
     censorUploadProgress = 0.0;
@@ -1498,7 +1613,6 @@ class VideoProvider extends ChangeNotifier {
     poster2UploadProgress = 0.0;
     poster3UploadProgress = 0.0;
 
-    // Reset all uploading status
     _isTrailerUploading = false;
     _isMovieUploading = false;
     _isCensorUploading = false;
@@ -1512,10 +1626,9 @@ class VideoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Method to pick and simulate audio file upload for dynamic languages
   Future<void> pickAudioFile(String label) async {
     FilePickerResult? result =
-        await FilePicker.platform.pickFiles(type: FileType.audio);
+    await FilePicker.platform.pickFiles(type: FileType.audio);
     if (result != null && result.files.single.path != null) {
       final language = label.replaceAll(" Audio", "");
       _isAudioUploading[language] = true;
@@ -1531,7 +1644,7 @@ class VideoProvider extends ChangeNotifier {
       }
 
       final audioUrl =
-          "https://example.com/${language.toLowerCase()}_audio_${DateTime.now().millisecondsSinceEpoch}.mp3"; // Mock URL
+          "https://example.com/${language.toLowerCase()}_audio_${DateTime.now().millisecondsSinceEpoch}.mp3";
       audioControllers[language]?.text = audioUrl;
 
       _isAudioUploading[language] = false;
@@ -1542,15 +1655,12 @@ class VideoProvider extends ChangeNotifier {
     }
   }
 
-  // Methods for managing dynamic audio languages
   void addAudioLanguage(String language) {
     if (!_audioLanguages.contains(language)) {
       _audioLanguages.add(language);
       audioControllers[language] = TextEditingController();
-      _isAudioUploading[language] =
-          false; // Initialize upload status for new language
-      _audioUploadProgress[language] =
-          0.0; // Initialize progress for new language
+      _isAudioUploading[language] = false;
+      _audioUploadProgress[language] = 0.0;
       notifyListeners();
     } else {
       CustomToast.show("$language audio already added.", isWarning: true);
@@ -1559,15 +1669,13 @@ class VideoProvider extends ChangeNotifier {
 
   void removeAudioLanguage(String language) {
     _audioLanguages.remove(language);
-    audioControllers[language]
-        ?.dispose(); // Dispose controller to prevent memory leaks
+    audioControllers[language]?.dispose();
     audioControllers.remove(language);
-    _isAudioUploading.remove(language); // Remove upload status
-    _audioUploadProgress.remove(language); // Remove progress
+    _isAudioUploading.remove(language);
+    _audioUploadProgress.remove(language);
     notifyListeners();
   }
 
-  // New methods to set multi-select lists
   void setSelectedGeners(List<String> items) {
     _selectedGeners = items;
     notifyListeners();
@@ -1590,7 +1698,6 @@ class VideoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Dispose controllers to prevent memory leaks
   @override
   void dispose() {
     titleController.dispose();
@@ -1606,6 +1713,7 @@ class VideoProvider extends ChangeNotifier {
     poster3Controller.dispose();
     castController.dispose();
     directorController.dispose();
+    searchContentController.dispose();
     super.dispose();
   }
 }

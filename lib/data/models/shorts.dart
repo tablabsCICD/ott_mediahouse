@@ -70,6 +70,8 @@ class ShortModel {
   String? category;
   int? mediaHouseId;
   String? rentlDuration;
+  dynamic createdAt;
+  dynamic createdDate;
   List<LanguageList>? languageList;
 
   ShortModel({
@@ -86,6 +88,8 @@ class ShortModel {
     this.category,
     this.mediaHouseId,
     this.rentlDuration,
+    this.createdAt,
+    this.createdDate,
     this.languageList,
   });
 
@@ -104,6 +108,8 @@ class ShortModel {
       category: json["category"],
       mediaHouseId: json["mediaHouseId"],
       rentlDuration: json["rentlDuration"],
+      createdAt: json["createdAt"],
+      createdDate: json["createdDate"],
       languageList: json["languageList"] == null ? [] : List<LanguageList>.from(json["languageList"]!.map((x) => LanguageList.fromJson(x))),
     );
   }
@@ -122,6 +128,8 @@ class ShortModel {
     "category": category,
     "mediaHouseId": mediaHouseId,
     "rentlDuration": rentlDuration,
+    "createdAt": createdAt,
+    "createdDate": createdDate,
     "languageList": languageList == null ? [] : List<dynamic>.from(languageList!.map((x) => x.toJson())),
   };
 }

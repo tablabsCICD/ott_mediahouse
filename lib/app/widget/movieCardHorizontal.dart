@@ -181,6 +181,8 @@ class MovieCardHorizontal extends StatelessWidget {
       children: [
         _ratingChip(),
         const SizedBox(width: 8),
+        _likesChip(),
+        const SizedBox(width: 8),
         _statusChip(),
       ],
     );
@@ -198,10 +200,25 @@ class MovieCardHorizontal extends StatelessWidget {
           const Icon(Icons.star, size: 15, color: Colors.amber),
           const SizedBox(width: 4),
           Text("${movie.ratings ?? 0}"),
+        ],
+      ),
+    );
+  }
+
+  Widget _likesChip() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.pink.withOpacity(.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.thumb_up_alt_outlined, size: 14, color: Colors.pink),
           const SizedBox(width: 4),
           Text(
-            "(${movie.ratingCount ?? 0})",
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            "${movie.ratingCount ?? 0}",
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -244,7 +261,12 @@ class MovieCardHorizontal extends StatelessWidget {
   Widget _metaRow() {
     return Row(
       children: [
-        _metaItem(Icons.timer, "${movie.runtime ?? 0} min"),
+        _metaItem(
+          movie.type == "SERIES" ? Icons.video_library_outlined : Icons.timer,
+          movie.type == "SERIES"
+              ? "${_seriesEpisodes()} Episodes"
+              : "${movie.runtime ?? 0} min",
+        ),
         const SizedBox(width: 14),
         _metaItem(Icons.date_range, movie.releaseDate ?? "N/A"),
         const SizedBox(width: 14),
@@ -252,6 +274,13 @@ class MovieCardHorizontal extends StatelessWidget {
             "${movie.views ?? 0} Views"),
       ],
     );
+  }
+
+  int _seriesEpisodes() {
+    final dynamic value = movie.episodeId;
+    if (value == null) return 0;
+    if (value is int) return value;
+    return int.tryParse(value.toString()) ?? 0;
   }
 
   Widget _metaItem(IconData icon, String text) {
