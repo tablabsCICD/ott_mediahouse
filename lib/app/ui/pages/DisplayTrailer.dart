@@ -111,7 +111,9 @@ class _TrailerPageState extends State<TrailerPage> {
                       _chewieController!
                           .videoPlayerController.value.isInitialized
                   ? Chewie(controller: _chewieController!)
-                  : CircularProgressIndicator(),
+                  : CircularProgressIndicator(
+                      color: Theme.of(context).primaryColor,
+                    ),
             ),
           ),
           Padding(

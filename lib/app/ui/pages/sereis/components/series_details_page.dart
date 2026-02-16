@@ -44,7 +44,10 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
         if (provider.loading) {
           return Scaffold(
             backgroundColor: theme.scaffoldBackgroundColor,
-            body: const Center(child: CircularProgressIndicator()),
+            body: Center(
+                child: CircularProgressIndicator(
+              color: theme.primaryColor,
+            )),
           );
         }
 
@@ -73,13 +76,13 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
             title: ResponsiveWidget.isDesktop(context)
                 ? const SizedBox()
                 : Text(
-              series.title ?? '',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-                color: theme.primaryColor,
-              ),
-            ),
+                    series.title ?? '',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      color: theme.primaryColor,
+                    ),
+                  ),
             backgroundColor: Colors.transparent,
             centerTitle: true,
             elevation: 0,
@@ -95,21 +98,21 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
               _darkOverlay(),
               ResponsiveWidget.isDesktop(context)
                   ? _desktopLayout(
-                context,
-                theme,
-                series,
-                seasonList,
-                currentSeason,
-                episodes,
-              )
+                      context,
+                      theme,
+                      series,
+                      seasonList,
+                      currentSeason,
+                      episodes,
+                    )
                   : _mobileLayout(
-                context,
-                theme,
-                series,
-                seasonList,
-                currentSeason,
-                episodes,
-              ),
+                      context,
+                      theme,
+                      series,
+                      seasonList,
+                      currentSeason,
+                      episodes,
+                    ),
             ],
           ),
         );
@@ -120,13 +123,13 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
   // ===================== DESKTOP UI =====================
 
   Widget _desktopLayout(
-      BuildContext context,
-      ThemeData theme,
-      Series series,
-      List<SeasonBundle> seasons,
-      SeasonBundle? currentSeason,
-      List episodes,
-      ) {
+    BuildContext context,
+    ThemeData theme,
+    Series series,
+    List<SeasonBundle> seasons,
+    SeasonBundle? currentSeason,
+    List episodes,
+  ) {
     return Row(
       children: [
         Expanded(
@@ -160,13 +163,13 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
   // ===================== MOBILE UI =====================
 
   Widget _mobileLayout(
-      BuildContext context,
-      ThemeData theme,
-      Series series,
-      List<SeasonBundle> seasons,
-      SeasonBundle? currentSeason,
-      List episodes,
-      ) {
+    BuildContext context,
+    ThemeData theme,
+    Series series,
+    List<SeasonBundle> seasons,
+    SeasonBundle? currentSeason,
+    List episodes,
+  ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -189,14 +192,14 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
   // ===================== MAIN BODY =====================
 
   Widget _buildBody(
-      BuildContext context,
-      ThemeData theme,
-      Series series,
-      List<SeasonBundle> seasons,
-      SeasonBundle? currentSeason,
-      List episodes, {
-        required bool showTrailerButton,
-      }) {
+    BuildContext context,
+    ThemeData theme,
+    Series series,
+    List<SeasonBundle> seasons,
+    SeasonBundle? currentSeason,
+    List episodes, {
+    required bool showTrailerButton,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -239,10 +242,10 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
 
         const SizedBox(height: 16),
 
-      /*  if (currentSeason != null)
+        /*  if (currentSeason != null)
           buildSeasonApprovalUI(theme, currentSeason, context),*/
 
-      //  const SizedBox(height: 16),
+        //  const SizedBox(height: 16),
 
         if (currentSeason != null)
           buildEpisodeManagementTable(theme, currentSeason),
@@ -271,8 +274,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
     );
   }
 
-  Widget _actionButtons(
-      BuildContext context, Series series, bool showTrailer) {
+  Widget _actionButtons(BuildContext context, Series series, bool showTrailer) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -342,7 +344,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
           final isSelected = index == selectedSeasonIndex;
 
           return InkWell(
-            onTap: (){
+            onTap: () {
               setState(() => selectedSeasonIndex = index);
             },
             child: Container(
@@ -359,7 +361,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
                     "Season ${season.season.seasonNumber}",
                     style: TextStyle(
                       color:
-                      isSelected ? theme.primaryColor : theme.canvasColor,
+                          isSelected ? theme.primaryColor : theme.canvasColor,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -370,7 +372,6 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
                       foregroundColor: Colors.white,
                     ),
                     onPressed: () {
-
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -394,8 +395,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
 
   // ===================== ANALYTICS =====================
 
-  Widget buildSeasonAnalyticsDashboard(
-      ThemeData theme, SeasonBundle season) {
+  Widget buildSeasonAnalyticsDashboard(ThemeData theme, SeasonBundle season) {
     return Row(
       children: [
         _analyticsCard("Revenue", "₹${0}"),
@@ -416,12 +416,11 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
         ),
         child: Column(
           children: [
-            Text(title,
-                style: const TextStyle(color: Colors.white70)),
+            Text(title, style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 6),
             Text(value,
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold)),
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -473,8 +472,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
 
   // ===================== EPISODE TABLE =====================
 
-  Widget buildEpisodeManagementTable(
-      ThemeData theme, SeasonBundle season) {
+  Widget buildEpisodeManagementTable(ThemeData theme, SeasonBundle season) {
     final episodes = season.episodes;
 
     return Container(
@@ -491,7 +489,6 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-
           ReorderableListView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -561,7 +558,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            ep.title??"",
+                            ep.title ?? "",
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -574,8 +571,8 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
                             spacing: 16,
                             children: [
                               _metaChip(Icons.timer, "${ep.runtime} min"),
-                              _metaChip(Icons.visibility,
-                                  "${ep.viewCount} views"),
+                              _metaChip(
+                                  Icons.visibility, "${ep.viewCount} views"),
                             ],
                           ),
                         ],
@@ -607,8 +604,6 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
               );
             },
           ),
-
-
         ],
       ),
     );
@@ -631,7 +626,6 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
       ],
     );
   }
-
 
   // ===================== HELPERS =====================
 

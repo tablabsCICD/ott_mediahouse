@@ -46,7 +46,8 @@ class _ShortsPageState extends State<ShortsPage> {
     if (date == null) return true;
     if (_fromDate != null && date.isBefore(_fromDate!)) return false;
     if (_toDate != null) {
-      final end = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
+      final end =
+          DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
       if (date.isAfter(end)) return false;
     }
     return true;
@@ -98,17 +99,15 @@ class _ShortsPageState extends State<ShortsPage> {
             ? 4
             : 2;
 
-    final tileHeight = ResponsiveWidget.isDesktop(context) ||
-            ResponsiveWidget.isTablet(context)
-        ? 300.0
-        : 240.0;
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Consumer<ShortProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading && provider.shorts.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+                child: CircularProgressIndicator(
+              color: theme.primaryColor,
+            ));
           }
 
           if (provider.shorts.isEmpty) {
@@ -145,13 +144,17 @@ class _ShortsPageState extends State<ShortsPage> {
                 return (b.isTrending == true ? 1 : 0)
                     .compareTo(a.isTrending == true ? 1 : 0);
               case 'oldest':
-                final aDate = _parseDate(a.createdAt ?? a.createdDate) ?? DateTime(1970);
-                final bDate = _parseDate(b.createdAt ?? b.createdDate) ?? DateTime(1970);
+                final aDate =
+                    _parseDate(a.createdAt ?? a.createdDate) ?? DateTime(1970);
+                final bDate =
+                    _parseDate(b.createdAt ?? b.createdDate) ?? DateTime(1970);
                 return aDate.compareTo(bDate);
               case 'newest':
               default:
-                final aDate = _parseDate(a.createdAt ?? a.createdDate) ?? DateTime(1970);
-                final bDate = _parseDate(b.createdAt ?? b.createdDate) ?? DateTime(1970);
+                final aDate =
+                    _parseDate(a.createdAt ?? a.createdDate) ?? DateTime(1970);
+                final bDate =
+                    _parseDate(b.createdAt ?? b.createdDate) ?? DateTime(1970);
                 return bDate.compareTo(aDate);
             }
           });
@@ -221,39 +224,57 @@ class _ShortsPageState extends State<ShortsPage> {
                               items: [
                                 DropdownMenuItem(
                                   value: 'newest',
-                                  child: Text("Newest", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Newest",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'oldest',
-                                  child: Text("Oldest", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Oldest",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'views_high',
-                                  child: Text("Views High", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Views High",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'likes_high',
-                                  child: Text("Likes High", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Likes High",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'parts_high',
-                                  child: Text("Parts High", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Parts High",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'coins_high',
-                                  child: Text("Coins High", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Coins High",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'trending_first',
-                                  child: Text("Trending First", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Trending First",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'title_az',
-                                  child: Text("Title A-Z", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Title A-Z",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'title_za',
-                                  child: Text("Title Z-A", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Title Z-A",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                               ],
                             ),
@@ -271,7 +292,9 @@ class _ShortsPageState extends State<ShortsPage> {
                         children: [
                           searchField,
                           const SizedBox(height: 8),
-                          Align(alignment: Alignment.centerRight, child: filterBar),
+                          Align(
+                              alignment: Alignment.centerRight,
+                              child: filterBar),
                         ],
                       );
                     }
@@ -307,7 +330,7 @@ class _ShortsPageState extends State<ShortsPage> {
                       crossAxisCount: crossAxisCount,
                       mainAxisSpacing: 14,
                       crossAxisSpacing: 12,
-                      mainAxisExtent: tileHeight,
+                      childAspectRatio: 9 / 16,
                     ),
                     itemBuilder: (_, index) {
                       if (index == 0) {
@@ -426,7 +449,8 @@ class _ShortsPageState extends State<ShortsPage> {
                 top: 10,
                 left: 10,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: theme.primaryColor.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(8),
@@ -466,7 +490,8 @@ class _ShortsPageState extends State<ShortsPage> {
                       const SizedBox(width: 4),
                       Text(
                         "${short.totalParts ?? 0} Parts",
-                        style: const TextStyle(color: Colors.white70, fontSize: 11),
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 11),
                       ),
                     ],
                   ),
@@ -476,7 +501,8 @@ class _ShortsPageState extends State<ShortsPage> {
             const Positioned(
               bottom: 10,
               right: 10,
-              child: Icon(Icons.play_circle_fill, color: Colors.white70, size: 30),
+              child:
+                  Icon(Icons.play_circle_fill, color: Colors.white70, size: 30),
             ),
           ],
         ),

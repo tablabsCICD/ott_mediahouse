@@ -29,9 +29,9 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ShortProvider>().fetchShortDetail(
-        shortId: widget.shortId,
-        userId: 1,
-      );
+            shortId: widget.shortId,
+            userId: 1,
+          );
     });
   }
 
@@ -39,21 +39,20 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) =>
-          Dialog(
-            backgroundColor: Colors.transparent,
-            insetPadding: const EdgeInsets.all(24),
-            child: EditShortMasterDialog(
-              shortId: widget.shortId,
-              shortDetailModel: shortModel,
-            ),
-          ),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(24),
+        child: EditShortMasterDialog(
+          shortId: widget.shortId,
+          shortDetailModel: shortModel,
+        ),
+      ),
     );
     if (result == true && mounted) {
       await context.read<ShortProvider>().fetchShortDetail(
-        shortId: widget.shortId,
-        userId: 1,
-      );
+            shortId: widget.shortId,
+            userId: 1,
+          );
     }
   }
 
@@ -63,8 +62,11 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
     final theme = Theme.of(context);
 
     if (provider.isDetailLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+      return Scaffold(
+        body: Center(
+            child: CircularProgressIndicator(
+          color: theme.primaryColor,
+        )),
       );
     }
 
@@ -75,26 +77,20 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
     }
 
     final short = provider.shortDetail!;
-    final totalParts = short.data!.totalParts??0;
+    final totalParts = short.data!.totalParts ?? 0;
 
     final crossAxisCount = ResponsiveWidget.isDesktop(context)
         ? 5
         : ResponsiveWidget.isTablet(context)
-        ? 4
-        : 2;
-
-    final tileHeight = ResponsiveWidget.isDesktop(context)
-        ? 220.0
-        : ResponsiveWidget.isTablet(context)
-        ? 200.0
-        : 180.0;
+            ? 4
+            : 2;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor,
         title: Text(
-          short.data!.title??"",
+          short.data!.title ?? "",
           style: TextStyle(color: theme.canvasColor),
         ),
         centerTitle: true,
@@ -103,7 +99,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
             tooltip: "Edit Short",
             icon: Icon(Icons.edit, color: theme.primaryColor),
             onPressed: () {
-              _editShort(context,short.data!);
+              _editShort(context, short.data!);
             },
           ),
           IconButton(
@@ -127,7 +123,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: Image.network(
-                    short.data!.poster??"",
+                    short.data!.poster ?? "",
                     height: 180,
                     width: 130,
                     fit: BoxFit.cover,
@@ -156,7 +152,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        short.data!.title??"",
+                        short.data!.title ?? "",
                         style: TextStyle(
                           color: theme.canvasColor,
                           fontSize: 20,
@@ -195,7 +191,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                         ),
                       const SizedBox(height: 10),
                       Text(
-                        short.data!.description??"",
+                        short.data!.description ?? "",
                         style: TextStyle(
                             color: theme.canvasColor.withOpacity(0.7)),
                       ),
@@ -266,33 +262,34 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                   onPressed: createdPartCount >= short.data!.totalParts!
                       ? null
                       : () async {
-                    final result = await showDialog<bool>(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (_) => Dialog(
-                        backgroundColor: Colors.transparent,
-                        insetPadding: const EdgeInsets.all(24),
-                        child: Center(
-                          child: CreateShortPartsDialog(
-                            shortId: short.data!.id??0,
-                            totalParts: short.data!.totalParts??0,
-                          ),
-                        ),
-                      ),
-                    );
+                          final result = await showDialog<bool>(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) => Dialog(
+                              backgroundColor: Colors.transparent,
+                              insetPadding: const EdgeInsets.all(24),
+                              child: Center(
+                                child: CreateShortPartsDialog(
+                                  shortId: short.data!.id ?? 0,
+                                  totalParts: short.data!.totalParts ?? 0,
+                                ),
+                              ),
+                            ),
+                          );
 
-                    if (result == true && mounted) {
-                      await context.read<ShortProvider>().fetchShortDetail(
-                        shortId: short.data!.id??0,
-                        userId: 1,
-                      );
+                          if (result == true && mounted) {
+                            await context
+                                .read<ShortProvider>()
+                                .fetchShortDetail(
+                                  shortId: short.data!.id ?? 0,
+                                  userId: 1,
+                                );
 
-                      setState(() {
-                        createdPartCount = short.data!.totalParts!;
-                      });
-                    }
-
-                  },
+                            setState(() {
+                              createdPartCount = short.data!.totalParts!;
+                            });
+                          }
+                        },
                 ),
               ],
             ),
@@ -307,22 +304,20 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                 crossAxisCount: crossAxisCount,
                 crossAxisSpacing: 14,
                 mainAxisSpacing: 14,
-                mainAxisExtent: tileHeight,
+                childAspectRatio: 9 / 16,
               ),
               itemBuilder: (_, index) {
                 final part = short.data!.parts?[index];
-                return _buildPartTile(
-                  theme,
-                  partNumber: part!.partNumber.toString(),
-                  thumbnailUrl: part.thumbnail ?? "",
-                  isFreePreview: part.isFreePreview!,
-                  hasVideo: part.videoUrl!.isNotEmpty,
-                  videoUrl: part.videoUrl??'',
-                  views: part.views??0,
-                  likes: part.likes??0,
-                  partId:part.partId,
-                  part: part
-                );
+                return _buildPartTile(theme,
+                    partNumber: part!.partNumber.toString(),
+                    thumbnailUrl: part.thumbnail ?? "",
+                    isFreePreview: part.isFreePreview!,
+                    hasVideo: part.videoUrl!.isNotEmpty,
+                    videoUrl: part.videoUrl ?? '',
+                    views: part.views ?? 0,
+                    likes: part.likes ?? 0,
+                    partId: part.partId,
+                    part: part);
               },
             ),
           ],
@@ -359,15 +354,17 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
   }
 
   Widget _buildPartTile(
-      ThemeData theme, {
-        required String partNumber,
-        required String thumbnailUrl,
-        required bool isFreePreview,
-        required bool hasVideo,
-        required String videoUrl,
-        int views = 0,
-        int likes = 0, String? partId, required ShortPartModel part,
-      }) {
+    ThemeData theme, {
+    required String partNumber,
+    required String thumbnailUrl,
+    required bool isFreePreview,
+    required bool hasVideo,
+    required String videoUrl,
+    int views = 0,
+    int likes = 0,
+    String? partId,
+    required ShortPartModel part,
+  }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Stack(
@@ -461,7 +458,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                 /// 👁 VIEWS
                 _statChip(
                   icon: Icons.remove_red_eye,
-                  value: views??0,
+                  value: views ?? 0,
                 ),
 
                 /// ❤️ LIKES
@@ -495,6 +492,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
       ),
     );
   }
+
   void _confirmDeletePart(BuildContext context, String partId) {
     showDialog(
       context: context,
@@ -558,12 +556,11 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
 
     if (result == true && mounted) {
       await context.read<ShortProvider>().fetchShortDetail(
-        shortId: widget.shortId,
-        userId: 1,
-      );
+            shortId: widget.shortId,
+            userId: 1,
+          );
     }
   }
-
 
   Widget _statChip({
     required IconData icon,
@@ -593,7 +590,6 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
     );
   }
 
-
   // ==========================================================================
   // DELETE
   // ==========================================================================
@@ -616,7 +612,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
 
               final provider = context.read<ShortProvider>();
               final success =
-              await provider.deleteShortMaster(shortId: shortId);
+                  await provider.deleteShortMaster(shortId: shortId);
 
               if (!mounted) return;
 
@@ -644,5 +640,4 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
       ),
     );
   }
-
 }

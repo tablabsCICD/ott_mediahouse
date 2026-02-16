@@ -55,88 +55,91 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
     }
 
     return isLoading
-        ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+        ? Scaffold(
+            body: Center(
+                child: CircularProgressIndicator(
+            color: theme.primaryColor,
+          )))
         : Consumer<VideoProvider>(builder: (context, provider, child) {
-      final movie = provider.content;
+            final movie = provider.content;
 
-      if (movie == null) {
-        return const Center(child: CircularProgressIndicator());
-      }
+            if (movie == null) {
+              return Center(
+                  child: CircularProgressIndicator(
+                color: theme.primaryColor,
+              ));
+            }
 
-      return Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-          title: ResponsiveWidget.isDesktop(context)
-              ? const SizedBox()
-              : Text(movie.title ?? "",
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white)),
-          actions: [
-            ResponsiveWidget.isMobile(context)
-                ? IconButton(
-              icon: const Icon(Icons.bar_chart),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => Dialog(
-                    backgroundColor: theme.cardColor,
-                    child: MovieRevenueGraph(
-                      title: 'MovieDetailsGraph',
-                      yAxisLabel: 'sales',
-                      graphNumber: 0,
-                      contentId: movie.id!,
-                      metrics: ["revenue"],
-                    ),
-                  ),
-                );
-              },
-            )
-                : IconButton(
-              tooltip: 'Delete Content',
-              icon:
-              const Icon(Icons.delete, color: Colors.white),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    backgroundColor: theme.cardColor,
-                    title: Text(
-                        'Do you want to delete ${movie.title}?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () =>
-                            Navigator.pop(context),
-                        child: const Text("Cancel"),
-                      ),
-                      ElevatedButton(
-                        onPressed: () =>
-                            deleteMovie(movie),
-                        child: const Text("Delete"),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            )
-          ],
-        ),
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            _buildBackground(movie.posterUrlList?[0]),
-            _darkOverlay(),
-            ResponsiveWidget.isDesktop(context)
-                ? _desktopLayout(movie, provider, theme)
-                : _mobileLayout(movie, provider, theme),
-          ],
-        ),
-      );
-    });
+            return Scaffold(
+              backgroundColor: theme.scaffoldBackgroundColor,
+              extendBodyBehindAppBar: true,
+              appBar: AppBar(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                centerTitle: true,
+                title: ResponsiveWidget.isDesktop(context)
+                    ? const SizedBox()
+                    : Text(movie.title ?? "",
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.white)),
+                actions: [
+                  ResponsiveWidget.isMobile(context)
+                      ? IconButton(
+                          icon: const Icon(Icons.bar_chart),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => Dialog(
+                                backgroundColor: theme.cardColor,
+                                child: MovieRevenueGraph(
+                                  title: 'MovieDetailsGraph',
+                                  yAxisLabel: 'sales',
+                                  graphNumber: 0,
+                                  contentId: movie.id!,
+                                  metrics: ["revenue"],
+                                ),
+                              ),
+                            );
+                          },
+                        )
+                      : IconButton(
+                          tooltip: 'Delete Content',
+                          icon: const Icon(Icons.delete, color: Colors.white),
+                          onPressed: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                backgroundColor: theme.cardColor,
+                                title: Text(
+                                    'Do you want to delete ${movie.title}?'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text("Cancel"),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () => deleteMovie(movie),
+                                    child: const Text("Delete"),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        )
+                ],
+              ),
+              body: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _buildBackground(movie.posterUrlList?[0]),
+                  _darkOverlay(),
+                  ResponsiveWidget.isDesktop(context)
+                      ? _desktopLayout(movie, provider, theme)
+                      : _mobileLayout(movie, provider, theme),
+                ],
+              ),
+            );
+          });
   }
 
   Widget _darkOverlay() {
@@ -172,8 +175,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
     );
   }
 
-  Widget _leftPanel(
-      Content movie, VideoProvider provider, ThemeData theme) {
+  Widget _leftPanel(Content movie, VideoProvider provider, ThemeData theme) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -189,30 +191,24 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
             ),
           ),
           const SizedBox(height: 12),
-
           _statsRow(movie),
           const SizedBox(height: 18),
-
           AutoScrollingPosters(
             imageUrls: movie.posterUrlList ?? [],
             height: 320,
             aspectRatio: 2 / 3,
           ),
           const SizedBox(height: 16),
-
           Center(
             child: Text(
               movie.description ?? "N/A",
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: Colors.white70, fontSize: 15),
+              style: const TextStyle(color: Colors.white70, fontSize: 15),
             ),
           ),
           const SizedBox(height: 18),
-
           _buildButtons(context, movie, provider),
           const SizedBox(height: 24),
-
           _buildDetailsSection(context, movie, theme),
         ],
       ),
@@ -225,31 +221,27 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
         const SizedBox(height: 80),
         ActionButtonWidget(
           label: isTrailer ? "See Analytics" : "Watch Trailer",
-          icon: isTrailer
-              ? Icons.analytics_outlined
-              : Icons.play_circle_fill,
+          icon: isTrailer ? Icons.analytics_outlined : Icons.play_circle_fill,
           onTap: () => setState(() => isTrailer = !isTrailer),
         ),
         const SizedBox(height: 20),
         Expanded(
           child: isTrailer
-              ? movie.trailerUrl == null ||
-              movie.trailerUrl!.isEmpty
-              ? const Center(
-              child: Text('Trailer not available',
-                  style: TextStyle(color: Colors.grey)))
-              : TrailerPage(
-              trailerUrl: movie.trailerUrl ?? "")
+              ? movie.trailerUrl == null || movie.trailerUrl!.isEmpty
+                  ? const Center(
+                      child: Text('Trailer not available',
+                          style: TextStyle(color: Colors.grey)))
+                  : TrailerPage(trailerUrl: movie.trailerUrl ?? "")
               : Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: MovieRevenueGraph(
-              title: 'MovieDetailsGraph',
-              yAxisLabel: 'sales',
-              graphNumber: 0,
-              contentId: movie.id!,
-              metrics: ["revenue"],
-            ),
-          ),
+                  padding: const EdgeInsets.all(16.0),
+                  child: MovieRevenueGraph(
+                    title: 'MovieDetailsGraph',
+                    yAxisLabel: 'sales',
+                    graphNumber: 0,
+                    contentId: movie.id!,
+                    metrics: ["revenue"],
+                  ),
+                ),
         ),
       ],
     );
@@ -276,8 +268,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
       ),
       child: Column(
         children: [
-          Text(title,
-              style: const TextStyle(color: Colors.white70)),
+          Text(title, style: const TextStyle(color: Colors.white70)),
           const SizedBox(height: 6),
           Text(value,
               style: const TextStyle(
@@ -291,8 +282,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
 
   // ================= MOBILE UI =================
 
-  Widget _mobileLayout(
-      Content movie, VideoProvider provider, ThemeData theme) {
+  Widget _mobileLayout(Content movie, VideoProvider provider, ThemeData theme) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -332,19 +322,19 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
         ResponsiveWidget.isDesktop(context)
             ? const SizedBox()
             : ActionButtonWidget(
-          label: 'Watch Trailer',
-          icon: Icons.play_circle_fill,
-          onTap: () {
-            provider.setValu(movie);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    TrailerPage(trailerUrl: movie.trailerUrl ?? ''),
+                label: 'Watch Trailer',
+                icon: Icons.play_circle_fill,
+                onTap: () {
+                  provider.setValu(movie);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          TrailerPage(trailerUrl: movie.trailerUrl ?? ''),
+                    ),
+                  );
+                },
               ),
-            );
-          },
-        ),
         const SizedBox(width: 16),
         ActionButtonWidget(
           label: 'Watch Movie',
@@ -368,8 +358,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) =>
-                    EditVideoMovie(movieId: movie.id!),
+                builder: (context) => EditVideoMovie(movieId: movie.id!),
               ),
             );
           },
@@ -384,7 +373,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 16),
-
         Text(
           "Movie Details",
           style: TextStyle(
@@ -393,27 +381,24 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
             color: selectedThemeData.primaryColor,
           ),
         ),
-
         const SizedBox(height: 12),
-
         movie.approvalStatus!.toLowerCase() == 'rejected'
             ? Container(
-          padding: const EdgeInsets.all(12),
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: Colors.red.withOpacity(.1),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            "Reason For Rejection : ${movie.reason}",
-            style: const TextStyle(
-              color: Colors.redAccent,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        )
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  "Reason For Rejection : ${movie.reason}",
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              )
             : const SizedBox(),
-
         Container(
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(.05),
@@ -447,13 +432,12 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                       : "N/A"),
               _tableRow("Runtime", movie.runtime?.toString() ?? "N/A"),
               _tableRow("Release Date", movie.releaseDate ?? "N/A"),
-              _tableRow(
-                  "Languages", (movie.languageList ?? []).join(', ')),
+              _tableRow("Languages", (movie.languageList ?? []).join(', ')),
               _tableRow("Rating", "${movie.ratings ?? 0} ⭐"),
-              _tableRow("Audio Formats",
-                  (movie.audioFormatList ?? []).join(', ')),
-              _tableRow("Subtitles",
-                  (movie.subtitleLanguageList ?? []).join(', ')),
+              _tableRow(
+                  "Audio Formats", (movie.audioFormatList ?? []).join(', ')),
+              _tableRow(
+                  "Subtitles", (movie.subtitleLanguageList ?? []).join(', ')),
               _tableRow("Age Rating", movie.ageRating ?? "N/A"),
               _tableRow("Platform Percentage",
                   movie.adminIncentivePecentage.toString()),
@@ -494,7 +478,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
     );
   }
 
-
   Widget _buildDetailItem(String title, String content) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -522,5 +505,4 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
       ),
     );
   }
-
 }

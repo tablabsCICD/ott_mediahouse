@@ -44,6 +44,11 @@ class VideoProvider extends ChangeNotifier {
   int _totalItems = 0;
   bool _isLoadingMore = false;
   bool _hasMoreItems = true;
+  int _releasedCurrentPage = 0;
+  int _releasedTotalPages = 0;
+  int? _releasedMediaHouseId;
+  bool _isReleasedLoadingMore = false;
+  bool _hasMoreReleasedItems = true;
 
   // Getters for pagination
   int get currentPage => _currentPage;
@@ -51,6 +56,8 @@ class VideoProvider extends ChangeNotifier {
   int get totalItems => _totalItems;
   bool get isLoadingMore => _isLoadingMore;
   bool get hasMoreItems => _hasMoreItems;
+  bool get isReleasedLoadingMore => _isReleasedLoadingMore;
+  bool get hasMoreReleasedItems => _hasMoreReleasedItems;
 
   // Setter to change items per page
   void setItemsPerPage(int items) {
@@ -70,7 +77,7 @@ class VideoProvider extends ChangeNotifier {
   final TextEditingController releaseDateController = TextEditingController();
   final TextEditingController rentlDurationController = TextEditingController();
   final TextEditingController censorCertificateController =
-  TextEditingController();
+      TextEditingController();
   final TextEditingController titleController = TextEditingController();
   final TextEditingController reasonController = TextEditingController();
   final TextEditingController typeController = TextEditingController();
@@ -81,7 +88,7 @@ class VideoProvider extends ChangeNotifier {
   final TextEditingController castController = TextEditingController();
   final TextEditingController directorController = TextEditingController();
   final TextEditingController rentalDurationController =
-  TextEditingController();
+      TextEditingController();
 
   bool isEnbale = false;
   List<Content> _contentList = [];
@@ -462,7 +469,7 @@ class VideoProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetAllVideoResponse getAllContentResponse =
-        GetAllVideoResponse.fromJson(responseBody);
+            GetAllVideoResponse.fromJson(responseBody);
         if (getAllContentResponse.success == true) {
           if (getAllContentResponse.data!.contentList != null) {
             _contentList.clear();
@@ -523,14 +530,17 @@ class VideoProvider extends ChangeNotifier {
   }
 
   void filterContent() {
+    final query = searchContentController.text.toLowerCase();
     _filteredContentList = _contentList.where((content) {
-      final query = searchContentController.text.toLowerCase();
-      return content.title!.toLowerCase().contains(query) ||
-          content.ageRating!.toLowerCase().contains(query) ||
-          (content.description!.toLowerCase().contains(query) ?? false) ||
-          (content.description!.toLowerCase().contains(query) ?? false) ||
-          (content.type!.toLowerCase().contains(query) ?? false) ||
-          (content.ageRating!.toLowerCase().contains(query) ?? false);
+      final title = (content.title ?? "").toLowerCase();
+      final ageRating = (content.ageRating ?? "").toLowerCase();
+      final description = (content.description ?? "").toLowerCase();
+      final type = (content.type ?? "").toLowerCase();
+
+      return title.contains(query) ||
+          ageRating.contains(query) ||
+          description.contains(query) ||
+          type.contains(query);
     }).toList();
     _totalItems = _filteredContentList.length;
     resetPagination();
@@ -554,7 +564,7 @@ class VideoProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetAllVideoResponse getAllContentResponse =
-        GetAllVideoResponse.fromJson(responseBody);
+            GetAllVideoResponse.fromJson(responseBody);
         if (getAllContentResponse.success == true) {
           if (getAllContentResponse.data!.contentList != null) {
             _contentList.clear();
@@ -584,7 +594,7 @@ class VideoProvider extends ChangeNotifier {
   Future<void> fetchMoviesByStatusAndMediaHouseId(
       String status, int mediaHouseId) async {
     String apiUrl =
-    ApiConstant.getVideoByStatusAndMediaHouse(status, mediaHouseId);
+        ApiConstant.getVideoByStatusAndMediaHouse(status, mediaHouseId);
     debugPrint(apiUrl);
     ApiHelper apiHelper = ApiHelper();
     try {
@@ -593,7 +603,7 @@ class VideoProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetAllVideoResponse getAllContentResponse =
-        GetAllVideoResponse.fromJson(responseBody);
+            GetAllVideoResponse.fromJson(responseBody);
         if (getAllContentResponse.success == true) {
           if (getAllContentResponse.data!.contentList != null) {
             _contentList.clear();
@@ -616,7 +626,7 @@ class VideoProvider extends ChangeNotifier {
       } else if (response.statusCode == 404) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetAllVideoResponse getAllContentResponse =
-        GetAllVideoResponse.fromJson(responseBody);
+            GetAllVideoResponse.fromJson(responseBody);
         if (getAllContentResponse.success == false) {
           _filteredContentList.clear();
           _totalItems = 0;
@@ -642,7 +652,17 @@ class VideoProvider extends ChangeNotifier {
 
   // Fetch all moviesByStatusAndMediaHouseId
   Future<void> fetchReleasedMoviesByMediaHouseId(int mediaHouseId) async {
-    String apiUrl = ApiConstant.getReleaseVideoByMediaHouse(mediaHouseId);
+    _releasedMediaHouseId = mediaHouseId;
+    _releasedCurrentPage = 0;
+    _releasedTotalPages = 0;
+    _hasMoreReleasedItems = true;
+    _isReleasedLoadingMore = false;
+
+    String apiUrl = ApiConstant.getReleaseVideoByMediaHouse(
+      mediaHouseId,
+      page: 0,
+      size: _itemsPerPage,
+    );
     debugPrint("get movie response api::: " + apiUrl);
     ApiHelper apiHelper = ApiHelper();
     try {
@@ -651,30 +671,93 @@ class VideoProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         AllContentResponse getAllContentResponse =
-        AllContentResponse.fromJson(responseBody);
+            AllContentResponse.fromJson(responseBody);
         if (getAllContentResponse.success == true) {
-          if (getAllContentResponse.data!.contentList != null) {
-            _contentList.clear();
-            _filteredContentList.clear();
-            _contentList = getAllContentResponse.data!.contentList!;
-            notifyListeners();
-            _filteredContentList = _contentList;
-            _totalItems = _filteredContentList.length;
-            resetPagination();
-          } else {
-            debugPrint("empty list: ${getAllContentResponse.message}");
-          }
+          final releasedData = getAllContentResponse.data;
+          final fetchedContent = releasedData?.contentList ?? [];
+          _releasedCurrentPage = releasedData?.currentPage ?? 0;
+          _releasedTotalPages = releasedData?.totalPages ?? 0;
+          _hasMoreReleasedItems = _releasedTotalPages > 0
+              ? (_releasedCurrentPage + 1) < _releasedTotalPages
+              : false;
+
+          _contentList = List<Content>.from(fetchedContent);
+          filterContent();
         } else {
+          _contentList.clear();
           _filteredContentList.clear();
           _totalItems = 0;
-          resetPagination();
+          _hasMoreReleasedItems = false;
           debugPrint("Error: ${getAllContentResponse.message}");
           notifyListeners();
         }
-      } else {}
+      } else {
+        _contentList.clear();
+        _filteredContentList.clear();
+        _totalItems = 0;
+        _hasMoreReleasedItems = false;
+        notifyListeners();
+        throw Exception(
+            'Failed to fetch released content. Status code: ${response.statusCode}');
+      }
     } catch (error) {
       debugPrint("Error: $error");
       throw Exception('An error occurred while fetching Content.');
+    }
+  }
+
+  Future<void> fetchNextReleasedMoviesPage() async {
+    if (_releasedMediaHouseId == null ||
+        _isReleasedLoadingMore ||
+        !_hasMoreReleasedItems) {
+      return;
+    }
+
+    _isReleasedLoadingMore = true;
+    notifyListeners();
+
+    final nextPage = _releasedCurrentPage + 1;
+    String apiUrl = ApiConstant.getReleaseVideoByMediaHouse(
+      _releasedMediaHouseId!,
+      page: nextPage,
+      size: _itemsPerPage,
+    );
+
+    ApiHelper apiHelper = ApiHelper();
+    try {
+      var response = await apiHelper.getApi(apiUrl);
+      if (response.statusCode == 200) {
+        final responseBody = json.decode(response.body) as Map<String, dynamic>;
+        final releasedResponse = AllContentResponse.fromJson(responseBody);
+
+        if (releasedResponse.success == true) {
+          final releasedData = releasedResponse.data;
+          final nextContent = releasedData?.contentList ?? [];
+
+          _releasedCurrentPage = releasedData?.currentPage ?? nextPage;
+          _releasedTotalPages = releasedData?.totalPages ?? _releasedTotalPages;
+          _hasMoreReleasedItems = _releasedTotalPages > 0
+              ? (_releasedCurrentPage + 1) < _releasedTotalPages
+              : nextContent.length >= _itemsPerPage;
+
+          if (nextContent.isNotEmpty) {
+            _contentList.addAll(nextContent);
+          }
+
+          filterContent();
+        } else {
+          _hasMoreReleasedItems = false;
+          notifyListeners();
+        }
+      } else {
+        throw Exception(
+            'Failed to fetch released content page. Status code: ${response.statusCode}');
+      }
+    } catch (error) {
+      debugPrint("Error fetching next released content page: $error");
+    } finally {
+      _isReleasedLoadingMore = false;
+      notifyListeners();
     }
   }
 
@@ -729,8 +812,7 @@ class VideoProvider extends ChangeNotifier {
     saveContent.isFeatured = isFeatured;
     saveContent.languageList = selectedLanguages;
     saveContent.mediaHouseId = mediaHouse.id!;
-    saveContent.price =
-        double.tryParse(priceController.text) ?? 0.0;
+    saveContent.price = double.tryParse(priceController.text) ?? 0.0;
     saveContent.posterUrlList = [
       poster1Controller.text,
       poster2Controller.text,
@@ -810,8 +892,7 @@ class VideoProvider extends ChangeNotifier {
     saveContent.genreList = selectedGeners;
     saveContent.languageList = selectedLanguages;
     saveContent.mediaHouseId = mediaHouse.id!;
-    saveContent.price =
-        double.tryParse(priceController.text) ?? 0.0;
+    saveContent.price = double.tryParse(priceController.text) ?? 0.0;
     saveContent.posterUrlList = [
       poster1Controller.text,
       poster2Controller.text,
@@ -963,7 +1044,7 @@ class VideoProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetAllUserResponse getAllUserResponse =
-        GetAllUserResponse.fromJson(responseBody);
+            GetAllUserResponse.fromJson(responseBody);
         if (getAllUserResponse.success == true) {
           if (getAllUserResponse.data != null) {
             users = getAllUserResponse.data!.user!;
@@ -998,7 +1079,7 @@ class VideoProvider extends ChangeNotifier {
   Future<void> pickImage(String label) async {
     if (kIsWeb) {
       final html.FileUploadInputElement uploadInput =
-      html.FileUploadInputElement();
+          html.FileUploadInputElement();
       uploadInput.accept = 'image/*';
       uploadInput.click();
       uploadInput.onChange.listen((event) async {
@@ -1059,7 +1140,7 @@ class VideoProvider extends ChangeNotifier {
         if (response.statusCode == 200) {
           final responseBody = await response.stream.bytesToString();
           ContentImageUploadResponse contentImageUploadResponse =
-          ContentImageUploadResponse.fromJson(jsonDecode(responseBody));
+              ContentImageUploadResponse.fromJson(jsonDecode(responseBody));
           _uploadedImageUrl = contentImageUploadResponse.data!.thumbnailUrl;
           _setControllerText(label, _uploadedImageUrl!);
           _setProgressByLabel(label, 1.0);
@@ -1185,7 +1266,7 @@ class VideoProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         GetContentResponse addUserResponse =
-        GetContentResponse.fromJson(responseBody);
+            GetContentResponse.fromJson(responseBody);
         print("\ncontent by id response " + responseBody.toString());
         if (addUserResponse.success == true) {
           if (addUserResponse.data != null &&
@@ -1226,17 +1307,17 @@ class VideoProvider extends ChangeNotifier {
     _selectedGeners = movie.genreList ?? [];
     if (movie.posterUrlList != null && movie.posterUrlList!.isNotEmpty) {
       poster1Controller.text =
-      movie.posterUrlList!.length > 0 && movie.posterUrlList![0].isNotEmpty
-          ? movie.posterUrlList![0]
-          : '';
+          movie.posterUrlList!.length > 0 && movie.posterUrlList![0].isNotEmpty
+              ? movie.posterUrlList![0]
+              : '';
       poster2Controller.text =
-      movie.posterUrlList!.length > 1 && movie.posterUrlList![1].isNotEmpty
-          ? movie.posterUrlList![1]
-          : '';
+          movie.posterUrlList!.length > 1 && movie.posterUrlList![1].isNotEmpty
+              ? movie.posterUrlList![1]
+              : '';
       poster3Controller.text =
-      movie.posterUrlList!.length > 2 && movie.posterUrlList![2].isNotEmpty
-          ? movie.posterUrlList![2]
-          : '';
+          movie.posterUrlList!.length > 2 && movie.posterUrlList![2].isNotEmpty
+              ? movie.posterUrlList![2]
+              : '';
     }
     trailerUrlController.text = movie.trailerUrl!;
     movieUrlController.text = movie.contentUrl!;
@@ -1384,7 +1465,7 @@ class VideoProvider extends ChangeNotifier {
         if (xhr.status == 200) {
           final response = json.decode(xhr.responseText!);
           VideoUploadResponse contentImageUploadResponse =
-          VideoUploadResponse.fromJson(response);
+              VideoUploadResponse.fromJson(response);
           final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
 
           if (isTrailer) {
@@ -1454,37 +1535,37 @@ class VideoProvider extends ChangeNotifier {
               "Starting upload for ${isTrailer ? 'trailer' : 'movie'}, file size: $totalBytes bytes");
 
           final StreamController<List<int>> streamController =
-          StreamController<List<int>>();
+              StreamController<List<int>>();
           int bytesSent = 0;
 
           final progressStream = file.openRead().transform(
-            StreamTransformer.fromHandlers(
-              handleData: (List<int> data, EventSink<List<int>> sink) {
-                bytesSent += data.length;
-                final progress = bytesSent / totalBytes;
+                StreamTransformer.fromHandlers(
+                  handleData: (List<int> data, EventSink<List<int>> sink) {
+                    bytesSent += data.length;
+                    final progress = bytesSent / totalBytes;
 
-                if (isTrailer) {
-                  trailerUploadProgress = progress;
-                } else {
-                  movieUploadProgress = progress;
-                }
+                    if (isTrailer) {
+                      trailerUploadProgress = progress;
+                    } else {
+                      movieUploadProgress = progress;
+                    }
 
-                print(
-                    "Upload progress: ${(progress * 100).toStringAsFixed(1)}%");
-                notifyListeners();
+                    print(
+                        "Upload progress: ${(progress * 100).toStringAsFixed(1)}%");
+                    notifyListeners();
 
-                sink.add(data);
-              },
-              handleError: (error, stackTrace, sink) {
-                print("Stream error: $error");
-                sink.addError(error, stackTrace);
-              },
-              handleDone: (sink) {
-                print("Stream done");
-                sink.close();
-              },
-            ),
-          );
+                    sink.add(data);
+                  },
+                  handleError: (error, stackTrace, sink) {
+                    print("Stream error: $error");
+                    sink.addError(error, stackTrace);
+                  },
+                  handleDone: (sink) {
+                    print("Stream done");
+                    sink.close();
+                  },
+                ),
+              );
 
           final request = http.MultipartRequest('POST', uploadUri);
 
@@ -1502,7 +1583,7 @@ class VideoProvider extends ChangeNotifier {
             final responseBody = await response.stream.bytesToString();
             final responseJson = json.decode(responseBody);
             VideoUploadResponse contentImageUploadResponse =
-            VideoUploadResponse.fromJson(responseJson);
+                VideoUploadResponse.fromJson(responseJson);
             final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
 
             if (isTrailer) {
@@ -1628,7 +1709,7 @@ class VideoProvider extends ChangeNotifier {
 
   Future<void> pickAudioFile(String label) async {
     FilePickerResult? result =
-    await FilePicker.platform.pickFiles(type: FileType.audio);
+        await FilePicker.platform.pickFiles(type: FileType.audio);
     if (result != null && result.files.single.path != null) {
       final language = label.replaceAll(" Audio", "");
       _isAudioUploading[language] = true;

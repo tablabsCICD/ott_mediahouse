@@ -44,7 +44,8 @@ class _PendingContentPageState extends State<PendingContentPage> {
       final mediaHouse = await localSharePreferences.getMediaHouse();
       final provider = Provider.of<VideoProvider>(context, listen: false);
       provider.setItemsPerPage(10);
-      provider.fetchMoviesByStatusAndMediaHouseId(selectedStatus, mediaHouse!.id!);
+      provider.fetchMoviesByStatusAndMediaHouseId(
+          selectedStatus, mediaHouse!.id!);
     });
 
     // Listen for search query changes
@@ -87,7 +88,9 @@ class _PendingContentPageState extends State<PendingContentPage> {
     final mediaHouse = await localSharePreferences.getMediaHouse();
     final provider = Provider.of<VideoProvider>(context, listen: false);
     provider.resetPagination();
-    provider.fetchMoviesByStatusAndMediaHouseId(status, mediaHouse!.id!).then((_) {
+    provider
+        .fetchMoviesByStatusAndMediaHouseId(status, mediaHouse!.id!)
+        .then((_) {
       setState(() {
         isLoading = false;
       });
@@ -107,89 +110,102 @@ class _PendingContentPageState extends State<PendingContentPage> {
         return Scaffold(
           backgroundColor: selectedThemeData.scaffoldBackgroundColor,
           body: isLoading
-              ? Center(child: CircularProgressIndicator())
-              : provider.filteredContentList.isEmpty
               ? Center(
-            child: Text(
-              "No movies found",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-          )
-              : Padding(
-            padding: const EdgeInsets.only(left: 8.0, right: 8, top: 70, bottom: 10),
-            child: ResponsiveWidget.isMobile(context)
-                ? ListView.builder(
-              controller: _scrollController,
-              itemCount: displayedItems.length + (hasMoreItems ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == displayedItems.length) {
-                  return Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 12),
-                        Text(
-                          provider.getPageInfo(),
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                Content movie = displayedItems[index];
-                return MovieCardHorizontal(movie: movie);
-              },
-            )
-                : Stack(
-              children: [
-                GridView.builder(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.only(bottom: 12),
-                  gridDelegate:
-                  const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 15,
-                    mainAxisSpacing: 15,
-                    mainAxisExtent: 210,
-                  ),
-                  itemCount: displayedItems.length,
-                  itemBuilder: (context, index) {
-                    final movie = displayedItems[index];
-                    return MovieCardHorizontal(movie: movie);
-                  },
-                ),
-                if (hasMoreItems)
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 8),
-                          Text(
-                            provider.getPageInfo(),
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ],
+                  child: CircularProgressIndicator(
+                      color: selectedThemeData.primaryColor))
+              : provider.filteredContentList.isEmpty
+                  ? Center(
+                      child: Text(
+                        "No movies found",
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w500),
                       ),
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.only(
+                          left: 8.0, right: 8, top: 70, bottom: 10),
+                      child: ResponsiveWidget.isMobile(context)
+                          ? ListView.builder(
+                              controller: _scrollController,
+                              itemCount: displayedItems.length +
+                                  (hasMoreItems ? 1 : 0),
+                              itemBuilder: (context, index) {
+                                if (index == displayedItems.length) {
+                                  return Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      children: [
+                                        CircularProgressIndicator(
+                                            color:
+                                                selectedThemeData.primaryColor),
+                                        SizedBox(height: 12),
+                                        Text(
+                                          provider.getPageInfo(),
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                                Content movie = displayedItems[index];
+                                return MovieCardHorizontal(movie: movie);
+                              },
+                            )
+                          : Stack(
+                              children: [
+                                GridView.builder(
+                                  controller: _scrollController,
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 3,
+                                    crossAxisSpacing: 15,
+                                    mainAxisSpacing: 15,
+                                    mainAxisExtent: 210,
+                                  ),
+                                  itemCount: displayedItems.length,
+                                  itemBuilder: (context, index) {
+                                    final movie = displayedItems[index];
+                                    return MovieCardHorizontal(movie: movie);
+                                  },
+                                ),
+                                if (hasMoreItems)
+                                  Positioned(
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Column(
+                                        children: [
+                                          CircularProgressIndicator(
+                                              color: selectedThemeData
+                                                  .primaryColor),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            provider.getPageInfo(),
+                                            style: TextStyle(fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                     ),
-                  ),
-              ],
-            ),
-          ),
           floatingActionButton: Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildStatusButton("All Uploaded Movies", "all", selectedThemeData),
-                _buildStatusButton("Pending Movies", "pending", selectedThemeData),
-                _buildStatusButton("Approved Movies", "approved", selectedThemeData),
-                _buildStatusButton("Rejected Movies", "rejected", selectedThemeData),
+                _buildStatusButton(
+                    "All Uploaded Movies", "all", selectedThemeData),
+                _buildStatusButton(
+                    "Pending Movies", "pending", selectedThemeData),
+                _buildStatusButton(
+                    "Approved Movies", "approved", selectedThemeData),
+                _buildStatusButton(
+                    "Rejected Movies", "rejected", selectedThemeData),
               ],
             ),
           ),
@@ -205,7 +221,9 @@ class _PendingContentPageState extends State<PendingContentPage> {
       child: Text(
         label,
         style: TextStyle(
-          fontWeight: selectedStatus.toLowerCase() == status ? FontWeight.bold : FontWeight.normal,
+          fontWeight: selectedStatus.toLowerCase() == status
+              ? FontWeight.bold
+              : FontWeight.normal,
           color: selectedStatus.toLowerCase() == status
               ? themeData.primaryColor
               : themeData.canvasColor,

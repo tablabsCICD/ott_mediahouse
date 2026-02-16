@@ -3,9 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:media_house/app/config/routes/app_routes.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/components/settlementCards.dart';
-import 'package:media_house/app/ui/pages/help%20support%20page/HelpSupportPage.dart';
 import 'package:media_house/data/models/response/mediaHouseWeeklySettelement.dart';
-import 'package:media_house/data/repositories/settlement_list.dart';
 import 'package:media_house/domain/entities/user.dart';
 import 'package:provider/provider.dart';
 
@@ -74,7 +72,10 @@ class _SettlementPageState extends State<SettlementPage> {
         builder: (context, provider, child) {
           if (_isLoading) {
             // Show loader while fetching data
-            return Center(child: CircularProgressIndicator());
+            return Center(
+                child: CircularProgressIndicator(
+              color: selectedThemeData.primaryColor,
+            ));
           }
 
           if (provider.weeklySettelement == null ||

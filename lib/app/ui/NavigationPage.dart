@@ -10,6 +10,7 @@ import 'package:media_house/app/ui/pages/profile%20page/ProfilePage.dart';
 import 'package:media_house/app/ui/pages/sereis/seriespage.dart';
 import 'package:media_house/app/ui/pages/settlemet_page/SettlementPage.dart';
 import 'package:media_house/app/ui/pages/shorts/shortspage.dart';
+import 'package:media_house/app/ui/pages/uploadContent_page/select_upload_type.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/upload_video.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:provider/provider.dart';
@@ -99,17 +100,8 @@ class _NavigationPageState extends State<NavigationPage> {
                   onPressed: () {
                     showDialog(
                       context: context,
-                      builder: (BuildContext context) {
-                        return Dialog(
-                          backgroundColor: selectedThemeData.cardColor,
-                          child: SizedBox(
-                              width: ResponsiveWidget.isMobile(context)
-                                  ? MediaQuery.of(context).size.width * 0.8
-                                  : MediaQuery.of(context).size.width *
-                                      0.5, // 80% of screen width,
-                              child: UploadVideoWidget()),
-                        );
-                      },
+                      barrierDismissible: false,
+                      builder: (_) => SelectUploadTypeDialog(),
                     );
                   },
                   icon: Icon(
@@ -155,18 +147,16 @@ class _NavigationPageState extends State<NavigationPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: ResponsiveWidget.isDesktop(context) ? 140 : 180,
-          child: DrawerHeader(
-            decoration: BoxDecoration(
-              color: selectedThemeData.primaryColor,
-            ),
-            child: Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(30),
-                child: Image.asset(
-                  ImageConstant.logo2,
-                ),
+        DrawerHeader(
+          decoration: BoxDecoration(
+            color: selectedThemeData.primaryColor,
+          ),
+          child: Hero(
+            tag: "logo",
+            child: ClipRRect(
+              borderRadius: BorderRadiusGeometry.circular(25),
+              child: Image.asset(
+                ImageConstant.logo2,
               ),
             ),
           ),
@@ -202,10 +192,11 @@ class _NavigationPageState extends State<NavigationPage> {
           ],
         ),
         SizedBox(
-          height: ResponsiveWidget.isDesktop(context) ? 30 : 1,
+          height: ResponsiveWidget.isDesktop(context) ? 0 : 1,
         ),
         Expanded(
           child: ListView.builder(
+            padding: EdgeInsets.zero,
             itemCount: _pages.length,
             itemBuilder: (context, index) {
               return ListTile(
