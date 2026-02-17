@@ -42,8 +42,8 @@ class ApiConstant {
       "${baseUrl}api/Approvalstatus/mediahouseid2?approvalStatus=$status&mediaHouseId=$id";
   static String changeContentStatus(status, id) =>
       "${baseUrl}api/ApprovecontentListBy?contentListId=$id&status=$status";
-  static String getReleaseVideoByMediaHouse(id) =>
-      "${baseUrl}api/getReleaseContentByMediahouseId?mediaHouseId=$id";
+  static String getReleaseVideoByMediaHouse(id, {int page = 0, int size = 10}) =>
+      "${baseUrl}api/getReleaseContentByMediahouseId?mediaHouseId=$id&page=$page&size=$size";
 
   static String savePromoter = '${baseUrl}api/savePromoters2';
   static String editPromoterById = "${baseUrl}user/updateUserBy/%7Bid%7D";

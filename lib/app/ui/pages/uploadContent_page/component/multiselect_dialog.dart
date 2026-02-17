@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:media_house/app/provider/videoProvider.dart';
 import 'package:provider/provider.dart';
 
-
 class MultiSelectDialog extends StatefulWidget {
   final String label;
   final List<String> items;
@@ -34,7 +33,10 @@ class _MultiSelectDialogState extends State<MultiSelectDialog> {
     } else if (widget.label == "Subtitle Languages") {
       _selectedItems = List.from(provider.selectedSubLanguages);
     } else if (widget.label == "Languages") {
-      _selectedItems = List.from(provider.selectedLanguages);
+      _selectedItems = provider.selectedLanguages
+          .map((language) => language.language ?? "")
+          .where((language) => language.isNotEmpty)
+          .toList();
     }
   }
 
@@ -85,16 +87,16 @@ class _MultiSelectDialogState extends State<MultiSelectDialog> {
         child: ListBody(
           children: widget.items
               .map((item) => CheckboxListTile(
-            value: _selectedItems.contains(item),
-            title: Text(
-              item,
-              style: TextStyle(color: widget.theme.canvasColor),
-            ),
-            controlAffinity: ListTileControlAffinity.leading,
-            onChanged: (isChecked) => _itemChange(item, isChecked!),
-            activeColor: widget.theme.primaryColor,
-            checkColor: Colors.white,
-          ))
+                    value: _selectedItems.contains(item),
+                    title: Text(
+                      item,
+                      style: TextStyle(color: widget.theme.canvasColor),
+                    ),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    onChanged: (isChecked) => _itemChange(item, isChecked!),
+                    activeColor: widget.theme.primaryColor,
+                    checkColor: Colors.white,
+                  ))
               .toList(),
         ),
       ),

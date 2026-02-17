@@ -44,6 +44,11 @@ class VideoProvider extends ChangeNotifier {
   int _totalItems = 0;
   bool _isLoadingMore = false;
   bool _hasMoreItems = true;
+  int _releasedCurrentPage = 0;
+  int _releasedTotalPages = 0;
+  int? _releasedMediaHouseId;
+  bool _isReleasedLoadingMore = false;
+  bool _hasMoreReleasedItems = true;
 
   // Getters for pagination
   int get currentPage => _currentPage;
@@ -51,6 +56,8 @@ class VideoProvider extends ChangeNotifier {
   int get totalItems => _totalItems;
   bool get isLoadingMore => _isLoadingMore;
   bool get hasMoreItems => _hasMoreItems;
+  bool get isReleasedLoadingMore => _isReleasedLoadingMore;
+  bool get hasMoreReleasedItems => _hasMoreReleasedItems;
 
   // Setter to change items per page
   void setItemsPerPage(int items) {
@@ -411,9 +418,11 @@ class VideoProvider extends ChangeNotifier {
       } else {
         selectedSubLanguages.add(item);
       }
-    } else {
-      if (selectedLanguages.contains(item)) {
-        selectedLanguages.remove(item);
+    } else if (label == "Languages") {
+      final existingIndex = selectedLanguages
+          .indexWhere((language) => (language.language ?? "") == item);
+      if (existingIndex >= 0) {
+        selectedLanguages.removeAt(existingIndex);
       } else {
         selectedLanguages.add(LanguageList(language: item, fileUrl: ''));
       }
@@ -523,14 +532,17 @@ class VideoProvider extends ChangeNotifier {
   }
 
   void filterContent() {
+    final query = searchContentController.text.toLowerCase();
     _filteredContentList = _contentList.where((content) {
-      final query = searchContentController.text.toLowerCase();
-      return content.title!.toLowerCase().contains(query) ||
-          content.ageRating!.toLowerCase().contains(query) ||
-          (content.description!.toLowerCase().contains(query) ?? false) ||
-          (content.description!.toLowerCase().contains(query) ?? false) ||
-          (content.type!.toLowerCase().contains(query) ?? false) ||
-          (content.ageRating!.toLowerCase().contains(query) ?? false);
+      final title = (content.title ?? "").toLowerCase();
+      final ageRating = (content.ageRating ?? "").toLowerCase();
+      final description = (content.description ?? "").toLowerCase();
+      final type = (content.type ?? "").toLowerCase();
+
+      return title.contains(query) ||
+          ageRating.contains(query) ||
+          description.contains(query) ||
+          type.contains(query);
     }).toList();
     _totalItems = _filteredContentList.length;
     resetPagination();
@@ -556,21 +568,51 @@ class VideoProvider extends ChangeNotifier {
         GetAllVideoResponse getAllContentResponse =
             GetAllVideoResponse.fromJson(responseBody);
         if (getAllContentResponse.success == true) {
-          if (getAllContentResponse.data!.contentList != null) {
-            _contentList.clear();
-            _contentList = getAllContentResponse.data!.contentList!;
-            _filteredContentList.clear();
-            _filteredContentList = getAllContentResponse.data!.contentList!;
-            _totalItems = _filteredContentList.length;
-            resetPagination();
-            notifyListeners();
+          final dataMap = responseBody["data"] as Map<String, dynamic>?;
+          final rawContentList =
+              (dataMap?["ContentList"] ?? dataMap?["contentList"]) as List?;
+
+          final List<Content> fetchedContent = [];
+          if (rawContentList != null) {
+            for (final item in rawContentList) {
+              if (item is Map<String, dynamic>) {
+                try {
+                  fetchedContent.add(Content.fromJson(item));
+                } catch (e) {
+                  debugPrint("Skipping malformed content item: $e");
+                }
+              }
+            }
           } else {
-            debugPrint("empty list: ${getAllContentResponse.message}");
+            fetchedContent
+                .addAll(getAllContentResponse.data?.contentList ?? []);
           }
+
+          _contentList = List<Content>.from(fetchedContent);
+          _filteredContentList = List<Content>.from(fetchedContent);
+          _totalItems = _filteredContentList.length;
+          debugPrint(
+              "Fetched content count by mediaHouseId($mediaHouseId): $_totalItems");
+          resetPagination();
+          _hasMoreItems = false;
+          _isLoadingMore = false;
+          notifyListeners();
         } else {
+          _contentList.clear();
+          _filteredContentList.clear();
+          _totalItems = 0;
+          _hasMoreItems = false;
+          _isLoadingMore = false;
           debugPrint("Error: ${getAllContentResponse.message}");
+          notifyListeners();
         }
       } else {
+        _contentList.clear();
+        _filteredContentList.clear();
+        _totalItems = 0;
+        _hasMoreItems = false;
+        _isLoadingMore = false;
+        notifyListeners();
         throw Exception(
             'Failed to fetch Content. Status code: ${response.statusCode}');
       }
@@ -642,7 +684,17 @@ class VideoProvider extends ChangeNotifier {
 
   // Fetch all moviesByStatusAndMediaHouseId
   Future<void> fetchReleasedMoviesByMediaHouseId(int mediaHouseId) async {
-    String apiUrl = ApiConstant.getReleaseVideoByMediaHouse(mediaHouseId);
+    _releasedMediaHouseId = mediaHouseId;
+    _releasedCurrentPage = 0;
+    _releasedTotalPages = 0;
+    _hasMoreReleasedItems = true;
+    _isReleasedLoadingMore = false;
+
+    String apiUrl = ApiConstant.getReleaseVideoByMediaHouse(
+      mediaHouseId,
+      page: 0,
+      size: _itemsPerPage,
+    );
     debugPrint("get movie response api::: " + apiUrl);
     ApiHelper apiHelper = ApiHelper();
     try {
@@ -653,28 +705,91 @@ class VideoProvider extends ChangeNotifier {
         AllContentResponse getAllContentResponse =
             AllContentResponse.fromJson(responseBody);
         if (getAllContentResponse.success == true) {
-          if (getAllContentResponse.data!.contentList != null) {
-            _contentList.clear();
-            _filteredContentList.clear();
-            _contentList = getAllContentResponse.data!.contentList!;
-            notifyListeners();
-            _filteredContentList = _contentList;
-            _totalItems = _filteredContentList.length;
-            resetPagination();
-          } else {
-            debugPrint("empty list: ${getAllContentResponse.message}");
-          }
+          final releasedData = getAllContentResponse.data;
+          final fetchedContent = releasedData?.contentList ?? [];
+          _releasedCurrentPage = releasedData?.currentPage ?? 0;
+          _releasedTotalPages = releasedData?.totalPages ?? 0;
+          _hasMoreReleasedItems = _releasedTotalPages > 0
+              ? (_releasedCurrentPage + 1) < _releasedTotalPages
+              : false;
+
+          _contentList = List<Content>.from(fetchedContent);
+          filterContent();
         } else {
+          _contentList.clear();
           _filteredContentList.clear();
           _totalItems = 0;
-          resetPagination();
+          _hasMoreReleasedItems = false;
           debugPrint("Error: ${getAllContentResponse.message}");
           notifyListeners();
         }
-      } else {}
+      } else {
+        _contentList.clear();
+        _filteredContentList.clear();
+        _totalItems = 0;
+        _hasMoreReleasedItems = false;
+        notifyListeners();
+        throw Exception(
+            'Failed to fetch released content. Status code: ${response.statusCode}');
+      }
     } catch (error) {
       debugPrint("Error: $error");
       throw Exception('An error occurred while fetching Content.');
+    }
+  }
+
+  Future<void> fetchNextReleasedMoviesPage() async {
+    if (_releasedMediaHouseId == null ||
+        _isReleasedLoadingMore ||
+        !_hasMoreReleasedItems) {
+      return;
+    }
+
+    _isReleasedLoadingMore = true;
+    notifyListeners();
+
+    final nextPage = _releasedCurrentPage + 1;
+    String apiUrl = ApiConstant.getReleaseVideoByMediaHouse(
+      _releasedMediaHouseId!,
+      page: nextPage,
+      size: _itemsPerPage,
+    );
+
+    ApiHelper apiHelper = ApiHelper();
+    try {
+      var response = await apiHelper.getApi(apiUrl);
+      if (response.statusCode == 200) {
+        final responseBody = json.decode(response.body) as Map<String, dynamic>;
+        final releasedResponse = AllContentResponse.fromJson(responseBody);
+
+        if (releasedResponse.success == true) {
+          final releasedData = releasedResponse.data;
+          final nextContent = releasedData?.contentList ?? [];
+
+          _releasedCurrentPage = releasedData?.currentPage ?? nextPage;
+          _releasedTotalPages = releasedData?.totalPages ?? _releasedTotalPages;
+          _hasMoreReleasedItems = _releasedTotalPages > 0
+              ? (_releasedCurrentPage + 1) < _releasedTotalPages
+              : nextContent.length >= _itemsPerPage;
+
+          if (nextContent.isNotEmpty) {
+            _contentList.addAll(nextContent);
+          }
+
+          filterContent();
+        } else {
+          _hasMoreReleasedItems = false;
+          notifyListeners();
+        }
+      } else {
+        throw Exception(
+            'Failed to fetch released content page. Status code: ${response.statusCode}');
+      }
+    } catch (error) {
+      debugPrint("Error fetching next released content page: $error");
+    } finally {
+      _isReleasedLoadingMore = false;
+      notifyListeners();
     }
   }
 
@@ -741,7 +856,7 @@ class VideoProvider extends ChangeNotifier {
     saveContent.releaseDate = releaseDateController.text;
     saveContent.rentlDuration = rentalDurationController.text;
     saveContent.totalRevenue = 0;
-    saveContent.runtime = 0;
+    saveContent.runtime = double.tryParse(runTimeController.text) ?? 0.0;
     saveContent.subtitleLanguageList = selectedSubLanguages;
     saveContent.sensorCertificate = censorCertificateController.text;
     saveContent.type = typeController.text;
@@ -819,7 +934,7 @@ class VideoProvider extends ChangeNotifier {
     saveContent.ratingCount = 0;
     saveContent.releaseDate = releaseDateController.text;
     saveContent.rentlDuration = rentalDurationController.text;
-    saveContent.runtime = 0;
+    saveContent.runtime = int.tryParse(runTimeController.text) ?? 0;
     saveContent.subtitleLanguageList = selectedSubLanguages;
     saveContent.sensorCertificate = censorCertificateController.text;
     saveContent.title = titleController.text;
@@ -1617,6 +1732,33 @@ class VideoProvider extends ChangeNotifier {
     _isPoster1Uploading = false;
     _isPoster2Uploading = false;
     _isPoster3Uploading = false;
+
+    _selectedItems.clear();
+    _selectedGeners.clear();
+    _selectedAudioFormat.clear();
+    _selectedLanguages.clear();
+    _selectedSubLanguages.clear();
+    _castList.clear();
+    _directorList.clear();
+
+    _audioLanguages.clear();
+    _audioUploadProgress.clear();
+    _isAudioUploading.clear();
+    for (final controller in audioControllers.values) {
+      controller.dispose();
+    }
+    audioControllers.clear();
+
+    _isDownloadable = false;
+    _isFeatured = false;
+
+    notifyListeners();
+  }
+
+  void prepareUploadForm(String type) {
+    disposeData();
+    typeController.text = type;
+    notifyListeners();
   }
 
   setDate(DateTime pickedDate) {
@@ -1690,9 +1832,10 @@ class VideoProvider extends ChangeNotifier {
   }
 
   void setSelectedLanguages(List<String> items) {
-    LanguageList languageList = new LanguageList();
-    languageList.language = items[0];
-    _selectedLanguages = [languageList];
+    _selectedLanguages = items
+        .where((item) => item.trim().isNotEmpty)
+        .map((item) => LanguageList(language: item, fileUrl: ''))
+        .toList();
     notifyListeners();
   }
 

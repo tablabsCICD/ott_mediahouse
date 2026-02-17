@@ -6,7 +6,8 @@ import '../../../../provider/videoProvider.dart';
 import 'multiselect_dialog.dart';
 
 class UploadFormHelpers {
-  static Widget buildSectionCard(String title, List<Widget> children, ThemeData themeData) {
+  static Widget buildSectionCard(
+      String title, List<Widget> children, ThemeData themeData) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -35,7 +36,11 @@ class UploadFormHelpers {
     );
   }
 
-  static Widget buildModernDateField(BuildContext context, VideoProvider provider, ThemeData themeData, Function(DateTime) onDateSelected) {
+  static Widget buildModernDateField(
+      BuildContext context,
+      VideoProvider provider,
+      ThemeData themeData,
+      Function(DateTime) onDateSelected) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
@@ -86,12 +91,12 @@ class UploadFormHelpers {
   }
 
   static Widget buildModernDropdownField(
-      String label,
-      List<String> items,
-      BuildContext context,
-      VideoProvider provider,
-      ThemeData themeData,
-      ) {
+    String label,
+    List<String> items,
+    BuildContext context,
+    VideoProvider provider,
+    ThemeData themeData,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -120,16 +125,16 @@ class UploadFormHelpers {
             items: items
                 .map(
                   (item) => DropdownMenuItem(
-                value: item,
-                child: Text(
-                  item,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: themeData.canvasColor,
+                    value: item,
+                    child: Text(
+                      item,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: themeData.canvasColor,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            )
+                )
                 .toList(),
             onChanged: (value) {
               provider.dropDownSelection(value!, label);
@@ -154,11 +159,11 @@ class UploadFormHelpers {
   }
 
   static Widget buildModernMultiSelectDropdownField(
-      String label,
-      List<String> items,
-      BuildContext context,
-      ThemeData theme,
-      ) {
+    String label,
+    List<String> items,
+    BuildContext context,
+    ThemeData theme,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -219,7 +224,8 @@ class UploadFormHelpers {
     );
   }
 
-  static Widget builtModernMultiValueTextField(String label, ThemeData selectedThemeData) {
+  static Widget builtModernMultiValueTextField(
+      String label, ThemeData selectedThemeData) {
     return Consumer<VideoProvider>(
       builder: (context, provider, child) {
         return Column(
@@ -258,7 +264,8 @@ class UploadFormHelpers {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.add, color: Colors.white, size: 20),
+                      icon:
+                          const Icon(Icons.add, color: Colors.white, size: 20),
                       onPressed: () {
                         provider.addValuesToList(label);
                       },
@@ -282,41 +289,44 @@ class UploadFormHelpers {
                 children: provider.castList
                     .map(
                       (item) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: selectedThemeData.primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: selectedThemeData.primaryColor.withOpacity(0.3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color:
+                              selectedThemeData.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color:
+                                selectedThemeData.primaryColor.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              item,
+                              style: TextStyle(
+                                color: selectedThemeData.primaryColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: () {
+                                provider.castList.remove(item);
+                                provider.notifyListeners();
+                              },
+                              child: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: selectedThemeData.primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          item,
-                          style: TextStyle(
-                            color: selectedThemeData.primaryColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        GestureDetector(
-                          onTap: () {
-                            provider.castList.remove(item);
-                            provider.notifyListeners();
-                          },
-                          child: Icon(
-                            Icons.close,
-                            size: 16,
-                            color: selectedThemeData.primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
+                    )
                     .toList(),
               ),
             if (label == "Director" && provider.directorList.isNotEmpty)
@@ -326,41 +336,44 @@ class UploadFormHelpers {
                 children: provider.directorList
                     .map(
                       (item) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: selectedThemeData.primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: selectedThemeData.primaryColor.withOpacity(0.3),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color:
+                              selectedThemeData.primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color:
+                                selectedThemeData.primaryColor.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              item,
+                              style: TextStyle(
+                                color: selectedThemeData.primaryColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            GestureDetector(
+                              onTap: () {
+                                provider.directorList.remove(item);
+                                provider.notifyListeners();
+                              },
+                              child: Icon(
+                                Icons.close,
+                                size: 16,
+                                color: selectedThemeData.primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          item,
-                          style: TextStyle(
-                            color: selectedThemeData.primaryColor,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        GestureDetector(
-                          onTap: () {
-                            provider.directorList.remove(item);
-                            provider.notifyListeners();
-                          },
-                          child: Icon(
-                            Icons.close,
-                            size: 16,
-                            color: selectedThemeData.primaryColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
+                    )
                     .toList(),
               ),
           ],
@@ -370,12 +383,12 @@ class UploadFormHelpers {
   }
 
   static Widget buildModernToggleRow(
-      String title,
-      String subtitle,
-      bool value,
-      Function(bool) onChanged,
-      ThemeData themeData,
-      ) {
+    String title,
+    String subtitle,
+    bool value,
+    Function(bool) onChanged,
+    ThemeData themeData,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -435,7 +448,10 @@ class UploadFormHelpers {
           : 'Select $label';
     } else {
       return provider.selectedLanguages.isNotEmpty
-          ? provider.selectedLanguages.join(', ')
+          ? provider.selectedLanguages
+              .map((language) => language.language ?? "")
+              .where((language) => language.isNotEmpty)
+              .join(', ')
           : 'Select $label';
     }
   }

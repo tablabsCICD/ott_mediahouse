@@ -34,14 +34,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     if (mediaHouse != null) {
       if (mounted) {
-        await Provider.of<MediaHouseProvider>(context, listen: false).fetchMediaHouseByUserId(user!.id!);
-       }
+        await Provider.of<MediaHouseProvider>(context, listen: false)
+            .fetchMediaHouseByUserId(user!.id!);
+      }
     }
   }
 
   @override
   void dispose() {
-
     super.dispose();
   }
 
@@ -50,7 +50,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       final provider = Provider.of<MediaHouseProvider>(context, listen: false);
       var result = await provider.updateMediaHouse();
       if (result['success'] == true) {
-
         print(result['message']);
         CustomToast.show("Profile updated successfully!", isSuccess: true);
         Navigator.of(context).pop();
@@ -58,7 +57,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         print('Failure: ${result['message']}');
         CustomToast.show(result['message'].toString(), isSuccess: false);
       }
-    }else{
+    } else {
       CustomToast.show("Fill All Data", isSuccess: false);
     }
   }
@@ -67,19 +66,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Widget build(BuildContext context) {
     var themeProvider = Provider.of<ThemeProvider>(context);
     var selectedThemeData = themeProvider.getTheme;
-    return Consumer<MediaHouseProvider>(
-        builder: (context, provider, child) {
+    return Consumer<MediaHouseProvider>(builder: (context, provider, child) {
       final mediaHouse = provider.mediaHouse;
 
       if (mediaHouse == null) {
-        return const Center(child: CircularProgressIndicator());
+        return Center(
+            child: CircularProgressIndicator(
+                color: selectedThemeData.primaryColor));
       }
 
       return Scaffold(
         backgroundColor: selectedThemeData.scaffoldBackgroundColor,
         appBar: AppBar(
           backgroundColor: selectedThemeData.primaryColor,
-          title: Text(provider.mediaHouse.mediaHouseName??'-'),
+          title: Text(provider.mediaHouse.mediaHouseName ?? '-'),
         ),
         body: Center(
           child: Padding(
@@ -87,46 +87,48 @@ class _EditProfilePageState extends State<EditProfilePage> {
             child: Form(
               key: _formKey,
               child: SizedBox(
-                width: ResponsiveWidget.isMobile(context) ? double.infinity : 400,
+                width:
+                    ResponsiveWidget.isMobile(context) ? double.infinity : 400,
                 child: Column(
                   children: [
-                  SizedBox(
-                    height: 150,
-                    child: Stack(
-                    alignment: Alignment.bottomRight,
-                    children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: Colors.grey.shade200,
-                        backgroundImage: provider.profileImageProvider,
-                        child: provider.profileImageProvider == null
-                            ? const Icon(Icons.person, size: 40, color: Colors.grey)
-                            : null,
-                      ),
+                    SizedBox(
+                      height: 150,
+                      child: Stack(
+                        alignment: Alignment.bottomRight,
+                        children: [
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundColor: Colors.grey.shade200,
+                            backgroundImage: provider.profileImageProvider,
+                            child: provider.profileImageProvider == null
+                                ? const Icon(Icons.person,
+                                    size: 40, color: Colors.grey)
+                                : null,
+                          ),
 
-
-                      // Edit icon
-                      InkWell(
-                        onTap: (){
+                          // Edit icon
+                          InkWell(
+                            onTap: () {
                               provider.pickImage("profile");
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.blue, // Background color of the icon
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color:
+                                    Colors.blue, // Background color of the icon
+                              ),
+                              padding: EdgeInsets.all(
+                                  8.0), // Adjust padding as needed
+                              child: Icon(
+                                Icons.edit,
+                                color: Colors.white, // Color of the icon
+                                size: 20, // Adjust the size as needed
+                              ),
+                            ),
                           ),
-                          padding: EdgeInsets.all(8.0), // Adjust padding as needed
-                          child: Icon(
-                            Icons.edit,
-                            color: Colors.white, // Color of the icon
-                            size: 20, // Adjust the size as needed
-                          ),
-                        ),
+                        ],
                       ),
-                    ],
-                                    ),
-                  ),
-
+                    ),
                     CustomTextField(
                       controller: provider.mediaHouseNameController,
                       label: 'Media House Name',
@@ -153,7 +155,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       isValidator: true,
                       hintText: 'Enter a valid Mobile Number',
                       textInputType: TextInputType.number,
-                    ), CustomTextField(
+                    ),
+                    CustomTextField(
                       controller: provider.descriptionController,
                       label: 'Description',
                       isName: true,
@@ -197,7 +200,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
           ),
         ),
-      );}
-    );
+      );
+    });
   }
 }

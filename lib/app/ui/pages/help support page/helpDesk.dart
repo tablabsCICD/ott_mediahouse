@@ -60,10 +60,17 @@ class _HelpDeskPageState extends State<HelpDeskPage> {
 
     return Scaffold(
       backgroundColor: selectedThemeData.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text("Help Desk"),
+        backgroundColor: selectedThemeData.primaryColor,
+      ),
       body: Consumer<TicketProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+                child: CircularProgressIndicator(
+              color: selectedThemeData.primaryColor,
+            ));
           }
           if (provider.error != null) {
             return Center(child: Text("Error: ${provider.error}"));
@@ -119,8 +126,9 @@ class _HelpDeskPageState extends State<HelpDeskPage> {
                   children: [
                     SizedBox(
                       height: 40,
-                      width: 100,
+                      width: 40,
                       child: IconButton(
+                        padding: EdgeInsets.zero,
                         icon: Icon(
                           Icons.add,
                           color: selectedThemeData.primaryColor,
@@ -133,11 +141,11 @@ class _HelpDeskPageState extends State<HelpDeskPage> {
                         },
                       ),
                     ),
-                    SizedBox(
-                      width: double.infinity,
+                    const SizedBox(width: 8),
+                    Expanded(
                       child: CustomTextField(
                         textInputType: TextInputType.text,
-                        prefixIcon: Icon(Icons.search),
+                        prefixIcon: const Icon(Icons.search),
                         hintText: "Search queries...",
                         controller: _searchController,
                         onValueChange: (_) => setState(() {}),
@@ -214,7 +222,6 @@ class _HelpDeskPageState extends State<HelpDeskPage> {
                         _isResolved); // Fetch solved tickets
                   }),
                 ),
-
                 const Spacer(),
                 SizedBox(
                   width: 250,
@@ -240,11 +247,12 @@ class _HelpDeskPageState extends State<HelpDeskPage> {
                     backgroundColor: selectedThemeData.primaryColor,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(5), // Removes rounded corners
+                      borderRadius:
+                          BorderRadius.circular(5), // Removes rounded corners
                     ),
                     padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                     textStyle:
-                    TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
                 ),
               ],
@@ -371,7 +379,9 @@ class _HelpDeskPageState extends State<HelpDeskPage> {
                   // ),
                 ),
                 const SizedBox(height: 10),
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
                     OutlinedButton.icon(
                       onPressed: () async {
@@ -390,7 +400,6 @@ class _HelpDeskPageState extends State<HelpDeskPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
                     OutlinedButton.icon(
                       onPressed: () {
                         final provider = context.read<TicketProvider>();
@@ -410,7 +419,6 @@ class _HelpDeskPageState extends State<HelpDeskPage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
                     OutlinedButton.icon(
                       onPressed: () {
                         final index = provider.tickets.indexOf(ticket);

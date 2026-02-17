@@ -3,7 +3,6 @@ import 'package:media_house/app/ui/pages/Splash%20screen/SplashScreen.dart';
 import 'package:media_house/app/ui/pages/analytics_page/analyticsPage.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/dashboardpage.dart';
 import 'package:media_house/app/ui/pages/document_page/documentpage.dart';
-import 'package:media_house/app/ui/pages/help%20support%20page/HelpSupportPage.dart';
 import 'package:media_house/app/ui/pages/help%20support%20page/helpDesk.dart';
 import 'package:media_house/app/ui/pages/pendingContent_page/pendingcontent.dart';
 import 'package:media_house/app/ui/pages/profile%20page/component/EditProfilePage.dart';
@@ -22,14 +21,13 @@ class RouteGenerator {
 
       case AppRoutes.entry:
         bool isLoggedIn = settings.arguments as bool;
-        return buildRoute(SplashScreen(),
-            settings: settings);
+        return buildRoute(SplashScreen(), settings: settings);
 
-       case AppRoutes.home:
-         return buildRoute(DashboardPage(), settings: settings);
+      case AppRoutes.home:
+        return buildRoute(DashboardPage(), settings: settings);
 
-       case AppRoutes.forgotPassword:
-         return buildRoute(DashboardPage(), settings: settings);
+      case AppRoutes.forgotPassword:
+        return buildRoute(DashboardPage(), settings: settings);
 
       case AppRoutes.profile:
         return buildRoute(ProfilePage(), settings: settings);
@@ -55,7 +53,6 @@ class RouteGenerator {
       case AppRoutes.pendingContent:
         return buildRoute(PendingContentPage(), settings: settings);
 
-
       default:
         return buildRoute(SplashScreen(), settings: settings);
     }
@@ -64,10 +61,8 @@ class RouteGenerator {
   static MaterialPageRoute buildRoute(Widget child,
       {required RouteSettings settings}) {
     return MaterialPageRoute(
-
         settings: settings, builder: (BuildContext context) => child);
   }
-
 
   static Route _createRoute(Widget root) {
     return PageRouteBuilder(
@@ -76,7 +71,8 @@ class RouteGenerator {
         var begin = const Offset(0.0, 1.0);
         var end = Offset.zero;
         const curve = Curves.ease;
-        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        var tween =
+            Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
         return SlideTransition(
           position: animation.drive(tween),
           child: child,
@@ -84,10 +80,6 @@ class RouteGenerator {
       },
     );
   }
-
-
-
-
 
   static Route<dynamic> _errorRoute() {
     return MaterialPageRoute(builder: (_) {
@@ -128,6 +120,3 @@ class RouteGenerator {
     });
   }
 }
-
-
-

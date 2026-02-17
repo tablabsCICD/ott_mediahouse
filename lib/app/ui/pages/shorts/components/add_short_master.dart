@@ -167,6 +167,10 @@ class AddShortMaster {
             builder: (dialogContext, setState) {
               return Container(
                 width: screenWidth > 600 ? 420 : screenWidth * 0.9,
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
                 padding: const EdgeInsets.all(20),
                 child: SingleChildScrollView(
                   child: Column(
@@ -268,6 +272,8 @@ class AddShortMaster {
                             style: TextStyle(color: theme.canvasColor),
                           ),
                           Switch(
+                            activeThumbColor: Colors.white,
+                            activeTrackColor: theme.primaryColor,
                             value: isTrending,
                             onChanged: isSubmitting
                                 ? null

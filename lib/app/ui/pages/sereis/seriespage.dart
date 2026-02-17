@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../provider/series_provider.dart';
-import '../../../widget/movieCardHorizontal.dart';
+import '../../../widget/content_wide_card.dart';
 import '../../../../device/utils/ResponsiveWidget.dart';
 
 class SeriesPage extends StatefulWidget {
@@ -36,7 +36,8 @@ class _SeriesPageState extends State<SeriesPage> {
     if (date == null) return true;
     if (_fromDate != null && date.isBefore(_fromDate!)) return false;
     if (_toDate != null) {
-      final end = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
+      final end =
+          DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
       if (date.isAfter(end)) return false;
     }
     return true;
@@ -227,8 +228,9 @@ class _SeriesPageState extends State<SeriesPage> {
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final isWide = constraints.maxWidth > 900;
-                      final tileWidth =
-                          isWide ? (constraints.maxWidth - 24) / 3 : constraints.maxWidth;
+                      final tileWidth = isWide
+                          ? (constraints.maxWidth - 24) / 3
+                          : constraints.maxWidth;
 
                       return Wrap(
                         spacing: 12,
@@ -318,7 +320,8 @@ class _SeriesPageState extends State<SeriesPage> {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
                               decoration: BoxDecoration(
                                 border: Border.all(color: theme.dividerColor),
                                 borderRadius: BorderRadius.circular(10),
@@ -329,7 +332,8 @@ class _SeriesPageState extends State<SeriesPage> {
                                   dropdownColor: theme.cardColor,
                                   style: TextStyle(color: theme.canvasColor),
                                   iconEnabledColor: theme.canvasColor,
-                                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                                  icon: const Icon(
+                                      Icons.keyboard_arrow_down_rounded),
                                   onChanged: (value) {
                                     if (value != null) {
                                       setState(() {
@@ -340,31 +344,45 @@ class _SeriesPageState extends State<SeriesPage> {
                                   items: [
                                     DropdownMenuItem(
                                       value: 'newest',
-                                      child: Text("Newest", style: TextStyle(color: theme.canvasColor)),
+                                      child: Text("Newest",
+                                          style: TextStyle(
+                                              color: theme.canvasColor)),
                                     ),
                                     DropdownMenuItem(
                                       value: 'oldest',
-                                      child: Text("Oldest", style: TextStyle(color: theme.canvasColor)),
+                                      child: Text("Oldest",
+                                          style: TextStyle(
+                                              color: theme.canvasColor)),
                                     ),
                                     DropdownMenuItem(
                                       value: 'revenue_high',
-                                      child: Text("Revenue High", style: TextStyle(color: theme.canvasColor)),
+                                      child: Text("Revenue High",
+                                          style: TextStyle(
+                                              color: theme.canvasColor)),
                                     ),
                                     DropdownMenuItem(
                                       value: 'revenue_low',
-                                      child: Text("Revenue Low", style: TextStyle(color: theme.canvasColor)),
+                                      child: Text("Revenue Low",
+                                          style: TextStyle(
+                                              color: theme.canvasColor)),
                                     ),
                                     DropdownMenuItem(
                                       value: 'likes_high',
-                                      child: Text("Likes High", style: TextStyle(color: theme.canvasColor)),
+                                      child: Text("Likes High",
+                                          style: TextStyle(
+                                              color: theme.canvasColor)),
                                     ),
                                     DropdownMenuItem(
                                       value: 'views_high',
-                                      child: Text("Views High", style: TextStyle(color: theme.canvasColor)),
+                                      child: Text("Views High",
+                                          style: TextStyle(
+                                              color: theme.canvasColor)),
                                     ),
                                     DropdownMenuItem(
                                       value: 'rating_high',
-                                      child: Text("Rating High", style: TextStyle(color: theme.canvasColor)),
+                                      child: Text("Rating High",
+                                          style: TextStyle(
+                                              color: theme.canvasColor)),
                                     ),
                                   ],
                                 ),
@@ -395,10 +413,12 @@ class _SeriesPageState extends State<SeriesPage> {
                           children: [
                             Expanded(flex: 4, child: searchField),
                             const SizedBox(width: 12),
-                            Expanded(flex: 5, child: Align(
-                              alignment: Alignment.centerRight,
-                              child: filters,
-                            )),
+                            Expanded(
+                                flex: 5,
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: filters,
+                                )),
                           ],
                         );
                       },
@@ -406,9 +426,11 @@ class _SeriesPageState extends State<SeriesPage> {
                   ),
                   const SizedBox(height: 12),
                   if (provider.isLoading)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
-                      child: Center(child: CircularProgressIndicator()),
+                      child: Center(
+                          child: CircularProgressIndicator(
+                              color: theme.primaryColor)),
                     )
                   else if (filteredSeries.isEmpty)
                     Padding(
@@ -418,7 +440,8 @@ class _SeriesPageState extends State<SeriesPage> {
                           _query.isEmpty
                               ? "No series available."
                               : "No series found for current filters.",
-                          style: TextStyle(color: theme.canvasColor.withValues(alpha: 0.75)),
+                          style: TextStyle(
+                              color: theme.canvasColor.withValues(alpha: 0.75)),
                         ),
                       ),
                     )
@@ -428,9 +451,12 @@ class _SeriesPageState extends State<SeriesPage> {
                             physics: const NeverScrollableScrollPhysics(),
                             shrinkWrap: true,
                             itemCount: filteredSeries.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 8),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 8),
                             itemBuilder: (context, index) {
-                              return MovieCardHorizontal(movie: filteredSeries[index]);
+                              return ContentWideCard(
+                                content: filteredSeries[index],
+                              );
                             },
                           )
                         : GridView.builder(
@@ -440,12 +466,14 @@ class _SeriesPageState extends State<SeriesPage> {
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 3,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 8 / 4,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: 16 / 9,
                             ),
                             itemBuilder: (context, index) {
-                              return MovieCardHorizontal(movie: filteredSeries[index]);
+                              return ContentWideCard(
+                                content: filteredSeries[index],
+                              );
                             },
                           ),
                   if (filteredSeries.isNotEmpty)

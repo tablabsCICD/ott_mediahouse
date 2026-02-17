@@ -18,8 +18,6 @@ class TopMoviesLineGraph extends StatefulWidget {
 }
 
 class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
-
-
   @override
   void initState() {
     super.initState();
@@ -29,11 +27,12 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
   }
 
   Future<void> getData() async {
-    widget.isRevenue?
-        await Provider.of<GraphProvider>(context, listen: false).fetchTopPerformingMovieGraph(0):await Provider.of<GraphProvider>(context, listen: false).fetchTopRatedMovieGraph(0);
+    widget.isRevenue
+        ? await Provider.of<GraphProvider>(context, listen: false)
+            .fetchTopPerformingMovieGraph(0)
+        : await Provider.of<GraphProvider>(context, listen: false)
+            .fetchTopRatedMovieGraph(0);
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -41,29 +40,37 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
         Provider.of<ThemeProvider>(context, listen: true).getTheme;
 
     return Consumer<GraphProvider>(
-        builder: (context, provider, child) {
-          return Column(
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Top Performing Movies',
-                    style: TextStyle(
-                      color: selectedThemeData.primaryColor,
-                      fontSize: ResponsiveWidget.isMobile(context) ? 14 : 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+      builder: (context, provider, child) {
+        return Column(
+          children: [
+            Row(
+              children: [
+                SizedBox(
+                  width: ResponsiveWidget.isMobile(context) ? 0 : 20,
+                ),
+                Text(
+                  'Top Performing Movies',
+                  style: TextStyle(
+                    color: selectedThemeData.primaryColor,
+                    fontSize: ResponsiveWidget.isMobile(context) ? 14 : 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  Spacer(),
-                  _buildDateSelection(selectedThemeData,provider),
-                ],
-              ),
-              SizedBox(height: 20),
-              _buildChart(selectedThemeData,provider),
-              _buildFilterOptions(selectedThemeData,provider),
-            ],
-          );
-        },
+                ),
+                Spacer(),
+                _buildDateSelection(selectedThemeData, provider),
+                SizedBox(
+                  width: 20,
+                ),
+              ],
+            ),
+            SizedBox(
+              height: ResponsiveWidget.isMobile(context) ? 0 : 20,
+            ),
+            _buildChart(selectedThemeData, provider),
+            _buildFilterOptions(selectedThemeData, provider),
+          ],
+        );
+      },
     );
   }
 
@@ -76,7 +83,7 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
               ? "Select Date Range"
               : "${DateFormat.yMMMd().format(provider.selectedDateRange!.start)} - ${DateFormat.yMMMd().format(provider.selectedDateRange!.end)}",
           style: TextStyle(
-              fontSize: ResponsiveWidget.isMobile(context) ? 12 : 16,
+              fontSize: ResponsiveWidget.isMobile(context) ? 10 : 16,
               fontWeight: FontWeight.bold),
         ),
       ],
@@ -112,8 +119,8 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         ...filterOptions.map((range) => _buildFilterButton(
-            theme, range['label'] as String, range['days'] as int,provider)),
-        _buildFilterButton(theme, 'Custom Dates', 0,provider, isCustom: true),
+            theme, range['label'] as String, range['days'] as int, provider)),
+        _buildFilterButton(theme, 'Custom Dates', 0, provider, isCustom: true),
       ],
     );
   }
@@ -124,8 +131,9 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
     final bool isActive = provider.activeButton == label;
     return GestureDetector(
       onTap: isCustom
-          ? () => provider.pickDateRange(context,widget.isRevenue) // Pass `context` explicitly
-          : () => provider.setDateRange(label, days,context,widget.isRevenue),
+          ? () => provider.pickDateRange(
+              context, widget.isRevenue) // Pass `context` explicitly
+          : () => provider.setDateRange(label, days, context, widget.isRevenue),
       child: Container(
         decoration: BoxDecoration(
           color: isActive

@@ -19,7 +19,8 @@ class MovieCard extends StatelessWidget {
     required this.movieName,
     required this.poster_url,
     required this.rating,
-    required this.rating_count, required this.movie,
+    required this.rating_count,
+    required this.movie,
   });
 
   num _toNum(dynamic value) {
@@ -45,7 +46,7 @@ class MovieCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withOpacity(0.3),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -71,21 +72,24 @@ class MovieCard extends StatelessWidget {
     return ResponsiveWidget.isDesktop(context)
         ? GestureDetector(
             onTap: () {
-              movie.type=="MOVIE"?Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MovieDetailsPage(
-                    movieId: movieId,
-                  ),
-                ),
-              ):Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SeriesDetailsPage(
-                   seriesId: movieId, content: movie,
-                  ),
-                ),
-              );
+              movie.type == "MOVIE"
+                  ? Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MovieDetailsPage(
+                          movieId: movieId,
+                        ),
+                      ),
+                    )
+                  : Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SeriesDetailsPage(
+                          seriesId: movieId,
+                          content: movie,
+                        ),
+                      ),
+                    );
             },
             child: Container(
               width: 160,
@@ -96,7 +100,7 @@ class MovieCard extends StatelessWidget {
                   BoxShadow(
                     color: Colors.black26,
                     blurRadius: 5,
-                    offset: Offset(0, 3),
+                    offset: Offset(0, 2),
                   ),
                 ],
               ),
@@ -128,9 +132,9 @@ class MovieCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: [
-                              Colors.black.withOpacity(0.7),
+                              Colors.black.withOpacity(0.5),
                               Colors.transparent,
-                              Colors.black.withOpacity(0.7),
+                              Colors.black.withOpacity(0.3),
                             ],
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
@@ -153,7 +157,7 @@ class MovieCard extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
@@ -287,7 +291,7 @@ class MovieCard extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                             ),
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),

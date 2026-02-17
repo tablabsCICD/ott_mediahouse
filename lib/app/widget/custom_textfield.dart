@@ -90,18 +90,58 @@ class _CustomTextFieldState extends State<CustomTextField> {
             validator: _buildValidator(),
             onChanged: widget.onValueChange,
             decoration: InputDecoration(
-              filled: inputTheme.filled,
-              fillColor: inputTheme.fillColor,
+              filled: true,
+              fillColor: widget.readOnly == true
+                  ? theme.disabledColor.withOpacity(0.05)
+                  : theme.inputDecorationTheme.fillColor ??
+                      theme.cardColor.withOpacity(0.05),
               hintText: widget.hintText,
-              hintStyle: inputTheme.hintStyle,
-              border: inputTheme.border,
-              enabledBorder: inputTheme.enabledBorder,
-              focusedBorder: inputTheme.focusedBorder,
-              contentPadding: inputTheme.contentPadding,
+              hintStyle:
+                  inputTheme.hintStyle ?? TextStyle(color: theme.hintColor),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: theme.dividerColor,
+                  width: 1,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: theme.dividerColor.withOpacity(0.6),
+                  width: 1,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: theme.primaryColor,
+                  width: 1.5,
+                ),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 1.2,
+                ),
+              ),
+              focusedErrorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: Colors.red,
+                  width: 1.5,
+                ),
+              ),
               suffixIcon: widget.isPassword
                   ? IconButton(
                       icon: Icon(
                         _isObscure ? Icons.visibility : Icons.visibility_off,
+                        color: theme.primaryColor,
                       ),
                       onPressed: () {
                         setState(() {
@@ -110,7 +150,10 @@ class _CustomTextFieldState extends State<CustomTextField> {
                       },
                     )
                   : widget.suffixIcon != null
-                      ? Icon(widget.suffixIcon)
+                      ? Icon(
+                          widget.suffixIcon,
+                          color: theme.primaryColor,
+                        )
                       : null,
               prefixIcon: widget.prefixIcon,
             ),

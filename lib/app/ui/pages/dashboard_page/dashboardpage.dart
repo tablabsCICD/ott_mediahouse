@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:media_house/app/core/constant/image_constant.dart';
 import 'package:media_house/app/provider/mediaHouseProvider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/provider/user_provider.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/components/settlementCards.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/components/buildSummaryCard.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/components/contentUploadCrad.dart';
+import 'package:media_house/app/ui/pages/uploadContent_page/select_upload_type.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/upload_video.dart';
-
 import 'package:media_house/app/widget/CustomLineGraph.dart';
 import 'package:media_house/app/widget/TopMoviesLineGraph.dart';
 import 'package:media_house/app/widget/show_toast.dart';
-import 'package:media_house/data/repositories/settlement_list.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:provider/provider.dart';
-
 import '../../../core/utils/sharepreferences.dart';
 
 class DashboardPage extends StatefulWidget {
@@ -39,32 +36,24 @@ class _DashboardPageState extends State<DashboardPage> {
     print(user!.firstName! + ':::::::::UserName:::::::');
     final mediaHouse = await localSharePreferences.getMediaHouse();
     print(mediaHouse!.mediaHouseName! + ':::::::::MediaHouse:::::::');
-    if (user != null) {
-      if (mounted) {
-        await Provider.of<UserProvider>(context, listen: false)
-            .getUserById(user.id!);
-        await Provider.of<UserProvider>(context, listen: false)
-            .fetchMediaHouseByUserId(user.id!, context);
-      }
-      await mediaHouseProvider.fetchMediaHouseByUserId(user.id!);
-      await mediaHouseProvider
-          .fetchMediaHouseDashboardData(mediaHouseProvider.mediaHouse.id!);
+    if (mounted) {
+      await Provider.of<UserProvider>(context, listen: false)
+          .getUserById(user.id!);
+      await Provider.of<UserProvider>(context, listen: false)
+          .fetchMediaHouseByUserId(user.id!, context);
     }
+    await mediaHouseProvider.fetchMediaHouseByUserId(user.id!);
+    await mediaHouseProvider
+        .fetchMediaHouseDashboardData(mediaHouseProvider.mediaHouse.id!);
   }
 
   @override
   Widget build(BuildContext context) {
     var selectedThemeData =
         Provider.of<ThemeProvider>(context, listen: true).getTheme;
-    final userProvider = Provider.of<UserProvider>(context);
+    Provider.of<UserProvider>(context);
 
     return Consumer<MediaHouseProvider>(builder: (context, provider, child) {
-      final mediaHouse = provider.mediaHouse;
-
-      if (mediaHouse == null) {
-        return const Center(child: CircularProgressIndicator());
-      }
-
       return Scaffold(
         backgroundColor: selectedThemeData.scaffoldBackgroundColor,
         body: ResponsiveWidget.isMobile(context) ////mobile view////
@@ -411,13 +400,13 @@ class _DashboardPageState extends State<DashboardPage> {
                           children: [
                             Expanded(
                               flex: 1,
-                              child: ContentUploadCrad(provider.mediaHouse),
+                              child: ContentUploadCard(provider.mediaHouse),
                             ),
                             SizedBox(
                               width: 10,
                             ),
                             Expanded(
-                              flex: 4,
+                              flex: 3,
                               child: Card(
                                 color: selectedThemeData.cardColor,
                                 child: Padding(
@@ -460,17 +449,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     "APPROVED"
                 ? showDialog(
                     context: context,
-                    builder: (BuildContext context) {
-                      return Dialog(
-                        backgroundColor: theme.cardColor,
-                        child: SizedBox(
-                            width: ResponsiveWidget.isMobile(context)
-                                ? MediaQuery.of(context).size.width * 0.9
-                                : MediaQuery.of(context).size.width *
-                                    0.5, // 80% of screen width,
-                            child: UploadVideoWidget()),
-                      );
-                    },
+                    barrierDismissible: false,
+                    builder: (_) => SelectUploadTypeDialog(),
                   )
                 : CustomToast.show("First you need to get approval from admin",
                     isSuccess: false);

@@ -165,13 +165,10 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
-
-
     setState(() => isLoading = true);
 
     try {
-      final url =
-          '${ApiConstant.baseUrl}series/${widget.seriesId}/season/add';
+      final url = '${ApiConstant.baseUrl}series/${widget.seriesId}/season/add';
       debugPrint(url);
       final body = {
         "amount": amountCtrl.text.trim(),
@@ -207,8 +204,6 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
 
   // ------------------ Snackbar Safe Handler ------------------
 
-
-
   // ------------------ UI ------------------
 
   @override
@@ -242,9 +237,9 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
                       border: Border.all(color: theme.canvasColor),
                       image: previewBytes != null
                           ? DecorationImage(
-                        image: MemoryImage(previewBytes!),
-                        fit: BoxFit.cover,
-                      )
+                              image: MemoryImage(previewBytes!),
+                              fit: BoxFit.cover,
+                            )
                           : null,
                     ),
                     child: previewBytes == null
@@ -252,13 +247,11 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
                         : null,
                   ),
                 ),
-
                 if (uploadProgress > 0 && uploadProgress < 1)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: LinearProgressIndicator(value: uploadProgress),
                   ),
-
                 const SizedBox(height: 15),
                 _field(titleCtrl, "Season Title"),
                 _field(descCtrl, "Description", maxLines: 3),
@@ -284,10 +277,10 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
           onPressed: isLoading ? null : _submit,
           child: isLoading
               ? const SizedBox(
-            height: 18,
-            width: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text("Add Season"),
         ),
       ],
@@ -296,7 +289,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
 
   Widget _imagePicker(ThemeData theme) {
     return GestureDetector(
-      onTap: (){
+      onTap: () {
         isUploading ? null : pickImage(setState);
       },
       child: Container(
@@ -308,28 +301,29 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
           color: theme.scaffoldBackgroundColor.withOpacity(0.4),
         ),
         child: isUploading
-            ? const Center(child: CircularProgressIndicator())
+            ? Center(
+                child: CircularProgressIndicator(
+                color: theme.primaryColor,
+              ))
             : uploadedPosterUrl.isNotEmpty
-            ? ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            uploadedPosterUrl,
-            fit: BoxFit.cover,
-          ),
-        )
-            : const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.cloud_upload, size: 40),
-            SizedBox(height: 8),
-            Text("Upload Season Poster"),
-          ],
-        ),
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      uploadedPosterUrl,
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.cloud_upload, size: 40),
+                      SizedBox(height: 8),
+                      Text("Upload Season Poster"),
+                    ],
+                  ),
       ),
     );
   }
-
-
 
   Widget _datePicker(ThemeData theme) {
     return Row(
@@ -349,11 +343,11 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
   }
 
   Widget _field(
-      TextEditingController controller,
-      String label, {
-        int maxLines = 1,
-        TextInputType keyboard = TextInputType.text,
-      }) {
+    TextEditingController controller,
+    String label, {
+    int maxLines = 1,
+    TextInputType keyboard = TextInputType.text,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(

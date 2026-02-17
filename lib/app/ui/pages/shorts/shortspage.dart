@@ -46,7 +46,8 @@ class _ShortsPageState extends State<ShortsPage> {
     if (date == null) return true;
     if (_fromDate != null && date.isBefore(_fromDate!)) return false;
     if (_toDate != null) {
-      final end = DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
+      final end =
+          DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
       if (date.isAfter(end)) return false;
     }
     return true;
@@ -93,22 +94,20 @@ class _ShortsPageState extends State<ShortsPage> {
     final theme = Theme.of(context);
 
     final crossAxisCount = ResponsiveWidget.isDesktop(context)
-        ? 5
+        ? 4
         : ResponsiveWidget.isTablet(context)
             ? 4
             : 2;
-
-    final tileHeight = ResponsiveWidget.isDesktop(context) ||
-            ResponsiveWidget.isTablet(context)
-        ? 300.0
-        : 240.0;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Consumer<ShortProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading && provider.shorts.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(
+                child: CircularProgressIndicator(
+              color: theme.primaryColor,
+            ));
           }
 
           if (provider.shorts.isEmpty) {
@@ -145,13 +144,17 @@ class _ShortsPageState extends State<ShortsPage> {
                 return (b.isTrending == true ? 1 : 0)
                     .compareTo(a.isTrending == true ? 1 : 0);
               case 'oldest':
-                final aDate = _parseDate(a.createdAt ?? a.createdDate) ?? DateTime(1970);
-                final bDate = _parseDate(b.createdAt ?? b.createdDate) ?? DateTime(1970);
+                final aDate =
+                    _parseDate(a.createdAt ?? a.createdDate) ?? DateTime(1970);
+                final bDate =
+                    _parseDate(b.createdAt ?? b.createdDate) ?? DateTime(1970);
                 return aDate.compareTo(bDate);
               case 'newest':
               default:
-                final aDate = _parseDate(a.createdAt ?? a.createdDate) ?? DateTime(1970);
-                final bDate = _parseDate(b.createdAt ?? b.createdDate) ?? DateTime(1970);
+                final aDate =
+                    _parseDate(a.createdAt ?? a.createdDate) ?? DateTime(1970);
+                final bDate =
+                    _parseDate(b.createdAt ?? b.createdDate) ?? DateTime(1970);
                 return bDate.compareTo(aDate);
             }
           });
@@ -221,47 +224,66 @@ class _ShortsPageState extends State<ShortsPage> {
                               items: [
                                 DropdownMenuItem(
                                   value: 'newest',
-                                  child: Text("Newest", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Newest",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'oldest',
-                                  child: Text("Oldest", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Oldest",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'views_high',
-                                  child: Text("Views High", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Views High",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'likes_high',
-                                  child: Text("Likes High", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Likes High",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'parts_high',
-                                  child: Text("Parts High", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Parts High",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'coins_high',
-                                  child: Text("Coins High", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Coins High",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'trending_first',
-                                  child: Text("Trending First", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Trending First",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'title_az',
-                                  child: Text("Title A-Z", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Title A-Z",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                                 DropdownMenuItem(
                                   value: 'title_za',
-                                  child: Text("Title Z-A", style: TextStyle(color: theme.canvasColor)),
+                                  child: Text("Title Z-A",
+                                      style:
+                                          TextStyle(color: theme.canvasColor)),
                                 ),
                               ],
                             ),
                           ),
                         ),
-                        TextButton(
+                        TextButton.icon(
                           onPressed: _resetFilters,
-                          child: const Text("Reset"),
+                          icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                          label: const Text("Reset"),
                         ),
                       ],
                     );
@@ -271,7 +293,9 @@ class _ShortsPageState extends State<ShortsPage> {
                         children: [
                           searchField,
                           const SizedBox(height: 8),
-                          Align(alignment: Alignment.centerRight, child: filterBar),
+                          Align(
+                              alignment: Alignment.centerRight,
+                              child: filterBar),
                         ],
                       );
                     }
@@ -305,9 +329,10 @@ class _ShortsPageState extends State<ShortsPage> {
                     itemCount: totalItems,
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: crossAxisCount,
-                      mainAxisSpacing: 14,
                       crossAxisSpacing: 12,
-                      mainAxisExtent: tileHeight,
+                      mainAxisSpacing: 12,
+                      // Exact vertical short ratio
+                      childAspectRatio: 9 / 16,
                     ),
                     itemBuilder: (_, index) {
                       if (index == 0) {
@@ -344,7 +369,7 @@ class _ShortsPageState extends State<ShortsPage> {
       onTap: () => AddShortMaster.show(context),
       child: Container(
         decoration: BoxDecoration(
-          color: theme.primaryColor.withValues(alpha: 0.1),
+          color: theme.primaryColor.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: theme.primaryColor.withValues(alpha: 0.4),
@@ -355,8 +380,8 @@ class _ShortsPageState extends State<ShortsPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(height: 90, child: Image.asset(ImageConstant.upload)),
-              const SizedBox(height: 30),
+              SizedBox(height: 56, child: Image.asset(ImageConstant.upload)),
+              const SizedBox(height: 16),
               Text(
                 "Add New Short",
                 style: TextStyle(
@@ -403,18 +428,22 @@ class _ShortsPageState extends State<ShortsPage> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.network(
-              short.posterUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.broken_image, color: Colors.grey, size: 40),
+            Container(
+              color: theme.cardColor,
+              child: Image.network(
+                short.posterUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+                ),
+              ),
             ),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withValues(alpha: 0.05),
-                    Colors.black.withValues(alpha: 0.5),
+                    Colors.black.withValues(alpha: 0.06),
+                    Colors.black.withValues(alpha: 0.65),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -426,7 +455,8 @@ class _ShortsPageState extends State<ShortsPage> {
                 top: 10,
                 left: 10,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: theme.primaryColor.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(8),
@@ -450,23 +480,27 @@ class _ShortsPageState extends State<ShortsPage> {
                 children: [
                   Text(
                     short.title ?? '',
-                    maxLines: 2,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.play_arrow_rounded,
-                          color: Colors.white70, size: 14),
+                      const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white70,
+                        size: 14,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         "${short.totalParts ?? 0} Parts",
-                        style: const TextStyle(color: Colors.white70, fontSize: 11),
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 11),
                       ),
                     ],
                   ),
@@ -476,7 +510,11 @@ class _ShortsPageState extends State<ShortsPage> {
             const Positioned(
               bottom: 10,
               right: 10,
-              child: Icon(Icons.play_circle_fill, color: Colors.white70, size: 30),
+              child: Icon(
+                Icons.play_circle_fill,
+                color: Colors.white70,
+                size: 30,
+              ),
             ),
           ],
         ),

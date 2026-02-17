@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:media_house/app/core/constant/image_constant.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
-import 'package:media_house/app/ui/pages/uploadContent_page/upload_video.dart';
+import 'package:media_house/app/ui/pages/uploadContent_page/select_upload_type.dart';
 import 'package:media_house/app/widget/show_toast.dart';
-import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:media_house/domain/entities/mediaHouse.dart';
 import 'package:provider/provider.dart';
 
-class ContentUploadCrad extends StatelessWidget {
+// ignore: must_be_immutable
+class ContentUploadCard extends StatelessWidget {
   MediaHouse mediaHouse;
-  ContentUploadCrad( this.mediaHouse, {super.key});
+  ContentUploadCard(this.mediaHouse, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,17 +20,28 @@ class ContentUploadCrad extends StatelessWidget {
       color: selectedThemeData.cardColor,
       child: InkWell(
         onTap: () {
-         mediaHouse.status=="APPROVED"? showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return Dialog(
-                backgroundColor: selectedThemeData.cardColor,
-                child:  SizedBox(
-                  width: ResponsiveWidget.isMobile(context)?MediaQuery.of(context).size.width * 0.8:MediaQuery.of(context).size.width * 0.5, // 80% of screen width,
-               child: UploadVideoWidget()),
-              );
-            },
-          ):CustomToast.show("First you need to get approval from admin", isSuccess: false);
+          mediaHouse.status == "APPROVED"
+              ? showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (_) => SelectUploadTypeDialog(),
+                )
+              // ? showDialog(
+              //     context: context,
+              //     builder: (BuildContext context) {
+              //       return Dialog(
+              //         backgroundColor: selectedThemeData.cardColor,
+              //         child: SizedBox(
+              //             width: ResponsiveWidget.isMobile(context)
+              //                 ? MediaQuery.of(context).size.width * 0.8
+              //                 : MediaQuery.of(context).size.width *
+              //                     0.5, // 80% of screen width,
+              //             child: UploadVideoWidget()),
+              //       );
+              //     },
+              //   )
+              : CustomToast.show("First you need to get approval from admin",
+                  isSuccess: false);
         },
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -52,7 +63,7 @@ class ContentUploadCrad extends StatelessWidget {
                 child: Image.asset(
                   ImageConstant.upload,
                   //width: 100,
-                  height: 100,
+                  height: 120,
                 ),
               ),
               Spacer(),

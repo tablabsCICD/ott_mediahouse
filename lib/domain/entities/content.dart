@@ -1,3 +1,10 @@
+int? _asInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is double) return value.toInt();
+  return int.tryParse(value.toString());
+}
+
 class Content {
   int? id;
   String? title;
@@ -11,7 +18,7 @@ class Content {
   List<String>? genreList;
   List<String>? directorList;
   int? views;
-  int? totalRevenue;
+  double? totalRevenue;
   String? ageRating;
   List<String>? posterUrlList;
   String? trailerUrl;
@@ -82,10 +89,10 @@ class Content {
   });
 
   factory Content.fromJson(Map<String, dynamic> json) => Content(
-    id: json["id"],
+    id: _asInt(json["id"]),
     title: json["title"],
     description: json["description"],
-    runtime: json["runtime"],
+    runtime: _asInt(json["runtime"]),
     releaseDate: json["releaseDate"],
     ratings: json["ratings"]?.toDouble(),
     price: json["price"]?.toDouble(),
@@ -93,7 +100,7 @@ class Content {
       castList: json["castList"] == null ? [] : List<String>.from(json["castList"]!.map((x) => x)),
     genreList: json["genreList"] == null ? [] : List<String>.from(json["genreList"]!.map((x) => x)),
     directorList: json["directorList"] == null ? [] : List<String>.from(json["directorList"]!.map((x) => x)),
-    views: json["views"],
+    views: _asInt(json["views"]),
     totalRevenue: json["totalRevenue"]?.toDouble(),
     ageRating: json["ageRating"],
     posterUrlList: json["posterUrlList"] == null ? [] : List<String>.from(json["posterUrlList"]!.map((x) => x)),
@@ -107,11 +114,11 @@ class Content {
     audioFormatList: json["audioFormatList"] == null ? [] : List<String>.from(json["audioFormatList"]!.map((x) => x)),
     subtitleLanguageList: json["subtitleLanguageList"] == null ? [] : List<String>.from(json["subtitleLanguageList"]!.map((x) => x)),
     isDownloadable: json["isDownloadable"],
-    uploadDateTime: json["uploadDateTime"] ,
-    approvedDateTime: json["approvedDateTime"],
+    uploadDateTime: _asInt(json["uploadDateTime"]),
+    approvedDateTime: _asInt(json["approvedDateTime"]),
     mediaHouseName: json["mediaHouseName"],
-    mediaHouseId: json["mediaHouseId"],
-    ratingCount: json["ratingCount"],
+    mediaHouseId: _asInt(json["mediaHouseId"]),
+    ratingCount: _asInt(json["ratingCount"]),
     rentlDuration: json["rentlDuration"],
     adminIncentivePecentage: json["adminIncentivePecentage"],
     mediaHouseIncentivePecentage: json["mediaHouseIncentivePecentage"],
