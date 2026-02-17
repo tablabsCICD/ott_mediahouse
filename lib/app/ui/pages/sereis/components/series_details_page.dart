@@ -53,8 +53,14 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
 
         final data = provider.data;
         if (data == null) {
-          return const Scaffold(
-            body: Center(child: Text("No data")),
+          return Scaffold(
+            backgroundColor: theme.scaffoldBackgroundColor,
+            body: Center(
+              child: Text(
+                provider.error ?? "No data",
+                textAlign: TextAlign.center,
+              ),
+            ),
           );
         }
 

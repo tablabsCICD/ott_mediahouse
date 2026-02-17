@@ -9,10 +9,11 @@ class SeriesDetailsResponse {
 
   factory SeriesDetailsResponse.fromJson(Map<String, dynamic> json) {
     return SeriesDetailsResponse(
-      seasons: (json['seasons'] as List)
+      seasons: ((json['seasons'] as List?) ?? const [])
+          .whereType<Map<String, dynamic>>()
           .map((e) => SeasonBundle.fromJson(e))
           .toList(),
-      series: Series.fromJson(json['series']),
+      series: Series.fromJson((json['series'] as Map<String, dynamic>?) ?? {}),
     );
   }
 }
@@ -28,9 +29,11 @@ class SeasonBundle {
 
   factory SeasonBundle.fromJson(Map<String, dynamic> json) {
     return SeasonBundle(
-      season: Season.fromJson(json['season']),
-      episodes:
-      (json['episodes'] as List).map((e) => Episode.fromJson(e)).toList(),
+      season: Season.fromJson((json['season'] as Map<String, dynamic>?) ?? {}),
+      episodes: ((json['episodes'] as List?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map((e) => Episode.fromJson(e))
+          .toList(),
     );
   }
 }
@@ -69,17 +72,27 @@ class Episode {
   });
 
   factory Episode.fromJson(Map<String, dynamic> json) => Episode(
-    id: json["id"],
-    episodeNumber: json["episodeNumber"],
+    id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}"),
+    episodeNumber: json["episodeNumber"] is int
+        ? json["episodeNumber"]
+        : int.tryParse("${json["episodeNumber"]}"),
     title: json["title"],
     description: json["description"],
     videoUrl: json["videoUrl"],
     posterUrl: json["posterUrl"],
-    runtime: json["runtime"],
-    releaseDate: json["releaseDate"],
-    seasonId: json["seasonId"],
-    amount: json["amount"],
-    viewCount: json["viewCount"],
+    runtime:
+        json["runtime"] is int ? json["runtime"] : int.tryParse("${json["runtime"]}"),
+    releaseDate: json["releaseDate"] is int
+        ? json["releaseDate"]
+        : int.tryParse("${json["releaseDate"]}"),
+    seasonId: json["seasonId"] is int
+        ? json["seasonId"]
+        : int.tryParse("${json["seasonId"]}"),
+    amount:
+        json["amount"] is int ? json["amount"] : int.tryParse("${json["amount"]}"),
+    viewCount: json["viewCount"] is int
+        ? json["viewCount"]
+        : int.tryParse("${json["viewCount"]}"),
     partName: json["partName"],
     free: json["free"],
     active: json["active"],
@@ -129,15 +142,24 @@ class Season {
   });
 
   factory Season.fromJson(Map<String, dynamic> json) => Season(
-    id: json["id"],
+    id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}"),
     title: json["title"],
     description: json["description"],
     posterUrl: json["posterUrl"],
-    seasonNumber: json["seasonNumber"],
-    amount: json["amount"],
-    releaseDate: json["releaseDate"],
-    viewCount: json["viewCount"],
-    contentId: json["contentId"],
+    seasonNumber: json["seasonNumber"] is int
+        ? json["seasonNumber"]
+        : int.tryParse("${json["seasonNumber"]}"),
+    amount:
+        json["amount"] is int ? json["amount"] : int.tryParse("${json["amount"]}"),
+    releaseDate: json["releaseDate"] is int
+        ? json["releaseDate"]
+        : int.tryParse("${json["releaseDate"]}"),
+    viewCount: json["viewCount"] is int
+        ? json["viewCount"]
+        : int.tryParse("${json["viewCount"]}"),
+    contentId: json["contentId"] is int
+        ? json["contentId"]
+        : int.tryParse("${json["contentId"]}"),
     active: json["active"],
   );
 
@@ -187,19 +209,30 @@ class Series {
   });
 
   factory Series.fromJson(Map<String, dynamic> json) {
+    final rawRatings = json['ratings'];
+    final rawRatingCount = json['ratingCount'];
+    final rawPrice = json['price'];
+    final rawTrailer = json['trailerURL'] ?? json['trailerUrl'];
+
     return Series(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      ratings: (json['ratings'] as num).toDouble(),
-      ratingCount: json['ratingCount'] ?? 0,
-      price: json['price'],
-      genreList: List<String>.from(json['genreList']),
-      directorList: List<String>.from(json['directorList']),
-      castList: List<String>.from(json['castList']),
-      posterUrlList: List<String>.from(json['posterUrlList']),
-      trailerURL: json['trailerURL'],
-      type: json['type'],
+      id: json['id'] is int ? json['id'] : int.tryParse("${json['id']}") ?? 0,
+      title: (json['title'] ?? '').toString(),
+      description: (json['description'] ?? '').toString(),
+      ratings: rawRatings is num
+          ? rawRatings.toDouble()
+          : double.tryParse("$rawRatings") ?? 0.0,
+      ratingCount: rawRatingCount is int
+          ? rawRatingCount
+          : int.tryParse("$rawRatingCount") ?? 0,
+      price: rawPrice is num ? rawPrice : num.tryParse("$rawPrice") ?? 0,
+      genreList: List<String>.from((json['genreList'] ?? const []).map((x) => "$x")),
+      directorList:
+          List<String>.from((json['directorList'] ?? const []).map((x) => "$x")),
+      castList: List<String>.from((json['castList'] ?? const []).map((x) => "$x")),
+      posterUrlList:
+          List<String>.from((json['posterUrlList'] ?? const []).map((x) => "$x")),
+      trailerURL: (rawTrailer ?? '').toString(),
+      type: (json['type'] ?? '').toString(),
       ageRating: json['ageRating'],
     );
   }

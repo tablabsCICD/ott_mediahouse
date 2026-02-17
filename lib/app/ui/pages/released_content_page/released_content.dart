@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/provider/videoProvider.dart';
-import 'package:media_house/app/ui/pages/uploadContent_page/upload_video.dart';
+import 'package:media_house/app/ui/pages/uploadContent_page/select_upload_type.dart';
 import 'package:media_house/app/widget/custom_textfield.dart';
 import 'package:media_house/app/widget/movieCard.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
@@ -24,7 +24,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController()..addListener(_onScroll);
+    _scrollController = ScrollController();
     _fetchData();
   }
 
@@ -35,27 +35,23 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
   }
 
   Future<void> _fetchData() async {
-    final localPrefs = LocalSharePreferences();
-    final mediaHouse = await localPrefs.getMediaHouse();
+    try {
+      final localPrefs = LocalSharePreferences();
+      final mediaHouse = await localPrefs.getMediaHouse();
 
-    if (mediaHouse != null) {
-      final provider = Provider.of<VideoProvider>(context, listen: false);
-      provider.setItemsPerPage(12);
-      provider.resetPagination();
-      await provider.fetchReleasedMoviesByMediaHouseId(mediaHouse.id!);
-    }
-
-    if (mounted) {
-      setState(() => isLoading = false);
-    }
-  }
-
-  void _onScroll() {
-    final provider = Provider.of<VideoProvider>(context, listen: false);
-
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 150) {
-      provider.loadNextPage();
+      if (mediaHouse != null) {
+        final provider = Provider.of<VideoProvider>(context, listen: false);
+        provider.searchContentController.clear();
+        provider.setItemsPerPage(12);
+        provider.resetPagination();
+        await provider.fetchMoviesByMediaHouseId(mediaHouse.id!);
+      }
+    } catch (error) {
+      debugPrint("Failed to fetch released content: $error");
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
@@ -111,20 +107,15 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
                       : Padding(
                           padding: EdgeInsets.symmetric(
                             horizontal:
-                                ResponsiveWidget.isDesktop(context) ? 40 : 16,
+                                ResponsiveWidget.isDesktop(context) ? 20 : 8,
                           ),
                           child: GridView.builder(
                             controller: _scrollController,
                             gridDelegate:
                                 SliverGridDelegateWithMaxCrossAxisExtent(
-                              maxCrossAxisExtent:
-                                  ResponsiveWidget.isDesktop(context)
-                                      ? 250
-                                      : ResponsiveWidget.isTablet(context)
-                                          ? 220
-                                          : 180,
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
+                              maxCrossAxisExtent: 400,
+                              crossAxisSpacing: 6,
+                              mainAxisSpacing: 8,
                               childAspectRatio: 16 / 9,
                             ),
                             itemCount: movies.length,
@@ -211,7 +202,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
           selectedColor: theme.primaryColor,
           labelStyle: TextStyle(
             color: selectedContentType == "MOVIE"
-                ? theme.scaffoldBackgroundColor
+                ? Colors.white
                 : theme.primaryColor,
           ),
           onSelected: (_) => setState(() => selectedContentType = "MOVIE"),
@@ -223,7 +214,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
           selectedColor: theme.primaryColor,
           labelStyle: TextStyle(
             color: selectedContentType == "SERIES"
-                ? theme.scaffoldBackgroundColor
+                ? Colors.white
                 : theme.primaryColor,
           ),
           onSelected: (_) => setState(() => selectedContentType = "SERIES"),
@@ -236,19 +227,14 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
     return ElevatedButton.icon(
       style: ElevatedButton.styleFrom(
         backgroundColor: theme.primaryColor,
-        foregroundColor: theme.scaffoldBackgroundColor,
+        foregroundColor: Colors.white,
       ),
       icon: const Icon(Icons.file_upload_outlined),
       label: const Text("Upload"),
       onPressed: () {
         showDialog(
           context: context,
-          builder: (_) => Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const UploadVideoWidget(),
-          ),
+          builder: (_) => const SelectUploadTypeDialog(),
         );
       },
     );

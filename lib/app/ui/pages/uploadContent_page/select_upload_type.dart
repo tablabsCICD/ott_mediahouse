@@ -54,7 +54,7 @@ class SelectUploadTypeDialog extends StatelessWidget {
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: theme.canvasColor.withOpacity(0.05),
+                      color: theme.canvasColor.withValues(alpha: 0.05),
                     ),
                     child: const Icon(Icons.close, size: 20),
                   ),
@@ -148,6 +148,9 @@ class SelectUploadTypeDialog extends StatelessWidget {
             : showDialog(
                 context: context,
                 builder: (BuildContext context) {
+                  final uploadType = title == "Upload Movie"
+                      ? UploadContentType.movie
+                      : UploadContentType.series;
                   return Dialog(
                     backgroundColor: theme.cardColor,
                     child: SizedBox(
@@ -155,7 +158,7 @@ class SelectUploadTypeDialog extends StatelessWidget {
                             ? MediaQuery.of(context).size.width * 0.8
                             : MediaQuery.of(context).size.width *
                                 0.5, // 80% of screen width,
-                        child: UploadVideoWidget()),
+                        child: UploadVideoWidget(uploadType: uploadType)),
                   );
                 },
               );
@@ -198,7 +201,7 @@ class _UploadTypeCardState extends State<UploadTypeCard> {
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            color: widget.theme.canvasColor.withOpacity(0.15),
+            color: widget.theme.canvasColor.withValues(alpha: 0.15),
             border: Border.all(
               color: hover ? widget.theme.primaryColor : Colors.transparent,
               width: 2,
@@ -206,7 +209,7 @@ class _UploadTypeCardState extends State<UploadTypeCard> {
             boxShadow: hover
                 ? [
                     BoxShadow(
-                      color: widget.theme.primaryColor.withOpacity(0.2),
+                      color: widget.theme.primaryColor.withValues(alpha: 0.2),
                       blurRadius: 20,
                     )
                   ]

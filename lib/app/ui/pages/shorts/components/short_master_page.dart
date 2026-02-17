@@ -85,6 +85,12 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
             ? 4
             : 2;
 
+    final tileHeight = ResponsiveWidget.isDesktop(context)
+        ? 220.0
+        : ResponsiveWidget.isTablet(context)
+            ? 200.0
+            : 180.0;
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -304,7 +310,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                 crossAxisCount: crossAxisCount,
                 crossAxisSpacing: 14,
                 mainAxisSpacing: 14,
-                childAspectRatio: 9 / 16,
+                mainAxisExtent: tileHeight,
               ),
               itemBuilder: (_, index) {
                 final part = short.data!.parts?[index];

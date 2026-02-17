@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../provider/series_provider.dart';
-import '../../../widget/movieCardHorizontal.dart';
+import '../../../widget/content_wide_card.dart';
 import '../../../../device/utils/ResponsiveWidget.dart';
 
 class SeriesPage extends StatefulWidget {
@@ -454,8 +454,9 @@ class _SeriesPageState extends State<SeriesPage> {
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 8),
                             itemBuilder: (context, index) {
-                              return MovieCardHorizontal(
-                                  movie: filteredSeries[index]);
+                              return ContentWideCard(
+                                content: filteredSeries[index],
+                              );
                             },
                           )
                         : GridView.builder(
@@ -465,13 +466,14 @@ class _SeriesPageState extends State<SeriesPage> {
                             gridDelegate:
                                 const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 3,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 8 / 4,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 8,
+                              childAspectRatio: 16 / 9,
                             ),
                             itemBuilder: (context, index) {
-                              return MovieCardHorizontal(
-                                  movie: filteredSeries[index]);
+                              return ContentWideCard(
+                                content: filteredSeries[index],
+                              );
                             },
                           ),
                   if (filteredSeries.isNotEmpty)

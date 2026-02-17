@@ -94,7 +94,7 @@ class _ShortsPageState extends State<ShortsPage> {
     final theme = Theme.of(context);
 
     final crossAxisCount = ResponsiveWidget.isDesktop(context)
-        ? 5
+        ? 4
         : ResponsiveWidget.isTablet(context)
             ? 4
             : 2;
@@ -280,9 +280,10 @@ class _ShortsPageState extends State<ShortsPage> {
                             ),
                           ),
                         ),
-                        TextButton(
+                        TextButton.icon(
                           onPressed: _resetFilters,
-                          child: const Text("Reset"),
+                          icon: const Icon(Icons.restart_alt_rounded, size: 16),
+                          label: const Text("Reset"),
                         ),
                       ],
                     );
@@ -328,8 +329,9 @@ class _ShortsPageState extends State<ShortsPage> {
                     itemCount: totalItems,
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: crossAxisCount,
-                      mainAxisSpacing: 14,
                       crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      // Exact vertical short ratio
                       childAspectRatio: 9 / 16,
                     ),
                     itemBuilder: (_, index) {
@@ -367,7 +369,7 @@ class _ShortsPageState extends State<ShortsPage> {
       onTap: () => AddShortMaster.show(context),
       child: Container(
         decoration: BoxDecoration(
-          color: theme.primaryColor.withValues(alpha: 0.1),
+          color: theme.primaryColor.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: theme.primaryColor.withValues(alpha: 0.4),
@@ -378,8 +380,8 @@ class _ShortsPageState extends State<ShortsPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SizedBox(height: 90, child: Image.asset(ImageConstant.upload)),
-              const SizedBox(height: 30),
+              SizedBox(height: 56, child: Image.asset(ImageConstant.upload)),
+              const SizedBox(height: 16),
               Text(
                 "Add New Short",
                 style: TextStyle(
@@ -426,18 +428,22 @@ class _ShortsPageState extends State<ShortsPage> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.network(
-              short.posterUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.broken_image, color: Colors.grey, size: 40),
+            Container(
+              color: theme.cardColor,
+              child: Image.network(
+                short.posterUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
+                ),
+              ),
             ),
             Container(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withValues(alpha: 0.05),
-                    Colors.black.withValues(alpha: 0.5),
+                    Colors.black.withValues(alpha: 0.06),
+                    Colors.black.withValues(alpha: 0.65),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -474,19 +480,22 @@ class _ShortsPageState extends State<ShortsPage> {
                 children: [
                   Text(
                     short.title ?? '',
-                    maxLines: 2,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.play_arrow_rounded,
-                          color: Colors.white70, size: 14),
+                      const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white70,
+                        size: 14,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         "${short.totalParts ?? 0} Parts",
@@ -501,8 +510,11 @@ class _ShortsPageState extends State<ShortsPage> {
             const Positioned(
               bottom: 10,
               right: 10,
-              child:
-                  Icon(Icons.play_circle_fill, color: Colors.white70, size: 30),
+              child: Icon(
+                Icons.play_circle_fill,
+                color: Colors.white70,
+                size: 30,
+              ),
             ),
           ],
         ),

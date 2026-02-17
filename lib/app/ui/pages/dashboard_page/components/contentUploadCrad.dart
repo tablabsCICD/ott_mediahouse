@@ -7,9 +7,9 @@ import 'package:media_house/domain/entities/mediaHouse.dart';
 import 'package:provider/provider.dart';
 
 // ignore: must_be_immutable
-class ContentUploadCrad extends StatelessWidget {
+class ContentUploadCard extends StatelessWidget {
   MediaHouse mediaHouse;
-  ContentUploadCrad(this.mediaHouse, {super.key});
+  ContentUploadCard(this.mediaHouse, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +63,7 @@ class ContentUploadCrad extends StatelessWidget {
                 child: Image.asset(
                   ImageConstant.upload,
                   //width: 100,
-                  height: 100,
+                  height: 120,
                 ),
               ),
               Spacer(),

@@ -400,13 +400,13 @@ class _DashboardPageState extends State<DashboardPage> {
                           children: [
                             Expanded(
                               flex: 1,
-                              child: ContentUploadCrad(provider.mediaHouse),
+                              child: ContentUploadCard(provider.mediaHouse),
                             ),
                             SizedBox(
                               width: 10,
                             ),
                             Expanded(
-                              flex: 4,
+                              flex: 3,
                               child: Card(
                                 color: selectedThemeData.cardColor,
                                 child: Padding(
