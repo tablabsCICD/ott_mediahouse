@@ -565,8 +565,8 @@ class VideoProvider extends ChangeNotifier {
       debugPrint("response::: " + response.body);
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
-        AllContentResponse getAllContentResponse =
-            AllContentResponse.fromJson(responseBody);
+        GetAllVideoResponse getAllContentResponse =
+            GetAllVideoResponse.fromJson(responseBody);
         if (getAllContentResponse.success == true) {
           final dataMap = responseBody["data"] as Map<String, dynamic>?;
           final rawContentList =
@@ -1198,7 +1198,7 @@ class VideoProvider extends ChangeNotifier {
 
         final request = http.MultipartRequest('POST', url);
         request.files.add(http.MultipartFile(
-          'profilePicture',
+          'thumbnail',
           stream,
           totalBytes,
           filename: _imageFile!.path.split('/').last,

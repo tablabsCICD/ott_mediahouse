@@ -145,54 +145,64 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           ],
         ),
         const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            headingTextStyle: TextStyle(
-              fontWeight: FontWeight.w600,
-              color: selectedThemeData.primaryColor,
-            ),
-            columns: const [
-              DataColumn(label: Text("Content")),
-              DataColumn(label: Text("Release Date")),
-              DataColumn(label: Text("Views"), numeric: true),
-              DataColumn(label: Text("Revenue"), numeric: true),
-              DataColumn(label: Text("Commission %"), numeric: true),
-              DataColumn(label: Text("Net Revenue"), numeric: true),
-              DataColumn(label: Text("Details")),
-            ],
-            rows: movies
-                .map(
-                  (movie) => DataRow(
-                    cells: [
-                      DataCell(Text(movie.contentName ?? '-')),
-                      DataCell(Text("${movie.releasedDate ?? '-'}")),
-                      DataCell(Text(_formatNumber(_toInt(movie.totalViews)))),
-                      DataCell(Text(_formatNumber(_toDouble(movie.totalRevenue)))),
-                      DataCell(Text("${movie.currentPecentageIncentive ?? 0}%")),
-                      DataCell(Text(_formatNumber(_toInt(movie.earnedIncentive)))),
-                      DataCell(
-                        TextButton(
-                          onPressed: movie.contentId == null
-                              ? null
-                              : () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => MovieDetailsPage(
-                                        movieId: movie.contentId!,
-                                      ),
-                                    ),
-                                  );
-                                },
-                          child: const Text("Open"),
-                        ),
-                      ),
-                    ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                child: DataTable(
+                  headingTextStyle: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: selectedThemeData.primaryColor,
                   ),
-                )
-                .toList(),
-          ),
+                  columns: const [
+                    DataColumn(label: Text("Content")),
+                    DataColumn(label: Text("Release Date")),
+                    DataColumn(label: Text("Views"), numeric: true),
+                    DataColumn(label: Text("Revenue"), numeric: true),
+                    DataColumn(label: Text("Commission %"), numeric: true),
+                    DataColumn(label: Text("Net Revenue"), numeric: true),
+                    DataColumn(label: Text("Details")),
+                  ],
+                  rows: movies
+                      .map(
+                        (movie) => DataRow(
+                          cells: [
+                            DataCell(Text(movie.contentName ?? '-')),
+                            DataCell(Text("${movie.releasedDate ?? '-'}")),
+                            DataCell(Text(_formatNumber(_toInt(movie.totalViews)))),
+                            DataCell(
+                                Text(_formatNumber(_toDouble(movie.totalRevenue)))),
+                            DataCell(
+                                Text("${movie.currentPecentageIncentive ?? 0}%")),
+                            DataCell(
+                                Text(_formatNumber(_toInt(movie.earnedIncentive)))),
+                            DataCell(
+                              TextButton(
+                                onPressed: movie.contentId == null
+                                    ? null
+                                    : () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => MovieDetailsPage(
+                                              movieId: movie.contentId!,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                child: const Text("Open"),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
