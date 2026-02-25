@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:media_house/app/widget/movieCardHorizontal.dart';
 import 'package:provider/provider.dart';
 
 import '../../../provider/series_provider.dart';
-import '../../../widget/content_wide_card.dart';
 import '../../../../device/utils/ResponsiveWidget.dart';
 
 class SeriesPage extends StatefulWidget {
@@ -17,7 +17,7 @@ class _SeriesPageState extends State<SeriesPage> {
   String _query = '';
   DateTime? _fromDate;
   DateTime? _toDate;
-  String _sortBy = 'newest';
+  bool _trendingOnly = false;
 
   DateTime? _parseDate(dynamic rawDate) {
     if (rawDate == null) return null;
@@ -43,40 +43,36 @@ class _SeriesPageState extends State<SeriesPage> {
     return true;
   }
 
-  Future<void> _pickFromDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _fromDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        _fromDate = picked;
-      });
-    }
-  }
-
-  Future<void> _pickToDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _toDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        _toDate = picked;
-      });
-    }
-  }
-
   void _resetFilters() {
     setState(() {
       _fromDate = null;
       _toDate = null;
-      _sortBy = 'newest';
+      _searchCtrl.clear();
+      _query = '';
+      _trendingOnly = false;
     });
+  }
+
+  Future<void> _pickDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      initialDateRange: (_fromDate != null && _toDate != null)
+          ? DateTimeRange(start: _fromDate!, end: _toDate!)
+          : null,
+    );
+    if (picked == null) return;
+    setState(() {
+      _fromDate = picked.start;
+      _toDate = picked.end;
+    });
+  }
+
+  String _formatDate(DateTime date) {
+    final dd = date.day.toString().padLeft(2, '0');
+    final mm = date.month.toString().padLeft(2, '0');
+    return '$dd/$mm/${date.year}';
   }
 
   String _formatCompact(num value) {
@@ -168,31 +164,15 @@ class _SeriesPageState extends State<SeriesPage> {
             final title = (series.title ?? '').toLowerCase();
             final date = _parseDate(series.releaseDate);
             final searchMatches = _query.isEmpty || title.contains(_query);
-            return searchMatches && _isInDateRange(date);
+            final trendingMatches =
+                !_trendingOnly || (series.isFeatured == true);
+            return searchMatches && _isInDateRange(date) && trendingMatches;
           }).toList();
 
           filteredSeries.sort((a, b) {
-            switch (_sortBy) {
-              case 'oldest':
-                final aDate = _parseDate(a.releaseDate) ?? DateTime(1970);
-                final bDate = _parseDate(b.releaseDate) ?? DateTime(1970);
-                return aDate.compareTo(bDate);
-              case 'revenue_high':
-                return (b.totalRevenue ?? 0).compareTo(a.totalRevenue ?? 0);
-              case 'revenue_low':
-                return (a.totalRevenue ?? 0).compareTo(b.totalRevenue ?? 0);
-              case 'likes_high':
-                return (b.ratingCount ?? 0).compareTo(a.ratingCount ?? 0);
-              case 'views_high':
-                return (b.views ?? 0).compareTo(a.views ?? 0);
-              case 'rating_high':
-                return (b.ratings ?? 0).compareTo(a.ratings ?? 0);
-              case 'newest':
-              default:
-                final aDate = _parseDate(a.releaseDate) ?? DateTime(1970);
-                final bDate = _parseDate(b.releaseDate) ?? DateTime(1970);
-                return bDate.compareTo(aDate);
-            }
+            final aDate = _parseDate(a.releaseDate) ?? DateTime(1970);
+            final bDate = _parseDate(b.releaseDate) ?? DateTime(1970);
+            return bDate.compareTo(aDate);
           });
 
           final totalRevenue = filteredSeries.fold<num>(
@@ -216,7 +196,7 @@ class _SeriesPageState extends State<SeriesPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  /*   Text(
                     "Series Management",
                     style: TextStyle(
                       fontSize: 24,
@@ -270,159 +250,11 @@ class _SeriesPageState extends State<SeriesPage> {
                       );
                     },
                   ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isCompact = constraints.maxWidth < 900;
-
-                        final searchField = TextField(
-                          controller: _searchCtrl,
-                          decoration: InputDecoration(
-                            hintText: "Search series by title...",
-                            prefixIcon: const Icon(Icons.search),
-                            suffixIcon: _query.isEmpty
-                                ? null
-                                : IconButton(
-                                    icon: const Icon(Icons.close),
-                                    onPressed: () => _searchCtrl.clear(),
-                                  ),
-                          ),
-                        );
-
-                        final filters = Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          alignment: WrapAlignment.end,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: _pickFromDate,
-                              icon: const Icon(Icons.date_range, size: 18),
-                              label: Text(
-                                _fromDate == null
-                                    ? "From"
-                                    : "${_fromDate!.day}/${_fromDate!.month}/${_fromDate!.year}",
-                              ),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: _pickToDate,
-                              icon: const Icon(Icons.event, size: 18),
-                              label: Text(
-                                _toDate == null
-                                    ? "To"
-                                    : "${_toDate!.day}/${_toDate!.month}/${_toDate!.year}",
-                              ),
-                            ),
-                            Container(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: theme.dividerColor),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: DropdownButtonHideUnderline(
-                                child: DropdownButton<String>(
-                                  value: _sortBy,
-                                  dropdownColor: theme.cardColor,
-                                  style: TextStyle(color: theme.canvasColor),
-                                  iconEnabledColor: theme.canvasColor,
-                                  icon: const Icon(
-                                      Icons.keyboard_arrow_down_rounded),
-                                  onChanged: (value) {
-                                    if (value != null) {
-                                      setState(() {
-                                        _sortBy = value;
-                                      });
-                                    }
-                                  },
-                                  items: [
-                                    DropdownMenuItem(
-                                      value: 'newest',
-                                      child: Text("Newest",
-                                          style: TextStyle(
-                                              color: theme.canvasColor)),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'oldest',
-                                      child: Text("Oldest",
-                                          style: TextStyle(
-                                              color: theme.canvasColor)),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'revenue_high',
-                                      child: Text("Revenue High",
-                                          style: TextStyle(
-                                              color: theme.canvasColor)),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'revenue_low',
-                                      child: Text("Revenue Low",
-                                          style: TextStyle(
-                                              color: theme.canvasColor)),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'likes_high',
-                                      child: Text("Likes High",
-                                          style: TextStyle(
-                                              color: theme.canvasColor)),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'views_high',
-                                      child: Text("Views High",
-                                          style: TextStyle(
-                                              color: theme.canvasColor)),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: 'rating_high',
-                                      child: Text("Rating High",
-                                          style: TextStyle(
-                                              color: theme.canvasColor)),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: _resetFilters,
-                              child: const Text("Reset"),
-                            ),
-                          ],
-                        );
-
-                        if (isCompact) {
-                          return Column(
-                            children: [
-                              searchField,
-                              const SizedBox(height: 10),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: filters,
-                              ),
-                            ],
-                          );
-                        }
-
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(flex: 4, child: searchField),
-                            const SizedBox(width: 12),
-                            Expanded(
-                                flex: 5,
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: filters,
-                                )),
-                          ],
-                        );
-                      },
-                    ),
+                  const SizedBox(height: 14), */
+                  _buildFilterPanel(
+                    theme,
+                    provider: provider,
+                    itemCount: filteredSeries.length,
                   ),
                   const SizedBox(height: 12),
                   if (provider.isLoading)
@@ -434,17 +266,26 @@ class _SeriesPageState extends State<SeriesPage> {
                     )
                   else if (filteredSeries.isEmpty)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 40),
-                      child: Center(
-                        child: Text(
-                          _query.isEmpty
-                              ? "No series available."
-                              : "No series found for current filters.",
-                          style: TextStyle(
-                              color: theme.canvasColor.withValues(alpha: 0.75)),
-                        ),
-                      ),
-                    )
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.inbox_outlined,
+                                  size: 42, color: theme.primaryColor),
+                              const SizedBox(height: 8),
+                              Text(
+                                _query.isEmpty
+                                    ? "No series available."
+                                    : "No series found for current filters.",
+                                style: TextStyle(
+                                  color: theme.canvasColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ))
                   else
                     ResponsiveWidget.isMobile(context)
                         ? ListView.separated(
@@ -454,8 +295,8 @@ class _SeriesPageState extends State<SeriesPage> {
                             separatorBuilder: (_, __) =>
                                 const SizedBox(height: 8),
                             itemBuilder: (context, index) {
-                              return ContentWideCard(
-                                content: filteredSeries[index],
+                              return MovieCardHorizontal(
+                                movie: filteredSeries[index],
                               );
                             },
                           )
@@ -471,22 +312,11 @@ class _SeriesPageState extends State<SeriesPage> {
                               childAspectRatio: 16 / 9,
                             ),
                             itemBuilder: (context, index) {
-                              return ContentWideCard(
-                                content: filteredSeries[index],
+                              return MovieCardHorizontal(
+                                movie: filteredSeries[index],
                               );
                             },
                           ),
-                  if (filteredSeries.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10, bottom: 2),
-                      child: Text(
-                        "Likes: ${_formatCompact(totalLikes)}",
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: theme.canvasColor.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
@@ -500,5 +330,181 @@ class _SeriesPageState extends State<SeriesPage> {
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  Widget _buildFilterPanel(
+    ThemeData theme, {
+    required SeriesProvider provider,
+    required int itemCount,
+  }) {
+    final dateText = (_fromDate != null && _toDate != null)
+        ? "${_formatDate(_fromDate!)} - ${_formatDate(_toDate!)}"
+        : "Select Date Range";
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.cardColor.withValues(alpha: 0.95),
+            theme.cardColor.withValues(alpha: 0.78),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.25)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 980;
+
+          final searchField = TextField(
+            controller: _searchCtrl,
+            decoration: InputDecoration(
+              hintText: "Search title, cast, genre...",
+              prefixIcon: Icon(
+                Icons.search,
+                color: theme.canvasColor,
+              ),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => _searchCtrl.clear(),
+                    ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              filled: true,
+              fillColor: theme.scaffoldBackgroundColor.withValues(alpha: 0.25),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.6),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: theme.dividerColor.withValues(alpha: 0.6),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: theme.primaryColor.withValues(alpha: 0.9),
+                  width: 1.4,
+                ),
+              ),
+              errorBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: Colors.red, width: 1.2),
+              ),
+            ),
+          );
+
+          final topRow = Row(
+            children: [
+              Icon(Icons.video_collection_rounded, color: theme.primaryColor),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  "Series Management",
+                  style: TextStyle(
+                    color: theme.canvasColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  "$itemCount items",
+                  style: TextStyle(
+                    color: theme.primaryColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Refresh',
+                onPressed: provider.fetchSeriesByMediaHouseId,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ],
+          );
+
+          final customDateButton = OutlinedButton.icon(
+            onPressed: _pickDateRange,
+            icon: const Icon(Icons.calendar_month_rounded, size: 18),
+            label: Text(
+              dateText,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+
+          final trendingChip = FilterChip(
+            selected: _trendingOnly,
+            label: const Text('Trending'),
+            onSelected: (_) {
+              setState(() {
+                _trendingOnly = !_trendingOnly;
+              });
+            },
+            selectedColor: theme.primaryColor.withValues(alpha: 0.2),
+            checkmarkColor: theme.primaryColor,
+            labelStyle: TextStyle(
+              color: _trendingOnly ? theme.primaryColor : null,
+            ),
+          );
+
+          final resetButton = TextButton.icon(
+            onPressed: _resetFilters,
+            icon: const Icon(Icons.restart_alt_rounded, size: 16),
+            label: const Text("Reset"),
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              topRow,
+              const SizedBox(height: 10),
+              if (compact) ...[
+                searchField,
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    SizedBox(width: 240, child: customDateButton),
+                    // trendingChip,
+                    resetButton,
+                  ],
+                )
+              ] else ...[
+                Row(
+                  children: [
+                    Expanded(flex: 3, child: searchField),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 2, child: customDateButton),
+                    const SizedBox(width: 8),
+                    /*  trendingChip,
+                    const SizedBox(width: 8), */
+                    resetButton,
+                  ],
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
   }
 }

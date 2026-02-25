@@ -13,7 +13,8 @@ class ApiConstant {
   static String deleteUserById(id) => "${baseUrl}user/deleteUserBy/$id";
   static String searchUser(char) => "${baseUrl}user/search?search=$char";
 
-  static String saveMediaHouse = '${baseUrl}api/saveMediaHouse';
+  static String saveMediaHouse =
+      '${baseUrl}userNew/saveMediaHouseWithDirectorCEO/newUser';
   static String editMediaHouseById = "${baseUrl}api/MediaHouse/Update";
   static String getAllMediaHouse = "${baseUrl}api/MediaHouse/getAll";
   static String getMediaHouseByUserId(id) =>
@@ -33,17 +34,42 @@ class ApiConstant {
   static String editVideoById(id) => "${baseUrl}api/contentList/update/$id";
   static String getAllVideo = "${baseUrl}api/ContentList/getAll";
   static String getVideoById(id) => "${baseUrl}api/ContentList/getById?id=$id";
-  static String getVideoByMediaHouseId(id) =>
-      "${baseUrl}api/content/byMediaHouse?mediaHouseId=$id";
+  static String getVideoByMediaHouseId(
+    id, {
+    String type = "MOVIE",
+    String? searchKeyword,
+    int page = 0,
+    int size = 10,
+  }) =>
+      "${baseUrl}api/content/byMediaHouseAndType/pages?mediaHouseId=$id&type=$type&keyword=${searchKeyword ?? ''}&page=$page&size=$size";
   static String searchContent(char) =>
       "${baseUrl}api/searchByanyKey?search=$char";
   static String deleteVideoById(id) => "${baseUrl}api/deleteContentBy/$id";
-  static String getVideoByStatusAndMediaHouse(status, id) =>
-      "${baseUrl}api/Approvalstatus/mediahouseid2?approvalStatus=$status&mediaHouseId=$id";
+  static String getVideoByStatusAndMediaHouse(
+    status,
+    id, {
+    String? searchKeyword,
+    int page = 0,
+    int size = 10,
+  }) =>
+      "${baseUrl}api/Approvalstatus/mediahouseid2?approvalStatus=$status&mediaHouseId=$id&keyword=${searchKeyword ?? ''}&page=$page&size=$size";
   static String changeContentStatus(status, id) =>
       "${baseUrl}api/ApprovecontentListBy?contentListId=$id&status=$status";
-  static String getReleaseVideoByMediaHouse(id, {int page = 0, int size = 10}) =>
-      "${baseUrl}api/getReleaseContentByMediahouseId?mediaHouseId=$id&page=$page&size=$size";
+  static String getReleaseVideoByMediaHouse(id,
+          {int page = 0, int size = 10, String? searchKeyword}) =>
+      "${baseUrl}api/getReleaseContentByMediahouseId?mediaHouseId=$id&keyword=$searchKeyword&page=$page&size=$size";
+
+  static String filterAdvancedContent({
+    required int mediaHouseId,
+    required String type,
+    required String approvalStatus,
+    required String startDate,
+    required String endDate,
+    String? searchKeyword,
+    int page = 0,
+    int size = 10,
+  }) =>
+      "${baseUrl}api/content/filter-advanced?mediaHouseId=$mediaHouseId&type=$type&approvalStatus=$approvalStatus&startDate=$startDate&endDate=$endDate&keyword=${searchKeyword ?? ''}&page=$page&size=$size";
 
   static String savePromoter = '${baseUrl}api/savePromoters2';
   static String editPromoterById = "${baseUrl}user/updateUserBy/%7Bid%7D";
@@ -62,7 +88,8 @@ class ApiConstant {
       "${baseUrl}api/admin/userOnboardedGraphByPromoterId2?start_date=$startDate&end_date=$endEnd&promoterId=$promoterId";
 
   static String uploadImg = "${baseUrl}api/other/upload-file";
-  static String uploadContentImg = "${baseUrl}api/video/upload-thumbnail?videoId=19";
+  static String uploadContentImg =
+      "${baseUrl}api/video/upload-thumbnail?videoId=19";
   static String uploadVideo = "${baseUrl}api/video/upload-raw?videoId=19";
   static String dashboardCount = "${baseUrl}api/admin/dashboardCounts";
 
@@ -86,11 +113,88 @@ class ApiConstant {
       "${baseUrl}api/settelment/user/$id";
 
   static String topRevenueContentGraph(
-          id, startDate, endDate, isYear, isMonth, isWeek) =>
-      "${baseUrl}api/mediaHouseLineCharts/top-revenue-content-by-media-house?mediaHouseId=$id&startDate=$startDate&endDate=$endDate&isYear=$isYear&isMonth=$isMonth&isWeek=$isWeek";
+    id,
+    startDate,
+    endDate,
+    isYear,
+    isMonth,
+    isWeek, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+  }) {
+    final params = <String, String>{
+      'mediaHouseId': '$id',
+      'startDate': '$startDate',
+      'endDate': '$endDate',
+      'isYear': '$isYear',
+      'isMonth': '$isMonth',
+      'isWeek': '$isWeek',
+    };
+
+    void putIfNotBlank(String key, String? value) {
+      if (value != null && value.trim().isNotEmpty) {
+        params[key] = value.trim();
+      }
+    }
+
+    putIfNotBlank('contentType', contentType);
+    putIfNotBlank('country', country);
+    putIfNotBlank('state', state);
+    putIfNotBlank('district', district);
+    putIfNotBlank('taluka', taluka);
+    putIfNotBlank('city', city);
+
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    return "${baseUrl}api/mediaHouseLineCharts/top-revenue-content-by-media-house?$query";
+  }
+
   static String topRatedContentGraph(
-          id, startDate, endDate, isYear, isMonth, isWeek) =>
-      "${baseUrl}api/mediaHouseLineCharts/top-rated-content-by-media-house?mediaHouseId=$id&startDate=$startDate&endDate=$endDate&isYear=$isYear&isMonth=$isMonth&isWeek=$isWeek";
+    id,
+    startDate,
+    endDate,
+    isYear,
+    isMonth,
+    isWeek, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+  }) {
+    final params = <String, String>{
+      'mediaHouseId': '$id',
+      'startDate': '$startDate',
+      'endDate': '$endDate',
+      'isYear': '$isYear',
+      'isMonth': '$isMonth',
+      'isWeek': '$isWeek',
+    };
+
+    void putIfNotBlank(String key, String? value) {
+      if (value != null && value.trim().isNotEmpty) {
+        params[key] = value.trim();
+      }
+    }
+
+    putIfNotBlank('contentType', contentType);
+    putIfNotBlank('country', country);
+    putIfNotBlank('state', state);
+    putIfNotBlank('district', district);
+    putIfNotBlank('taluka', taluka);
+    putIfNotBlank('city', city);
+
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    return "${baseUrl}api/mediaHouseLineCharts/top-rated-content-by-media-house?$query";
+  }
 
   static String contentRevenueGraph(
           id, startDate, endDate, isYear, isMonth, isWeek) =>
@@ -101,28 +205,143 @@ class ApiConstant {
       "${baseUrl}api/mediaHouseLineCharts/getDetailsOfMovieByMediaHouseId?mediaHouseId=$id";
 
   static String releaseMovieCountGraphByMediaHouse(
-          id, startDate, endDate, isYear, isMonth, isWeek) =>
-      "${baseUrl}api/mediaHouseLineCharts/releaseMovieCountChart?mediaHouseid=$id&startDate=$startDate&endDate=$endDate&isYear=$isYear&isMonth=$isMonth&isWeek=$isWeek";
+    id,
+    startDate,
+    endDate,
+    isYear,
+    isMonth,
+    isWeek, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+  }) {
+    final params = <String, String>{
+      'mediaHouseid': '$id',
+      'startDate': '$startDate',
+      'endDate': '$endDate',
+      'isYear': '$isYear',
+      'isMonth': '$isMonth',
+      'isWeek': '$isWeek',
+    };
+
+    void putIfNotBlank(String key, String? value) {
+      if (value != null && value.trim().isNotEmpty) {
+        params[key] = value.trim();
+      }
+    }
+
+    putIfNotBlank('contentType', contentType);
+    putIfNotBlank('country', country);
+    putIfNotBlank('state', state);
+    putIfNotBlank('district', district);
+    putIfNotBlank('taluka', taluka);
+    putIfNotBlank('city', city);
+
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    return "${baseUrl}api/mediaHouseLineCharts/releaseMovieCountChart?$query";
+  }
+
   static String viewCountGraphByMediaHouse(
-          id, startDate, endDate, isYear, isMonth, isWeek) =>
-      "${baseUrl}api/viewCountChartByMediaHouseId?mediahouseId=$id&startDate=$startDate&endDate=$endDate&isYear=$isYear&isMonth=$isMonth&isWeek=$isWeek";
+    id,
+    startDate,
+    endDate,
+    isYear,
+    isMonth,
+    isWeek, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+  }) {
+    final params = <String, String>{
+      'mediahouseId': '$id',
+      'startDate': '$startDate',
+      'endDate': '$endDate',
+      'isYear': '$isYear',
+      'isMonth': '$isMonth',
+      'isWeek': '$isWeek',
+    };
+
+    void putIfNotBlank(String key, String? value) {
+      if (value != null && value.trim().isNotEmpty) {
+        params[key] = value.trim();
+      }
+    }
+
+    putIfNotBlank('contentType', contentType);
+    putIfNotBlank('country', country);
+    putIfNotBlank('state', state);
+    putIfNotBlank('district', district);
+    putIfNotBlank('taluka', taluka);
+    putIfNotBlank('city', city);
+
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    return "${baseUrl}api/viewCountChartByMediaHouseId?$query";
+  }
+
   static String revenueGraphByMediaHouse(
-          id, startDate, endDate, isYear, isMonth, isWeek) =>
-      "${baseUrl}api/transactionDashboard/mediaHouse/graph?mediaHouseId=$id&startDate=$startDate&endDate=$endDate&isYear=$isYear&isMonth=$isMonth&isWeek=$isWeek";
+    id,
+    startDate,
+    endDate,
+    isYear,
+    isMonth,
+    isWeek, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+  }) {
+    final params = <String, String>{
+      'mediaHouseId': '$id',
+      'startDate': '$startDate',
+      'endDate': '$endDate',
+      'isYear': '$isYear',
+      'isMonth': '$isMonth',
+      'isWeek': '$isWeek',
+    };
+
+    void putIfNotBlank(String key, String? value) {
+      if (value != null && value.trim().isNotEmpty) {
+        params[key] = value.trim();
+      }
+    }
+
+    putIfNotBlank('contentType', contentType);
+    putIfNotBlank('country', country);
+    putIfNotBlank('state', state);
+    putIfNotBlank('district', district);
+    putIfNotBlank('taluka', taluka);
+    putIfNotBlank('city', city);
+
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    return "${baseUrl}api/transactionDashboard/mediaHouse/graph?$query";
+  }
 
   //shorts
-  static String shortsMaster(id) => "${baseUrl}api/shortsMaster/by-mediahouse/$id";
+  static String shortsMaster(id) =>
+      "${baseUrl}api/shortsMaster/by-mediahouse/$id";
   static String shortsDetails(id, userId) =>
       "${baseUrl}api/shortsMaster/$id?userId=$userId";
   static String addShortMaster = '${baseUrl}api/shortsMaster';
-  static const deleteShortMaster =
-      "${baseUrl}api/shortsMaster";
-  static const updateShortMaster =
-      "${baseUrl}api/shortsMaster";
+  static const deleteShortMaster = "${baseUrl}api/shortsMaster";
+  static const updateShortMaster = "${baseUrl}api/shortsMaster";
 
   static String createShortPart = "${baseUrl}api/short-parts";
 
-  static deletePart(partId)=>"${baseUrl}api/short-parts/$partId";
+  static deletePart(partId) => "${baseUrl}api/short-parts/$partId";
 
   static String saveSeries = '${baseUrl}series/createSeries';
   static String seriesDetails(seriesId) => "${baseUrl}series/$seriesId/details";

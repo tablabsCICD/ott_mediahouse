@@ -80,9 +80,20 @@ class SeriesProvider extends ChangeNotifier {
 
   Future<void> fetchSeriesByMediaHouseId() async {
     isLoading = true;
+    _contentList.clear();
+    _filteredContentList.clear();
     notifyListeners();
 
-    String apiUrl = ApiConstant.getSeriesByMediaHouse(1);
+    final localSharePreferences = LocalSharePreferences();
+    final mediaHouse = await localSharePreferences.getMediaHouse();
+    final mediaHouseId = mediaHouse?.id;
+    if (mediaHouseId == null) {
+      isLoading = false;
+      notifyListeners();
+      return;
+    }
+
+    String apiUrl = ApiConstant.getSeriesByMediaHouse(mediaHouseId);
     debugPrint("API => $apiUrl");
 
     ApiHelper apiHelper = ApiHelper();

@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/component/multiselect_dialog.dart';
+import 'package:media_house/app/ui/pages/uploadContent_page/component/upload_form_helpers.dart';
 import 'package:media_house/app/widget/custom_textfield.dart';
 import 'package:media_house/domain/entities/mediaHouse.dart';
 import 'package:provider/provider.dart';
@@ -373,35 +374,28 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
               context,
               themeData),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              const Text('Is Downloadable'),
-              const Spacer(),
-              Switch(
-                value: provider.isDownloadable,
-                onChanged: (value) {
-                  provider.toggleDownloadable(value);
-                },
-                activeColor: Theme.of(context).colorScheme.primary,
-                inactiveThumbColor: Colors.grey,
-                inactiveTrackColor: Colors.grey.shade300,
-              )
-            ],
+          UploadFormHelpers.buildModernToggleRow(
+            'Downloadable Content',
+            'Allow users to download this content',
+            provider.isDownloadable,
+            provider.toggleDownloadable,
+            themeData,
           ),
-          Row(
-            children: [
-              const Text('Is Featured'),
-              const Spacer(),
-              Switch(
-                value: provider.isFeatured,
-                onChanged: (value) {
-                  provider.toggleFeatured(value);
-                },
-                activeColor: Theme.of(context).colorScheme.primary,
-                inactiveThumbColor: Colors.grey,
-                inactiveTrackColor: Colors.grey.shade300,
-              )
-            ],
+          const SizedBox(height: 16),
+          UploadFormHelpers.buildModernToggleRow(
+            'Featured Content',
+            'Automatically controlled by release date logic',
+            provider.isFeatured,
+            provider.toggleFeatured,
+            themeData,
+          ),
+          const SizedBox(height: 16),
+          UploadFormHelpers.buildModernToggleRow(
+            'Registration Fee Paid',
+            'Allow users to download this content',
+            provider.isRegistrationFeePaid,
+            provider.toggleRegistrationFeePaid,
+            themeData,
           ),
         ],
       );

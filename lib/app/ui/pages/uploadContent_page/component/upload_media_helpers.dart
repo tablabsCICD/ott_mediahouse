@@ -53,8 +53,10 @@ class UploadMediaHelpers {
               onTap: isUploading
                   ? null
                   : () async {
-                if (label == "Movie File" || label == "Trailer File") {
-                  provider.uploadVideo(label == "Trailer File");
+                if (label == "Movie File" ||
+                    label == "Trailer File" ||
+                    label == "Teaser File") {
+                  await provider.uploadVideoByLabel(label);
                 } else if (label.contains("Audio")) {
                   await provider.pickAudioFile(label);
                 } else {
@@ -141,10 +143,15 @@ class UploadMediaHelpers {
                             Flexible(
                               child: Text(
                               isUploaded
-                              ? (label == "Trailer File"
-        ? provider.trailerFileName ?? "$label Uploaded"
-            : provider.movieFileName ?? "$label Uploaded")
-            : "Upload $label",
+                                  ? (label == "Trailer File"
+                                      ? provider.trailerFileName ??
+                                          "$label Uploaded"
+                                      : label == "Teaser File"
+                                          ? provider.teaserFileName ??
+                                              "$label Uploaded"
+                                          : provider.movieFileName ??
+                                              "$label Uploaded")
+                                  : "Upload $label",
                                 style: TextStyle(
                                   color: isUploaded
                                       ? Colors.green
@@ -386,6 +393,8 @@ class UploadMediaHelpers {
     switch (label) {
       case "Trailer File":
         return provider.trailerUrlController.text.isNotEmpty;
+      case "Teaser File":
+        return provider.teaserUrlController.text.isNotEmpty;
       case "Movie File":
         return provider.movieUrlController.text.isNotEmpty;
       case "Censor Certificate":
@@ -410,6 +419,8 @@ class UploadMediaHelpers {
     switch (label) {
       case "Trailer File":
         return provider.trailerUploadProgress;
+      case "Teaser File":
+        return provider.teaserUploadProgress;
       case "Movie File":
         return provider.movieUploadProgress;
       case "Censor Certificate":
@@ -430,6 +441,8 @@ class UploadMediaHelpers {
     switch (label) {
       case "Trailer File":
         return provider.isTrailerUploading;
+      case "Teaser File":
+        return provider.isTeaserUploading;
       case "Movie File":
         return provider.isMovieUploading;
       case "Censor Certificate":

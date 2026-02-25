@@ -20,7 +20,6 @@ import 'package:media_house/data/models/response/searchResponse.dart';
 import 'dart:convert';
 import '../../data/models/request/content_request.dart';
 import '../../data/models/response/getAllUserResponse.dart';
-import '../../data/models/response/getAllVideoResponse.dart';
 import '../../data/models/response/getContentResponse.dart';
 import '../../domain/entities/content.dart';
 import '../../domain/entities/mediaHouse.dart';
@@ -35,6 +34,7 @@ class VideoProvider extends ChangeNotifier {
   VideoProvider() : super() {
     searchContentController.addListener(filterContent);
   }
+  Timer? _searchDebounce;
 
   // ===========================
   // PAGINATION PROPERTIES (MINIMAL)
@@ -44,9 +44,30 @@ class VideoProvider extends ChangeNotifier {
   int _totalItems = 0;
   bool _isLoadingMore = false;
   bool _hasMoreItems = true;
+  int _mediaHouseCurrentPage = 0;
+  int _mediaHouseTotalPages = 0;
+  int? _mediaHouseIdForPagination;
+  String _mediaHouseTypeForPagination = "MOVIE";
+  String _mediaHouseKeywordForPagination = "";
+  bool _isMediaHouseLoadingMore = false;
+  bool _hasMoreMediaHouseItems = true;
+  int _statusCurrentPage = 0;
+  int _statusTotalPages = 0;
+  int? _statusMediaHouseIdForPagination;
+  String _statusValueForPagination = "ALL";
+  String _statusTypeForPagination = "MOVIE";
+  String _statusKeywordForPagination = "";
+  String? _statusStartDateForPagination;
+  String? _statusEndDateForPagination;
+  bool _isStatusLoadingMore = false;
+  bool _hasMoreStatusItems = true;
   int _releasedCurrentPage = 0;
   int _releasedTotalPages = 0;
   int? _releasedMediaHouseId;
+  String _releasedTypeForPagination = "MOVIE";
+  String _releasedKeywordForPagination = "";
+  String? _releasedStartDateForPagination;
+  String? _releasedEndDateForPagination;
   bool _isReleasedLoadingMore = false;
   bool _hasMoreReleasedItems = true;
 
@@ -56,6 +77,10 @@ class VideoProvider extends ChangeNotifier {
   int get totalItems => _totalItems;
   bool get isLoadingMore => _isLoadingMore;
   bool get hasMoreItems => _hasMoreItems;
+  bool get isMediaHouseLoadingMore => _isMediaHouseLoadingMore;
+  bool get hasMoreMediaHouseItems => _hasMoreMediaHouseItems;
+  bool get isStatusLoadingMore => _isStatusLoadingMore;
+  bool get hasMoreStatusItems => _hasMoreStatusItems;
   bool get isReleasedLoadingMore => _isReleasedLoadingMore;
   bool get hasMoreReleasedItems => _hasMoreReleasedItems;
 
@@ -72,6 +97,7 @@ class VideoProvider extends ChangeNotifier {
   final TextEditingController statusController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final TextEditingController movieUrlController = TextEditingController();
+  final TextEditingController teaserUrlController = TextEditingController();
   final TextEditingController trailerUrlController = TextEditingController();
   final TextEditingController priceController = TextEditingController();
   final TextEditingController releaseDateController = TextEditingController();
@@ -82,12 +108,29 @@ class VideoProvider extends ChangeNotifier {
   final TextEditingController reasonController = TextEditingController();
   final TextEditingController typeController = TextEditingController();
   final TextEditingController runTimeController = TextEditingController();
+  final TextEditingController numberOfAttemptController =
+      TextEditingController();
+  final TextEditingController fullAttemptController = TextEditingController();
   final TextEditingController poster1Controller = TextEditingController();
   final TextEditingController poster2Controller = TextEditingController();
   final TextEditingController poster3Controller = TextEditingController();
   final TextEditingController castController = TextEditingController();
   final TextEditingController directorController = TextEditingController();
   final TextEditingController rentalDurationController =
+      TextEditingController();
+  final TextEditingController registrationFeeDetailsController =
+      TextEditingController();
+  final TextEditingController registrationPaymentIdController =
+      TextEditingController();
+  final TextEditingController registrationPaymentDateController =
+      TextEditingController();
+  final TextEditingController registrationAmountPaidController =
+      TextEditingController();
+  final TextEditingController registrationPlanTypeController =
+      TextEditingController();
+  final TextEditingController registrationValidityController =
+      TextEditingController();
+  final TextEditingController registrationPaymentMethodController =
       TextEditingController();
 
   bool isEnbale = false;
@@ -118,6 +161,7 @@ class VideoProvider extends ChangeNotifier {
 
   // Progress tracking for all upload types
   double trailerUploadProgress = 0.0;
+  double teaserUploadProgress = 0.0;
   double movieUploadProgress = 0.0;
   double censorUploadProgress = 0.0;
   double poster1UploadProgress = 0.0;
@@ -126,6 +170,7 @@ class VideoProvider extends ChangeNotifier {
 
   // Individual uploading status for each file type
   bool _isTrailerUploading = false;
+  bool _isTeaserUploading = false;
   bool _isMovieUploading = false;
   bool _isCensorUploading = false;
   bool _isPoster1Uploading = false;
@@ -134,6 +179,7 @@ class VideoProvider extends ChangeNotifier {
 
   // Getters for uploading status
   bool get isTrailerUploading => _isTrailerUploading;
+  bool get isTeaserUploading => _isTeaserUploading;
   bool get isMovieUploading => _isMovieUploading;
   bool get isCensorUploading => _isCensorUploading;
   bool get isPoster1Uploading => _isPoster1Uploading;
@@ -266,6 +312,8 @@ class VideoProvider extends ChangeNotifier {
     switch (label) {
       case "Trailer File":
         return trailerUrlController.text.isNotEmpty;
+      case "Teaser File":
+        return teaserUrlController.text.isNotEmpty;
       case "Movie File":
         return movieUrlController.text.isNotEmpty;
       case "Censor Certificate":
@@ -288,6 +336,12 @@ class VideoProvider extends ChangeNotifier {
   // Merged helper method to get uploading status by label for all file types
   bool getUploadingStatusByLabel(String label) {
     switch (label) {
+      case "Trailer File":
+        return _isTrailerUploading;
+      case "Teaser File":
+        return _isTeaserUploading;
+      case "Movie File":
+        return _isMovieUploading;
       case "Censor Certificate":
         return _isCensorUploading;
       case "Poster 1":
@@ -309,6 +363,8 @@ class VideoProvider extends ChangeNotifier {
   double getProgressByLabel(String label) {
     if (label == "Trailer File") {
       return trailerUploadProgress;
+    } else if (label == "Teaser File") {
+      return teaserUploadProgress;
     } else if (label == "Movie File") {
       return movieUploadProgress;
     } else if (label == "Censor Certificate" || label.startsWith("Poster")) {
@@ -325,6 +381,9 @@ class VideoProvider extends ChangeNotifier {
     switch (label) {
       case "Trailer File":
         _isTrailerUploading = status;
+        break;
+      case "Teaser File":
+        _isTeaserUploading = status;
         break;
       case "Movie File":
         _isMovieUploading = status;
@@ -349,6 +408,9 @@ class VideoProvider extends ChangeNotifier {
     switch (label) {
       case "Trailer File":
         trailerUploadProgress = progress;
+        break;
+      case "Teaser File":
+        teaserUploadProgress = progress;
         break;
       case "Movie File":
         movieUploadProgress = progress;
@@ -454,6 +516,69 @@ class VideoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _isRegistrationFeePaid = false;
+  bool get isRegistrationFeePaid => _isRegistrationFeePaid;
+  String get registrationFeePaidValue => _isRegistrationFeePaid ? "Y" : "N";
+  String get registrationFeeDetailsValue => _composeRegistrationFeeDetails();
+
+  void toggleRegistrationFeePaid(bool value) {
+    _isRegistrationFeePaid = value;
+    notifyListeners();
+  }
+
+  String _composeRegistrationFeeDetails() {
+    return [
+      "Payment ID: ${registrationPaymentIdController.text.trim()}",
+      "Payment Date: ${registrationPaymentDateController.text.trim()}",
+      "Amount Paid: ${registrationAmountPaidController.text.trim()}",
+      "Plan Type: ${registrationPlanTypeController.text.trim()}",
+      "Validity: ${registrationValidityController.text.trim()}",
+      "Payment Method: ${registrationPaymentMethodController.text.trim()}",
+    ].join("; ");
+  }
+
+  void _populateRegistrationFeeDetailsFields(String details) {
+    registrationPaymentIdController.clear();
+    registrationPaymentDateController.clear();
+    registrationAmountPaidController.clear();
+    registrationPlanTypeController.clear();
+    registrationValidityController.clear();
+    registrationPaymentMethodController.clear();
+
+    final text = details.trim();
+    if (text.isEmpty) return;
+
+    String? extract(String key) {
+      final regExp = RegExp('$key:' r'\s*([^;]+)');
+      final match = regExp.firstMatch(text);
+      return match == null ? null : match.group(1)?.trim();
+    }
+
+    final paymentId = extract("Payment ID");
+    final paymentDate = extract("Payment Date");
+    final amountPaid = extract("Amount Paid");
+    final planType = extract("Plan Type");
+    final validity = extract("Validity");
+    final paymentMethod = extract("Payment Method");
+
+    if (paymentId != null ||
+        paymentDate != null ||
+        amountPaid != null ||
+        planType != null ||
+        validity != null ||
+        paymentMethod != null) {
+      registrationPaymentIdController.text = paymentId ?? '';
+      registrationPaymentDateController.text = paymentDate ?? '';
+      registrationAmountPaidController.text = amountPaid ?? '';
+      registrationPlanTypeController.text = planType ?? '';
+      registrationValidityController.text = validity ?? '';
+      registrationPaymentMethodController.text = paymentMethod ?? '';
+      return;
+    }
+
+    registrationPaymentIdController.text = text;
+  }
+
   bool _isFeatured = false;
   bool get isFeatured => _isFeatured;
 
@@ -462,91 +587,100 @@ class VideoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Fetch all content
-  Future<void> fetchContent() async {
-    String apiUrl = ApiConstant.getAllVideo;
-    ApiHelper apiHelper = ApiHelper();
-    try {
-      var response = await apiHelper.getApi(apiUrl);
-      if (response.statusCode == 200) {
-        Map<String, dynamic> responseBody = json.decode(response.body);
-        GetAllVideoResponse getAllContentResponse =
-            GetAllVideoResponse.fromJson(responseBody);
-        if (getAllContentResponse.success == true) {
-          if (getAllContentResponse.data!.contentList != null) {
-            _contentList.clear();
-            _filteredContentList.clear();
-            _contentList = getAllContentResponse.data!.contentList!;
-            _filteredContentList.addAll(_contentList);
-            _totalItems = _filteredContentList.length;
-            resetPagination();
-            notifyListeners();
-          } else {
-            debugPrint("empty list: ${getAllContentResponse.message}");
-          }
-        } else {
-          debugPrint("Error: ${getAllContentResponse.message}");
-        }
-      } else {
-        throw Exception(
-            'Failed to fetch content. Status code: ${response.statusCode}');
-      }
-    } catch (error) {
-      debugPrint("Error: $error");
-      throw Exception('An error occurred while fetching content.');
-    }
-  }
-
-  // search all content
-  Future<void> searchContent() async {
-    String apiUrl = ApiConstant.searchContent(searchContentController.text);
-    ApiHelper apiHelper = ApiHelper();
-    try {
-      var response = await apiHelper.getApi(apiUrl);
-      if (response.statusCode == 200) {
-        Map<String, dynamic> responseBody = json.decode(response.body);
-        SearchResponse searchResponse = SearchResponse.fromJson(responseBody);
-        if (searchResponse.success == true) {
-          if (searchResponse.data != null) {
-            _filteredContentList.clear();
-            _filteredContentList = searchResponse.data!
-                .map((item) => Content.fromJson(item as Map<String, dynamic>))
-                .toList();
-            _totalItems = _filteredContentList.length;
-            resetPagination();
-            notifyListeners();
-          } else {
-            debugPrint("empty list: ${searchResponse.message}");
-          }
-        } else {
-          debugPrint("Error: ${searchResponse.message}");
-        }
-      } else {
-        throw Exception(
-            'Failed to fetch content. Status code: ${response.statusCode}');
-      }
-    } catch (error) {
-      debugPrint("Error: $error");
-      throw Exception('An error occurred while fetching content.');
-    }
-  }
-
   void filterContent() {
-    final query = searchContentController.text.toLowerCase();
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      _applyFilterWithoutReset();
+    });
+  }
+
+  Future<void> _applyFilterWithoutReset() async {
+    final query = searchContentController.text.trim();
+
+    try {
+      if (_releasedMediaHouseId != null) {
+        await fetchReleasedMoviesByMediaHouseId(
+          _releasedMediaHouseId!,
+          type: _releasedTypeForPagination,
+          searchKeyword: query,
+          startDate: _releasedStartDateForPagination,
+          endDate: _releasedEndDateForPagination,
+        );
+        return;
+      }
+
+      if (_statusMediaHouseIdForPagination != null) {
+        await fetchMoviesByStatusAndMediaHouseId(
+          _statusValueForPagination,
+          _statusMediaHouseIdForPagination!,
+          type: _statusTypeForPagination,
+          searchKeyword: query,
+          startDate: _statusStartDateForPagination,
+          endDate: _statusEndDateForPagination,
+        );
+        return;
+      }
+
+      if (_mediaHouseIdForPagination != null) {
+        await fetchMoviesByMediaHouseId(
+          _mediaHouseIdForPagination!,
+          type: _mediaHouseTypeForPagination,
+          searchKeyword: query,
+        );
+        return;
+      }
+    } catch (error) {
+      debugPrint("Search API failed, falling back to local filter: $error");
+    }
+
+    // Fallback when no pagination context exists.
+    final localQuery = query.toLowerCase();
     _filteredContentList = _contentList.where((content) {
       final title = (content.title ?? "").toLowerCase();
       final ageRating = (content.ageRating ?? "").toLowerCase();
       final description = (content.description ?? "").toLowerCase();
       final type = (content.type ?? "").toLowerCase();
 
-      return title.contains(query) ||
-          ageRating.contains(query) ||
-          description.contains(query) ||
-          type.contains(query);
+      return title.contains(localQuery) ||
+          ageRating.contains(localQuery) ||
+          description.contains(localQuery) ||
+          type.contains(localQuery);
     }).toList();
     _totalItems = _filteredContentList.length;
     resetPagination();
     notifyListeners();
+  }
+
+  List<Content> _mergeContentWithoutDuplicates(
+      List<Content> current, List<Content> incoming) {
+    if (incoming.isEmpty) return current;
+    final merged = List<Content>.from(current);
+    final existingIds = <String>{};
+    for (int i = 0; i < current.length; i++) {
+      final item = current[i];
+      final key = item.id != null
+          ? item.id.toString()
+          : "${item.title ?? ''}-${item.releaseDate ?? ''}-$i";
+      existingIds.add(key);
+    }
+    for (int i = 0; i < incoming.length; i++) {
+      final item = incoming[i];
+      final key = item.id != null
+          ? item.id.toString()
+          : "${item.title ?? ''}-${item.releaseDate ?? ''}-$i";
+      if (!existingIds.contains(key)) {
+        merged.add(item);
+        existingIds.add(key);
+      }
+    }
+    return merged;
+  }
+
+  String _formatDateOnly(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return "$year-$month-$day";
   }
 
   setSelectedContent(Content content) {
@@ -555,184 +689,316 @@ class VideoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Fetch all moviesByMediaHouseId
-  Future<void> fetchMoviesByMediaHouseId(int mediaHouseId) async {
-    String apiUrl = ApiConstant.getVideoByMediaHouseId(mediaHouseId);
+  // Fetch movies by media house with pagination.
+  Future<void> fetchMoviesByMediaHouseId(
+    int mediaHouseId, {
+    String type = "MOVIE",
+    String? searchKeyword,
+    int page = 0,
+    bool loadMore = false,
+  }) async {
+    final normalizedKeyword = (searchKeyword ?? "").trim();
+    if (!loadMore) {
+      _mediaHouseIdForPagination = mediaHouseId;
+      _mediaHouseTypeForPagination = type;
+      _mediaHouseKeywordForPagination = normalizedKeyword;
+      _mediaHouseCurrentPage = 0;
+      _mediaHouseTotalPages = 0;
+      _hasMoreMediaHouseItems = true;
+      _isMediaHouseLoadingMore = false;
+    }
+
+    final apiUrl = ApiConstant.getVideoByMediaHouseId(
+      mediaHouseId,
+      type: type,
+      searchKeyword: normalizedKeyword,
+      page: page,
+      size: _itemsPerPage,
+    );
     debugPrint(apiUrl);
+
     ApiHelper apiHelper = ApiHelper();
     try {
-      var response = await apiHelper.getApi(apiUrl);
-      debugPrint("response::: " + response.body);
+      final response = await apiHelper.getApi(apiUrl);
       if (response.statusCode == 200) {
-        Map<String, dynamic> responseBody = json.decode(response.body);
-        GetAllVideoResponse getAllContentResponse =
-            GetAllVideoResponse.fromJson(responseBody);
-        if (getAllContentResponse.success == true) {
-          final dataMap = responseBody["data"] as Map<String, dynamic>?;
-          final rawContentList =
-              (dataMap?["ContentList"] ?? dataMap?["contentList"]) as List?;
+        final responseBody = json.decode(response.body) as Map<String, dynamic>;
+        final allContentResponse = AllContentResponse.fromJson(responseBody);
+        final data = allContentResponse.data;
+        final fetchedContent = data?.contentList ?? [];
 
-          final List<Content> fetchedContent = [];
-          if (rawContentList != null) {
-            for (final item in rawContentList) {
-              if (item is Map<String, dynamic>) {
-                try {
-                  fetchedContent.add(Content.fromJson(item));
-                } catch (e) {
-                  debugPrint("Skipping malformed content item: $e");
-                }
-              }
-            }
-          } else {
-            fetchedContent
-                .addAll(getAllContentResponse.data?.contentList ?? []);
-          }
+        if (allContentResponse.success == true) {
+          _mediaHouseCurrentPage = data?.currentPage ?? page;
+          _mediaHouseTotalPages = data?.totalPages ?? 0;
+          _hasMoreMediaHouseItems = _mediaHouseTotalPages > 0
+              ? (_mediaHouseCurrentPage + 1) < _mediaHouseTotalPages
+              : fetchedContent.length >= _itemsPerPage;
 
-          _contentList = List<Content>.from(fetchedContent);
-          _filteredContentList = List<Content>.from(fetchedContent);
-          _totalItems = _filteredContentList.length;
-          debugPrint(
-              "Fetched content count by mediaHouseId($mediaHouseId): $_totalItems");
-          resetPagination();
-          _hasMoreItems = false;
-          _isLoadingMore = false;
+          _contentList = loadMore
+              ? _mergeContentWithoutDuplicates(_contentList, fetchedContent)
+              : List<Content>.from(fetchedContent);
+          _filteredContentList = List<Content>.from(_contentList);
+          _totalItems = data?.totalItems ?? _filteredContentList.length;
+          _hasMoreItems = _hasMoreMediaHouseItems;
           notifyListeners();
         } else {
-          _contentList.clear();
-          _filteredContentList.clear();
-          _totalItems = 0;
+          if (!loadMore) {
+            _contentList.clear();
+            _filteredContentList.clear();
+            _totalItems = 0;
+          }
+          _hasMoreMediaHouseItems = false;
           _hasMoreItems = false;
-          _isLoadingMore = false;
-          debugPrint("Error: ${getAllContentResponse.message}");
           notifyListeners();
         }
       } else {
-        _contentList.clear();
-        _filteredContentList.clear();
-        _totalItems = 0;
+        if (!loadMore) {
+          _contentList.clear();
+          _filteredContentList.clear();
+          _totalItems = 0;
+        }
+        _hasMoreMediaHouseItems = false;
         _hasMoreItems = false;
-        _isLoadingMore = false;
         notifyListeners();
         throw Exception(
             'Failed to fetch Content. Status code: ${response.statusCode}');
       }
     } catch (error) {
+      _hasMoreMediaHouseItems = false;
+      _hasMoreItems = false;
+      notifyListeners();
       debugPrint("Error: $error");
       throw Exception('An error occurred while fetching Content.');
     }
   }
 
-  // Fetch all moviesByStatusAndMediaHouseId
+  Future<void> fetchNextMoviesByMediaHousePage() async {
+    if (_mediaHouseIdForPagination == null ||
+        _isMediaHouseLoadingMore ||
+        !_hasMoreMediaHouseItems) {
+      return;
+    }
+    _isMediaHouseLoadingMore = true;
+    notifyListeners();
+    try {
+      await fetchMoviesByMediaHouseId(
+        _mediaHouseIdForPagination!,
+        type: _mediaHouseTypeForPagination,
+        searchKeyword: _mediaHouseKeywordForPagination,
+        page: _mediaHouseCurrentPage + 1,
+        loadMore: true,
+      );
+    } finally {
+      _isMediaHouseLoadingMore = false;
+      notifyListeners();
+    }
+  }
+
+  // Fetch movies by status and media house with pagination.
   Future<void> fetchMoviesByStatusAndMediaHouseId(
-      String status, int mediaHouseId) async {
-    String apiUrl =
-        ApiConstant.getVideoByStatusAndMediaHouse(status, mediaHouseId);
+    String status,
+    int mediaHouseId, {
+    String type = "MOVIE",
+    String? searchKeyword,
+    String? startDate,
+    String? endDate,
+    int page = 0,
+    bool loadMore = false,
+  }) async {
+    final normalizedStatus = status.toUpperCase();
+    final normalizedKeyword = (searchKeyword ?? "").trim();
+    final normalizedType = type.toUpperCase();
+    final effectiveStartDate =
+        startDate ?? _formatDateOnly(DateTime(DateTime.now().year, 1, 1));
+    final effectiveEndDate = endDate ?? _formatDateOnly(DateTime.now());
+
+    if (!loadMore) {
+      _statusMediaHouseIdForPagination = mediaHouseId;
+      _statusValueForPagination = normalizedStatus;
+      _statusTypeForPagination = normalizedType;
+      _statusKeywordForPagination = normalizedKeyword;
+      _statusStartDateForPagination = effectiveStartDate;
+      _statusEndDateForPagination = effectiveEndDate;
+      _statusCurrentPage = 0;
+      _statusTotalPages = 0;
+      _hasMoreStatusItems = true;
+      _isStatusLoadingMore = false;
+      _isLoadingMore = false;
+    } else {
+      _isLoadingMore = true;
+      _isStatusLoadingMore = true;
+      notifyListeners();
+    }
+
+    final apiUrl = ApiConstant.filterAdvancedContent(
+      mediaHouseId: mediaHouseId,
+      type: normalizedType,
+      approvalStatus: normalizedStatus,
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate,
+      searchKeyword: normalizedKeyword,
+      page: page,
+      size: _itemsPerPage,
+    );
     debugPrint(apiUrl);
+
     ApiHelper apiHelper = ApiHelper();
     try {
-      var response = await apiHelper.getApi(apiUrl);
-      debugPrint("get movie response by status::: " + response.body);
+      final response = await apiHelper.getApi(apiUrl);
       if (response.statusCode == 200) {
-        Map<String, dynamic> responseBody = json.decode(response.body);
-        GetAllVideoResponse getAllContentResponse =
-            GetAllVideoResponse.fromJson(responseBody);
-        if (getAllContentResponse.success == true) {
-          if (getAllContentResponse.data!.contentList != null) {
-            _contentList.clear();
-            _contentList = getAllContentResponse.data!.contentList!;
-            _filteredContentList.clear();
-            _filteredContentList = getAllContentResponse.data!.contentList!;
-            _totalItems = _filteredContentList.length;
-            resetPagination();
-            notifyListeners();
-          } else {
-            debugPrint("empty list: ${getAllContentResponse.message}");
-          }
+        final responseBody = json.decode(response.body) as Map<String, dynamic>;
+        final allContentResponse = AllContentResponse.fromJson(responseBody);
+        final data = allContentResponse.data;
+        final fetchedContent = data?.contentList ?? [];
+
+        if (allContentResponse.success == true) {
+          _statusCurrentPage = data?.currentPage ?? page;
+          _statusTotalPages = data?.totalPages ?? 0;
+          _hasMoreStatusItems = _statusTotalPages > 0
+              ? (_statusCurrentPage + 1) < _statusTotalPages
+              : fetchedContent.length >= _itemsPerPage;
+
+          _contentList = loadMore
+              ? _mergeContentWithoutDuplicates(_contentList, fetchedContent)
+              : List<Content>.from(fetchedContent);
+          _filteredContentList = List<Content>.from(_contentList);
+          _totalItems = data?.totalItems ?? _filteredContentList.length;
+          _hasMoreItems = _hasMoreStatusItems;
+          notifyListeners();
         } else {
-          _filteredContentList.clear();
-          _totalItems = 0;
-          resetPagination();
-          debugPrint("Error: ${getAllContentResponse.message}");
+          if (!loadMore) {
+            _contentList.clear();
+            _filteredContentList.clear();
+            _totalItems = 0;
+          }
+          _hasMoreStatusItems = false;
+          _hasMoreItems = false;
           notifyListeners();
         }
-      } else if (response.statusCode == 404) {
-        Map<String, dynamic> responseBody = json.decode(response.body);
-        GetAllVideoResponse getAllContentResponse =
-            GetAllVideoResponse.fromJson(responseBody);
-        if (getAllContentResponse.success == false) {
-          _filteredContentList.clear();
-          _totalItems = 0;
-          resetPagination();
-          notifyListeners();
-        }
+      } else if (response.statusCode == 404 && !loadMore) {
+        _contentList.clear();
+        _filteredContentList.clear();
+        _totalItems = 0;
+        _hasMoreStatusItems = false;
+        _hasMoreItems = false;
+        notifyListeners();
       } else {
-        if (status == "ALL") {
-          _filteredContentList.clear();
-          _filteredContentList.addAll(_contentList);
-          _totalItems = _filteredContentList.length;
-          resetPagination();
-          notifyListeners();
-        }
         throw Exception(
             'Failed to fetch Content. Status code: ${response.statusCode}');
       }
     } catch (error) {
+      _hasMoreStatusItems = false;
+      _hasMoreItems = false;
+      notifyListeners();
       debugPrint("Error: $error");
       throw Exception('An error occurred while fetching Content.');
+    } finally {
+      _isLoadingMore = false;
+      _isStatusLoadingMore = false;
+      notifyListeners();
     }
   }
 
-  // Fetch all moviesByStatusAndMediaHouseId
-  Future<void> fetchReleasedMoviesByMediaHouseId(int mediaHouseId) async {
-    _releasedMediaHouseId = mediaHouseId;
-    _releasedCurrentPage = 0;
-    _releasedTotalPages = 0;
-    _hasMoreReleasedItems = true;
-    _isReleasedLoadingMore = false;
+  Future<void> fetchNextMoviesByStatusAndMediaHousePage() async {
+    if (_statusMediaHouseIdForPagination == null ||
+        _isStatusLoadingMore ||
+        !_hasMoreStatusItems) {
+      return;
+    }
+    await fetchMoviesByStatusAndMediaHouseId(
+      _statusValueForPagination,
+      _statusMediaHouseIdForPagination!,
+      type: _statusTypeForPagination,
+      searchKeyword: _statusKeywordForPagination,
+      startDate: _statusStartDateForPagination,
+      endDate: _statusEndDateForPagination,
+      page: _statusCurrentPage + 1,
+      loadMore: true,
+    );
+  }
 
-    String apiUrl = ApiConstant.getReleaseVideoByMediaHouse(
-      mediaHouseId,
-      page: 0,
+  // Fetch released movies by media house with pagination.
+  Future<void> fetchReleasedMoviesByMediaHouseId(
+    int mediaHouseId, {
+    String type = "MOVIE",
+    String? searchKeyword,
+    String? startDate,
+    String? endDate,
+    int page = 0,
+    bool loadMore = false,
+  }) async {
+    final normalizedType = type.toUpperCase();
+    final normalizedKeyword = (searchKeyword ?? "").trim();
+    final effectiveStartDate =
+        startDate ?? _formatDateOnly(DateTime(DateTime.now().year, 1, 1));
+    final effectiveEndDate = endDate ?? _formatDateOnly(DateTime.now());
+    if (!loadMore) {
+      _releasedMediaHouseId = mediaHouseId;
+      _releasedTypeForPagination = normalizedType;
+      _releasedKeywordForPagination = normalizedKeyword;
+      _releasedStartDateForPagination = effectiveStartDate;
+      _releasedEndDateForPagination = effectiveEndDate;
+      _releasedCurrentPage = 0;
+      _releasedTotalPages = 0;
+      _hasMoreReleasedItems = true;
+      _isReleasedLoadingMore = false;
+    }
+
+    final apiUrl = ApiConstant.filterAdvancedContent(
+      mediaHouseId: mediaHouseId,
+      type: normalizedType,
+      approvalStatus: "APPROVED",
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate,
+      searchKeyword: normalizedKeyword,
+      page: page,
       size: _itemsPerPage,
     );
-    debugPrint("get movie response api::: " + apiUrl);
+    debugPrint("get movie response api::: $apiUrl");
     ApiHelper apiHelper = ApiHelper();
     try {
-      var response = await apiHelper.getApi(apiUrl);
-      debugPrint("get movie response by status::: " + response.body);
+      final response = await apiHelper.getApi(apiUrl);
       if (response.statusCode == 200) {
-        Map<String, dynamic> responseBody = json.decode(response.body);
-        AllContentResponse getAllContentResponse =
-            AllContentResponse.fromJson(responseBody);
+        final responseBody = json.decode(response.body) as Map<String, dynamic>;
+        final getAllContentResponse = AllContentResponse.fromJson(responseBody);
+        final releasedData = getAllContentResponse.data;
+        final fetchedContent = releasedData?.contentList ?? [];
+
         if (getAllContentResponse.success == true) {
-          final releasedData = getAllContentResponse.data;
-          final fetchedContent = releasedData?.contentList ?? [];
-          _releasedCurrentPage = releasedData?.currentPage ?? 0;
+          _releasedCurrentPage = releasedData?.currentPage ?? page;
           _releasedTotalPages = releasedData?.totalPages ?? 0;
           _hasMoreReleasedItems = _releasedTotalPages > 0
               ? (_releasedCurrentPage + 1) < _releasedTotalPages
-              : false;
+              : fetchedContent.length >= _itemsPerPage;
 
-          _contentList = List<Content>.from(fetchedContent);
-          filterContent();
+          _contentList = loadMore
+              ? _mergeContentWithoutDuplicates(_contentList, fetchedContent)
+              : List<Content>.from(fetchedContent);
+          _filteredContentList = List<Content>.from(_contentList);
+          _totalItems = releasedData?.totalItems ?? _filteredContentList.length;
+          notifyListeners();
         } else {
-          _contentList.clear();
-          _filteredContentList.clear();
-          _totalItems = 0;
+          if (!loadMore) {
+            _contentList.clear();
+            _filteredContentList.clear();
+            _totalItems = 0;
+          }
           _hasMoreReleasedItems = false;
-          debugPrint("Error: ${getAllContentResponse.message}");
           notifyListeners();
         }
       } else {
-        _contentList.clear();
-        _filteredContentList.clear();
-        _totalItems = 0;
+        if (!loadMore) {
+          _contentList.clear();
+          _filteredContentList.clear();
+          _totalItems = 0;
+        }
         _hasMoreReleasedItems = false;
         notifyListeners();
         throw Exception(
             'Failed to fetch released content. Status code: ${response.statusCode}');
       }
     } catch (error) {
+      _hasMoreReleasedItems = false;
+      notifyListeners();
       debugPrint("Error: $error");
       throw Exception('An error occurred while fetching Content.');
     }
@@ -747,44 +1013,16 @@ class VideoProvider extends ChangeNotifier {
 
     _isReleasedLoadingMore = true;
     notifyListeners();
-
-    final nextPage = _releasedCurrentPage + 1;
-    String apiUrl = ApiConstant.getReleaseVideoByMediaHouse(
-      _releasedMediaHouseId!,
-      page: nextPage,
-      size: _itemsPerPage,
-    );
-
-    ApiHelper apiHelper = ApiHelper();
     try {
-      var response = await apiHelper.getApi(apiUrl);
-      if (response.statusCode == 200) {
-        final responseBody = json.decode(response.body) as Map<String, dynamic>;
-        final releasedResponse = AllContentResponse.fromJson(responseBody);
-
-        if (releasedResponse.success == true) {
-          final releasedData = releasedResponse.data;
-          final nextContent = releasedData?.contentList ?? [];
-
-          _releasedCurrentPage = releasedData?.currentPage ?? nextPage;
-          _releasedTotalPages = releasedData?.totalPages ?? _releasedTotalPages;
-          _hasMoreReleasedItems = _releasedTotalPages > 0
-              ? (_releasedCurrentPage + 1) < _releasedTotalPages
-              : nextContent.length >= _itemsPerPage;
-
-          if (nextContent.isNotEmpty) {
-            _contentList.addAll(nextContent);
-          }
-
-          filterContent();
-        } else {
-          _hasMoreReleasedItems = false;
-          notifyListeners();
-        }
-      } else {
-        throw Exception(
-            'Failed to fetch released content page. Status code: ${response.statusCode}');
-      }
+      await fetchReleasedMoviesByMediaHouseId(
+        _releasedMediaHouseId!,
+        type: _releasedTypeForPagination,
+        searchKeyword: _releasedKeywordForPagination,
+        startDate: _releasedStartDateForPagination,
+        endDate: _releasedEndDateForPagination,
+        page: _releasedCurrentPage + 1,
+        loadMore: true,
+      );
     } catch (error) {
       debugPrint("Error fetching next released content page: $error");
     } finally {
@@ -842,6 +1080,8 @@ class VideoProvider extends ChangeNotifier {
     saveContent.genersList = selectedGeners;
     saveContent.isDownloadable = isDownloadable;
     saveContent.isFeatured = isFeatured;
+    saveContent.registrationFeePaid = registrationFeePaidValue;
+    saveContent.registrationFeeDetails = registrationFeeDetailsValue;
     saveContent.languageList = selectedLanguages;
     saveContent.mediaHouseId = mediaHouse.id!;
     saveContent.price = double.tryParse(priceController.text) ?? 0.0;
@@ -857,10 +1097,15 @@ class VideoProvider extends ChangeNotifier {
     saveContent.rentlDuration = rentalDurationController.text;
     saveContent.totalRevenue = 0;
     saveContent.runtime = double.tryParse(runTimeController.text) ?? 0.0;
+    saveContent.numberOfAttempt =
+        int.tryParse(numberOfAttemptController.text.trim()) ?? 0;
+    saveContent.fullAttempt =
+        int.tryParse(fullAttemptController.text.trim()) ?? 0;
     saveContent.subtitleLanguageList = selectedSubLanguages;
     saveContent.sensorCertificate = censorCertificateController.text;
     saveContent.type = typeController.text;
     saveContent.title = titleController.text;
+    saveContent.teaserUrl = teaserUrlController.text;
     saveContent.trailerUrl = trailerUrlController.text;
     saveContent.uploadDateTime = isoDate;
     saveContent.views = 0;
@@ -921,6 +1166,8 @@ class VideoProvider extends ChangeNotifier {
     saveContent.description = descriptionController.text;
     saveContent.isDownloadable = isDownloadable;
     saveContent.isFeatured = isFeatured;
+    saveContent.registrationFeePaid = registrationFeePaidValue;
+    saveContent.registrationFeeDetails = registrationFeeDetailsValue;
     saveContent.genreList = selectedGeners;
     saveContent.languageList = selectedLanguages;
     saveContent.mediaHouseId = mediaHouse.id!;
@@ -935,9 +1182,14 @@ class VideoProvider extends ChangeNotifier {
     saveContent.releaseDate = releaseDateController.text;
     saveContent.rentlDuration = rentalDurationController.text;
     saveContent.runtime = int.tryParse(runTimeController.text) ?? 0;
+    saveContent.numberOfAttempt =
+        int.tryParse(numberOfAttemptController.text.trim()) ?? 0;
+    saveContent.fullAttempt =
+        int.tryParse(fullAttemptController.text.trim()) ?? 0;
     saveContent.subtitleLanguageList = selectedSubLanguages;
     saveContent.sensorCertificate = censorCertificateController.text;
     saveContent.title = titleController.text;
+    saveContent.teaserUrl = teaserUrlController.text;
     saveContent.trailerUrl = trailerUrlController.text;
 
     ApiHelper apiHelper = ApiHelper();
@@ -1004,6 +1256,8 @@ class VideoProvider extends ChangeNotifier {
       saveContent.genersList = selectedGeners;
       saveContent.isDownloadable = isDownloadable;
       saveContent.isFeatured = isFeatured;
+      saveContent.registrationFeePaid = registrationFeePaidValue;
+      saveContent.registrationFeeDetails = registrationFeeDetailsValue;
       saveContent.languageList = selectedLanguages;
       saveContent.mediaHouseId = mediaHouse.id;
       saveContent.price = double.tryParse(priceController.text) ?? 0.0;
@@ -1019,10 +1273,15 @@ class VideoProvider extends ChangeNotifier {
       saveContent.rentlDuration = rentalDurationController.text;
       saveContent.totalRevenue = 0;
       saveContent.runtime = double.tryParse(runTimeController.text) ?? 0.0;
+      saveContent.numberOfAttempt =
+          int.tryParse(numberOfAttemptController.text.trim()) ?? 0;
+      saveContent.fullAttempt =
+          int.tryParse(fullAttemptController.text.trim()) ?? 0;
       saveContent.subtitleLanguageList = selectedSubLanguages;
       saveContent.sensorCertificate = censorCertificateController.text;
       saveContent.type = typeController.text;
       saveContent.title = titleController.text;
+      saveContent.teaserUrl = teaserUrlController.text;
       saveContent.trailerUrl = trailerUrlController.text;
       saveContent.uploadDateTime = isoDate;
       saveContent.views = 0;
@@ -1231,6 +1490,9 @@ class VideoProvider extends ChangeNotifier {
       case "Trailer File":
         trailerUrlController.text = url;
         break;
+      case "Teaser File":
+        teaserUrlController.text = url;
+        break;
       case "Movie File":
         movieUrlController.text = url;
         break;
@@ -1253,6 +1515,8 @@ class VideoProvider extends ChangeNotifier {
     switch (label) {
       case "Trailer File":
         return trailerUploadProgress;
+      case "Teaser File":
+        return teaserUploadProgress;
       case "Movie File":
         return movieUploadProgress;
       case "Censor Certificate":
@@ -1333,10 +1597,17 @@ class VideoProvider extends ChangeNotifier {
     rentlDurationController.text = movie.rentlDuration ?? "";
     priceController.text = movie.price.toString() ?? "";
     runTimeController.text = movie.runtime.toString() ?? "";
+    numberOfAttemptController.text = (movie.numberOfAttempt ?? 0).toString();
+    fullAttemptController.text = (movie.fullAttempt ?? 0).toString();
     _selectedLanguages = movie.languageList ?? [];
     _selectedSubLanguages = movie.subtitleLanguageList ?? [];
     _selectedAudioFormat = movie.audioFormatList ?? [];
     _selectedGeners = movie.genreList ?? [];
+    _isDownloadable = movie.isDownloadable ?? false;
+    _isRegistrationFeePaid =
+        (movie.registrationFeePaid ?? '').toUpperCase() == 'Y';
+    registrationFeeDetailsController.text = movie.registrationFeeDetails ?? '';
+    _populateRegistrationFeeDetailsFields(movie.registrationFeeDetails ?? '');
     if (movie.posterUrlList != null && movie.posterUrlList!.isNotEmpty) {
       poster1Controller.text =
           movie.posterUrlList!.length > 0 && movie.posterUrlList![0].isNotEmpty
@@ -1351,6 +1622,7 @@ class VideoProvider extends ChangeNotifier {
               ? movie.posterUrlList![2]
               : '';
     }
+    teaserUrlController.text = movie.teaserUrl ?? '';
     trailerUrlController.text = movie.trailerUrl!;
     movieUrlController.text = movie.contentUrl!;
     censorCertificateController.text = movie.sensorCertificate!;
@@ -1399,6 +1671,7 @@ class VideoProvider extends ChangeNotifier {
     }
   }
 
+  String? teaserFileName;
   String? trailerFileName;
   String? movieFileName;
 
@@ -1465,13 +1738,31 @@ class VideoProvider extends ChangeNotifier {
   }
 
   Future<void> uploadVideoWeb(bool isTrailer) async {
+    await uploadVideoWebByType(isTrailer ? "trailer" : "movie");
+  }
+
+  Future<void> uploadVideoWebByType(String videoType) async {
     html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
     uploadInput.accept = 'video/*';
     uploadInput.click();
 
     uploadInput.onChange.listen((event) {
       final file = uploadInput.files?.first;
-      if (file == null) return;
+      if (file == null) {
+        if (videoType == "trailer") {
+          _isTrailerUploading = false;
+          trailerUploadProgress = 0.0;
+        } else if (videoType == "teaser") {
+          _isTeaserUploading = false;
+          teaserUploadProgress = 0.0;
+        } else {
+          _isMovieUploading = false;
+          movieUploadProgress = 0.0;
+        }
+        _isUploading = false;
+        notifyListeners();
+        return;
+      }
 
       final xhr = html.HttpRequest();
       final formData = html.FormData();
@@ -1484,8 +1775,10 @@ class VideoProvider extends ChangeNotifier {
             e.total != null &&
             e.total! > 0) {
           final progress = e.loaded! / e.total!;
-          if (isTrailer) {
+          if (videoType == "trailer") {
             trailerUploadProgress = progress;
+          } else if (videoType == "teaser") {
+            teaserUploadProgress = progress;
           } else {
             movieUploadProgress = progress;
           }
@@ -1500,11 +1793,16 @@ class VideoProvider extends ChangeNotifier {
               VideoUploadResponse.fromJson(response);
           final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
 
-          if (isTrailer) {
+          if (videoType == "trailer") {
             trailerUrlController.text = encryptedUrl!;
             trailerFileName = file.name;
             trailerUploadProgress = 1.0;
             _isTrailerUploading = false;
+          } else if (videoType == "teaser") {
+            teaserUrlController.text = encryptedUrl!;
+            teaserFileName = file.name;
+            teaserUploadProgress = 1.0;
+            _isTeaserUploading = false;
           } else {
             movieUrlController.text = encryptedUrl!;
             movieFileName = file.name;
@@ -1516,9 +1814,12 @@ class VideoProvider extends ChangeNotifier {
       });
 
       xhr.onError.listen((_) {
-        if (isTrailer) {
+        if (videoType == "trailer") {
           trailerUploadProgress = 0.0;
           _isTrailerUploading = false;
+        } else if (videoType == "teaser") {
+          teaserUploadProgress = 0.0;
+          _isTeaserUploading = false;
         } else {
           movieUploadProgress = 0.0;
           _isMovieUploading = false;
@@ -1529,8 +1830,10 @@ class VideoProvider extends ChangeNotifier {
       xhr.open('POST', ApiConstant.uploadVideo);
       xhr.send(formData);
 
-      if (isTrailer) {
+      if (videoType == "trailer") {
         _isTrailerUploading = true;
+      } else if (videoType == "teaser") {
+        _isTeaserUploading = true;
       } else {
         _isMovieUploading = true;
       }
@@ -1539,23 +1842,40 @@ class VideoProvider extends ChangeNotifier {
   }
 
   Future<void> uploadVideo(bool isTrailer) async {
-    final Uri uploadUri = Uri.parse(ApiConstant.uploadVideo);
+    await uploadVideoByType(isTrailer ? "trailer" : "movie");
+  }
 
-    if (isTrailer) {
-      trailerUploadProgress = 0.0;
-      _isTrailerUploading = true;
+  Future<void> uploadVideoByLabel(String label) async {
+    if (label == "Trailer File") {
+      await uploadVideoByType("trailer");
+    } else if (label == "Teaser File") {
+      await uploadVideoByType("teaser");
     } else {
-      movieUploadProgress = 0.0;
-      _isMovieUploading = true;
+      await uploadVideoByType("movie");
     }
-    _isUploading = true;
-    notifyListeners();
+  }
+
+  Future<void> uploadVideoByType(String videoType) async {
+    final Uri uploadUri = Uri.parse(ApiConstant.uploadVideo);
 
     try {
       if (kIsWeb) {
-        uploadVideoWeb(isTrailer);
+        uploadVideoWebByType(videoType);
         return;
       } else {
+        if (videoType == "trailer") {
+          trailerUploadProgress = 0.0;
+          _isTrailerUploading = true;
+        } else if (videoType == "teaser") {
+          teaserUploadProgress = 0.0;
+          _isTeaserUploading = true;
+        } else {
+          movieUploadProgress = 0.0;
+          _isMovieUploading = true;
+        }
+        _isUploading = true;
+        notifyListeners();
+
         final picker = ImagePicker();
         final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
 
@@ -1563,8 +1883,7 @@ class VideoProvider extends ChangeNotifier {
           final File file = File(pickedFile.path);
           final totalBytes = await file.length();
 
-          print(
-              "Starting upload for ${isTrailer ? 'trailer' : 'movie'}, file size: $totalBytes bytes");
+          print("Starting upload for $videoType, file size: $totalBytes bytes");
 
           final StreamController<List<int>> streamController =
               StreamController<List<int>>();
@@ -1576,8 +1895,10 @@ class VideoProvider extends ChangeNotifier {
                     bytesSent += data.length;
                     final progress = bytesSent / totalBytes;
 
-                    if (isTrailer) {
+                    if (videoType == "trailer") {
                       trailerUploadProgress = progress;
+                    } else if (videoType == "teaser") {
+                      teaserUploadProgress = progress;
                     } else {
                       movieUploadProgress = progress;
                     }
@@ -1618,11 +1939,17 @@ class VideoProvider extends ChangeNotifier {
                 VideoUploadResponse.fromJson(responseJson);
             final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
 
-            if (isTrailer) {
+            if (videoType == "trailer") {
               trailerUrlController.text = encryptedUrl!;
+              trailerFileName = pickedFile.name;
               trailerUploadProgress = 1.0;
+            } else if (videoType == "teaser") {
+              teaserUrlController.text = encryptedUrl!;
+              teaserFileName = pickedFile.name;
+              teaserUploadProgress = 1.0;
             } else {
               movieUrlController.text = encryptedUrl!;
+              movieFileName = pickedFile.name;
               movieUploadProgress = 1.0;
             }
 
@@ -1632,14 +1959,18 @@ class VideoProvider extends ChangeNotifier {
             final responseBody = await response.stream.bytesToString();
             print("Error response: $responseBody");
 
-            if (isTrailer) {
+            if (videoType == "trailer") {
               trailerUploadProgress = 0.0;
+            } else if (videoType == "teaser") {
+              teaserUploadProgress = 0.0;
             } else {
               movieUploadProgress = 0.0;
             }
           }
-          if (isTrailer) {
+          if (videoType == "trailer") {
             _isTrailerUploading = false;
+          } else if (videoType == "teaser") {
+            _isTeaserUploading = false;
           } else {
             _isMovieUploading = false;
           }
@@ -1647,8 +1978,10 @@ class VideoProvider extends ChangeNotifier {
           notifyListeners();
         } else {
           print("No video selected");
-          if (isTrailer) {
+          if (videoType == "trailer") {
             trailerUploadProgress = 0.0;
+          } else if (videoType == "teaser") {
+            teaserUploadProgress = 0.0;
           } else {
             movieUploadProgress = 0.0;
           }
@@ -1657,16 +1990,20 @@ class VideoProvider extends ChangeNotifier {
       }
     } catch (e) {
       print('Error uploading video: $e');
-      if (isTrailer) {
+      if (videoType == "trailer") {
         trailerUploadProgress = 0.0;
+      } else if (videoType == "teaser") {
+        teaserUploadProgress = 0.0;
       } else {
         movieUploadProgress = 0.0;
       }
       notifyListeners();
     } finally {
       if (!kIsWeb) {
-        if (isTrailer) {
+        if (videoType == "trailer") {
           _isTrailerUploading = false;
+        } else if (videoType == "teaser") {
+          _isTeaserUploading = false;
         } else {
           _isMovieUploading = false;
         }
@@ -1676,7 +2013,8 @@ class VideoProvider extends ChangeNotifier {
     }
   }
 
-  bool get isVideoUploading => _isTrailerUploading || _isMovieUploading;
+  bool get isVideoUploading =>
+      _isTrailerUploading || _isTeaserUploading || _isMovieUploading;
 
   bool isSpecificVideoUploading(bool isTrailer) {
     return isTrailer ? _isTrailerUploading : _isMovieUploading;
@@ -1703,6 +2041,7 @@ class VideoProvider extends ChangeNotifier {
     statusController.clear();
     descriptionController.clear();
     movieUrlController.clear();
+    teaserUrlController.clear();
     trailerUrlController.clear();
     priceController.clear();
     releaseDateController.clear();
@@ -1712,14 +2051,24 @@ class VideoProvider extends ChangeNotifier {
     reasonController.clear();
     typeController.clear();
     runTimeController.clear();
+    numberOfAttemptController.clear();
+    fullAttemptController.clear();
     poster1Controller.clear();
     poster2Controller.clear();
     poster3Controller.clear();
     castController.clear();
     directorController.clear();
     rentalDurationController.clear();
+    registrationFeeDetailsController.clear();
+    registrationPaymentIdController.clear();
+    registrationPaymentDateController.clear();
+    registrationAmountPaidController.clear();
+    registrationPlanTypeController.clear();
+    registrationValidityController.clear();
+    registrationPaymentMethodController.clear();
 
     trailerUploadProgress = 0.0;
+    teaserUploadProgress = 0.0;
     movieUploadProgress = 0.0;
     censorUploadProgress = 0.0;
     poster1UploadProgress = 0.0;
@@ -1727,11 +2076,15 @@ class VideoProvider extends ChangeNotifier {
     poster3UploadProgress = 0.0;
 
     _isTrailerUploading = false;
+    _isTeaserUploading = false;
     _isMovieUploading = false;
     _isCensorUploading = false;
     _isPoster1Uploading = false;
     _isPoster2Uploading = false;
     _isPoster3Uploading = false;
+    teaserFileName = null;
+    trailerFileName = null;
+    movieFileName = null;
 
     _selectedItems.clear();
     _selectedGeners.clear();
@@ -1750,6 +2103,7 @@ class VideoProvider extends ChangeNotifier {
     audioControllers.clear();
 
     _isDownloadable = false;
+    _isRegistrationFeePaid = false;
     _isFeatured = false;
 
     notifyListeners();
@@ -1841,13 +2195,24 @@ class VideoProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     titleController.dispose();
     descriptionController.dispose();
     releaseDateController.dispose();
     runTimeController.dispose();
+    numberOfAttemptController.dispose();
+    fullAttemptController.dispose();
     priceController.dispose();
     movieUrlController.dispose();
     trailerUrlController.dispose();
+    teaserUrlController.dispose();
+    registrationFeeDetailsController.dispose();
+    registrationPaymentIdController.dispose();
+    registrationPaymentDateController.dispose();
+    registrationAmountPaidController.dispose();
+    registrationPlanTypeController.dispose();
+    registrationValidityController.dispose();
+    registrationPaymentMethodController.dispose();
     censorCertificateController.dispose();
     poster1Controller.dispose();
     poster2Controller.dispose();

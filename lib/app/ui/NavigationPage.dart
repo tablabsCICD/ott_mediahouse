@@ -5,7 +5,7 @@ import 'package:media_house/app/ui/pages/analytics_page/analyticsPage.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/dashboardpage.dart';
 import 'package:media_house/app/ui/pages/document_page/documentpage.dart';
 import 'package:media_house/app/ui/pages/released_content_page/released_content.dart';
-import 'package:media_house/app/ui/pages/pendingContent_page/pendingcontent.dart';
+import 'package:media_house/app/ui/pages/allContent_page/allContent.dart';
 import 'package:media_house/app/ui/pages/profile%20page/ProfilePage.dart';
 import 'package:media_house/app/ui/pages/sereis/seriespage.dart';
 import 'package:media_house/app/ui/pages/settlemet_page/SettlementPage.dart';
@@ -30,7 +30,7 @@ class _NavigationPageState extends State<NavigationPage> {
   final List<PageData> _pages = [
     PageData(title: 'Dashboard', page: DashboardPage()),
     PageData(title: 'Released Content', page: ReleasedContentPage()),
-    PageData(title: 'All Content', page: PendingContentPage()),
+    PageData(title: 'All Content', page: AllContentPage()),
     PageData(title: 'Shorts', page: ShortsPage()),
     PageData(title: 'Series', page: SeriesPage()),
     PageData(title: 'Analytics', page: AnalyticsPage()),

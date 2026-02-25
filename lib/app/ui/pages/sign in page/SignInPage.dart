@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../provider/user_provider.dart';
+import '../sign up page/SignUpPage.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -36,7 +37,7 @@ class _SignInPageState extends State<SignInPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(
-                height: ResponsiveWidget.isMobile(context) ? 120 : 150,
+                height: ResponsiveWidget.isMobile(context) ? 120 : 200,
                 child: Hero(
                   tag: "logo",
                   child: ClipRRect(
@@ -80,12 +81,15 @@ class _SignInPageState extends State<SignInPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Sign In',
-                style: TextStyle(
-                  color: selectedThemeData.primaryColor,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              InkWell(
+                onTap: _navigateToSignIn,
+                child: Text(
+                  'Sign In',
+                  style: TextStyle(
+                    color: selectedThemeData.primaryColor,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -126,6 +130,30 @@ class _SignInPageState extends State<SignInPage> {
                         ),
                       ),
               ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Already have an account?',
+                    style: TextStyle(
+                      color: selectedThemeData.canvasColor,
+                      fontSize: 14,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _navigateToSignIn,
+                    child: Text(
+                      'Sign Up',
+                      style: TextStyle(
+                        color: selectedThemeData.primaryColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -165,5 +193,12 @@ class _SignInPageState extends State<SignInPage> {
     setState(() {
       _isLoading = false;
     });
+  }
+
+  void _navigateToSignIn() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const SignUpPage()),
+    );
   }
 }

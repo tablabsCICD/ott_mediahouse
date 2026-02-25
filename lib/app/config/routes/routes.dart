@@ -4,7 +4,7 @@ import 'package:media_house/app/ui/pages/analytics_page/analyticsPage.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/dashboardpage.dart';
 import 'package:media_house/app/ui/pages/document_page/documentpage.dart';
 import 'package:media_house/app/ui/pages/help%20support%20page/helpDesk.dart';
-import 'package:media_house/app/ui/pages/pendingContent_page/pendingcontent.dart';
+import 'package:media_house/app/ui/pages/allContent_page/allContent.dart';
 import 'package:media_house/app/ui/pages/profile%20page/component/EditProfilePage.dart';
 import 'package:media_house/app/ui/pages/released_content_page/released_content.dart';
 import 'package:media_house/app/ui/pages/settlemet_page/SettlementPage.dart';
@@ -51,7 +51,7 @@ class RouteGenerator {
         return buildRoute(ReleasedContentPage(), settings: settings);
 
       case AppRoutes.pendingContent:
-        return buildRoute(PendingContentPage(), settings: settings);
+        return buildRoute(AllContentPage(), settings: settings);
 
       default:
         return buildRoute(SplashScreen(), settings: settings);

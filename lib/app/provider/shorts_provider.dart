@@ -213,6 +213,7 @@ class ShortProvider extends ChangeNotifier {
   Future<void> fetchShorts() async {
     try {
       isLoading = true;
+      shorts.clear();
       notifyListeners();
       final localSharePreferences = LocalSharePreferences();
       final mediaHouse =
@@ -222,8 +223,9 @@ class ShortProvider extends ChangeNotifier {
       var response = await apiHelper.getApi(url);
       final data = jsonDecode(response.body);
       ShortMasterResponse shortMasterResponse = ShortMasterResponse.fromJson(data);
-      shorts = shortMasterResponse.data!.shorts!;
+      shorts = shortMasterResponse.data?.shorts ?? [];
     } catch (e) {
+      shorts.clear();
       print("Shorts Fetch Error → $e");
     }
 
