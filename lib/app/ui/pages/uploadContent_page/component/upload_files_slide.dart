@@ -30,6 +30,9 @@ class UploadFilesSlide extends StatelessWidget {
             'Media Files',
             [
               UploadMediaHelpers.buildEnhancedUploadSection(
+                  "Teaser File", themeData, context),
+              const SizedBox(height: 16),
+              UploadMediaHelpers.buildEnhancedUploadSection(
                   "Trailer File", themeData, context),
               const SizedBox(height: 16),
               type == "MOVIE"

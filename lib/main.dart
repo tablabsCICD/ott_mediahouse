@@ -3,6 +3,7 @@ import 'package:media_house/app/provider/content_provider.dart';
 import 'package:media_house/app/provider/graphProvider.dart';
 import 'package:media_house/app/provider/mediaHouseProvider.dart';
 import 'package:media_house/app/provider/series_provider.dart';
+import 'package:media_house/app/provider/sign_up_provider.dart';
 import 'package:media_house/app/provider/settelementProvider.dart';
 import 'package:media_house/app/provider/shorts_provider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
@@ -44,6 +45,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => GraphProvider()),
         ChangeNotifierProvider(create: (_) => ShortProvider()),
         ChangeNotifierProvider(create: (_) => SeriesProvider()),
+        ChangeNotifierProvider(create: (_) => SignUpProvider()),
       ],
       child: MyApp(),
     ),
@@ -74,3 +76,4 @@ class MyApp extends StatelessWidget {
   }
 }
 // latest code
+

@@ -21,12 +21,15 @@ class Content {
   double? totalRevenue;
   String? ageRating;
   List<String>? posterUrlList;
+  String? teaserUrl;
   String? trailerUrl;
   String? contentUrl;
   String? approvalStatus;
   String? type;
   String? sensorCertificate;
   bool? isFeatured;
+  String? registrationFeePaid;
+  String? registrationFeeDetails;
   Availability? availability;
   List<String>? audioFormatList;
   List<String>? subtitleLanguageList;
@@ -37,6 +40,8 @@ class Content {
   int? mediaHouseId;
   int? ratingCount;
   String? rentlDuration;
+  int? numberOfAttempt;
+  int? fullAttempt;
   double? adminIncentivePecentage;
   double? mediaHouseIncentivePecentage;
   String? reason;
@@ -62,12 +67,15 @@ class Content {
     this.totalRevenue,
     this.ageRating,
     this.posterUrlList,
+    this.teaserUrl,
     this.trailerUrl,
     this.contentUrl,
     this.approvalStatus,
     this.type,
     this.sensorCertificate,
     this.isFeatured,
+    this.registrationFeePaid,
+    this.registrationFeeDetails,
     this.availability,
     this.audioFormatList,
     this.subtitleLanguageList,
@@ -78,6 +86,8 @@ class Content {
     this.mediaHouseId,
     this.ratingCount,
     this.rentlDuration,
+    this.numberOfAttempt,
+    this.fullAttempt,
     this.adminIncentivePecentage,
     this.mediaHouseIncentivePecentage,
     this.reason,
@@ -104,12 +114,15 @@ class Content {
     totalRevenue: json["totalRevenue"]?.toDouble(),
     ageRating: json["ageRating"],
     posterUrlList: json["posterUrlList"] == null ? [] : List<String>.from(json["posterUrlList"]!.map((x) => x)),
+    teaserUrl: json["teaserUrl"],
     trailerUrl: json["trailerUrl"],
     contentUrl: json["contentUrl"],
     approvalStatus: json["approvalStatus"],
     type: json["type"],
     sensorCertificate: json["sensorCertificate"],
     isFeatured: json["isFeatured"],
+    registrationFeePaid: json["registrationFeePaid"],
+    registrationFeeDetails: json["registrationFeeDetails"],
     availability: json["availability"] == null ? null : Availability.fromJson(json["availability"]),
     audioFormatList: json["audioFormatList"] == null ? [] : List<String>.from(json["audioFormatList"]!.map((x) => x)),
     subtitleLanguageList: json["subtitleLanguageList"] == null ? [] : List<String>.from(json["subtitleLanguageList"]!.map((x) => x)),
@@ -120,6 +133,8 @@ class Content {
     mediaHouseId: _asInt(json["mediaHouseId"]),
     ratingCount: _asInt(json["ratingCount"]),
     rentlDuration: json["rentlDuration"],
+    numberOfAttempt: _asInt(json["numberOfAttempt"]),
+    fullAttempt: _asInt(json["fullAttempt"]),
     adminIncentivePecentage: json["adminIncentivePecentage"],
     mediaHouseIncentivePecentage: json["mediaHouseIncentivePecentage"],
       reason: json['reason'],
@@ -146,12 +161,15 @@ class Content {
     "totalRevenue": totalRevenue,
     "ageRating": ageRating,
     "posterUrlList": posterUrlList == null ? [] : List<dynamic>.from(posterUrlList!.map((x) => x)),
+    "teaserUrl": teaserUrl,
     "trailerUrl": trailerUrl,
     "contentUrl": contentUrl,
     "approvalStatus": approvalStatus,
     "type": type,
     "sensorCertificate": sensorCertificate,
     "isFeatured": isFeatured,
+    "registrationFeePaid": registrationFeePaid,
+    "registrationFeeDetails": registrationFeeDetails,
     "availability": availability?.toJson(),
     "audioFormatList": audioFormatList == null ? [] : List<dynamic>.from(audioFormatList!.map((x) => x)),
     "subtitleLanguageList": subtitleLanguageList == null ? [] : List<dynamic>.from(subtitleLanguageList!.map((x) => x)),
@@ -162,6 +180,8 @@ class Content {
     "mediaHouseId": mediaHouseId,
     "ratingCount": ratingCount,
     "rentlDuration": rentlDuration,
+    "numberOfAttempt": numberOfAttempt,
+    "fullAttempt": fullAttempt,
     "adminIncentivePecentage":adminIncentivePecentage,
     "mediaHouseIncentivePecentage": mediaHouseIncentivePecentage,
     "active": active,

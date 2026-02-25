@@ -40,11 +40,6 @@ class _SplashScreenState extends State<SplashScreen> {
   void _navigateToNextScreen() {
     Navigator.pushReplacement(
       context,
-      // MaterialPageRoute(
-      //   builder: (_) => NetworkHandler(
-      //     mainPage: isLoggedIn ? NavigationPage() : SignInPage(),
-      //   ),
-      // ),
       MaterialPageRoute(
         builder: (_) => isLoggedIn ? NavigationPage() : SignInPage(),
       ),

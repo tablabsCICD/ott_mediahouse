@@ -28,26 +28,25 @@ class MovieCardHorizontal extends StatelessWidget {
       onTap: () {
         movie.type == "MOVIE"
             ? Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                MovieDetailsPage(movieId: movie.id!),
-          ),
-        )
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MovieDetailsPage(movieId: movie.id!),
+                ),
+              )
             : Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SeriesDetailsPage(
-              seriesId: movie.id!,
-              content: movie,
-            ),
-          ),
-        );
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SeriesDetailsPage(
+                    seriesId: movie.id!,
+                    content: movie,
+                  ),
+                ),
+              );
       },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         padding: const EdgeInsets.all(12),
-        height: 175, // 👈 HARD FIX HEIGHT
+        // height: 175, // 👈 HARD FIX HEIGHT
         decoration: BoxDecoration(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(16),
@@ -61,10 +60,12 @@ class MovieCardHorizontal extends StatelessWidget {
                 children: [
                   _poster(),
                   const SizedBox(width: 14),
-                  Expanded(child: _details(context,theme)),
+                  Expanded(child: _details(context, theme)),
                 ],
               ),
             ),
+            const SizedBox(height: 6),
+            _ratingBar(),
             const SizedBox(height: 6),
             _metaRow(),
           ],
@@ -79,25 +80,24 @@ class MovieCardHorizontal extends StatelessWidget {
       child: SizedBox(
         width: 110,
         height: 155,
-        child: movie.posterUrlList != null &&
-            movie.posterUrlList!.isNotEmpty
+        child: movie.posterUrlList != null && movie.posterUrlList!.isNotEmpty
             ? Image.network(
-          movie.posterUrlList!.first,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            return const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            );
-          },
-          errorBuilder: (context, error, stackTrace) {
-            return _errorPoster();
-          },
-        )
+                movie.posterUrlList!.first,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return _errorPoster();
+                },
+              )
             : _errorPoster(),
       ),
     );
@@ -135,10 +135,9 @@ class MovieCardHorizontal extends StatelessWidget {
             _contentTypeBadge(theme),
           ],
         ),
-
         const SizedBox(height: 4),
-
-        Expanded(   // 👈 THIS IS THE MAGIC FIX
+        Expanded(
+          // 👈 THIS IS THE MAGIC FIX
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -150,8 +149,6 @@ class MovieCardHorizontal extends StatelessWidget {
             ],
           ),
         ),
-
-        _ratingBar(),
       ],
     );
   }
@@ -160,9 +157,7 @@ class MovieCardHorizontal extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: movie.type == "MOVIE"
-            ? theme.primaryColor
-            : theme.primaryColor,
+        color: movie.type == "MOVIE" ? theme.primaryColor : theme.primaryColor,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
@@ -170,7 +165,7 @@ class MovieCardHorizontal extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: movie.type == "MOVIE" ?  theme.canvasColor : theme.canvasColor,
+          color: movie.type == "MOVIE" ? Colors.white : Colors.white,
         ),
       ),
     );
@@ -178,6 +173,8 @@ class MovieCardHorizontal extends StatelessWidget {
 
   Widget _ratingBar() {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _ratingChip(),
         const SizedBox(width: 8),
@@ -226,8 +223,7 @@ class MovieCardHorizontal extends StatelessWidget {
   }
 
   Widget _statusChip() {
-    final isApproved =
-        movie.approvalStatus?.toLowerCase() == "approved";
+    final isApproved = movie.approvalStatus?.toLowerCase() == "approved";
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -260,6 +256,8 @@ class MovieCardHorizontal extends StatelessWidget {
 
   Widget _metaRow() {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _metaItem(
           movie.type == "SERIES" ? Icons.video_library_outlined : Icons.timer,
@@ -270,8 +268,7 @@ class MovieCardHorizontal extends StatelessWidget {
         const SizedBox(width: 14),
         _metaItem(Icons.date_range, movie.releaseDate ?? "N/A"),
         const SizedBox(width: 14),
-        _metaItem(Icons.visibility,
-            "${movie.views ?? 0} Views"),
+        _metaItem(Icons.visibility, "${movie.views ?? 0} Views"),
       ],
     );
   }
@@ -338,4 +335,3 @@ class MovieCardHorizontal extends StatelessWidget {
     }
   }
 }
-

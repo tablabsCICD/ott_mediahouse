@@ -1,47 +1,208 @@
-
-import 'dart:convert';
-
-
-import 'package:flutter/foundation.dart';
-
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:media_house/data/models/response/TopRatedMovie.dart';
 import 'package:media_house/data/models/response/reportAndDataResponse.dart';
-
 import 'package:media_house/data/models/response/topRevenueMovie.dart';
 
 import '../core/constant/api_constant.dart';
-
 import '../core/network/api_helper.dart';
-
 import '../core/utils/sharepreferences.dart';
 import '../widget/show_toast.dart';
 
-
-
 class GraphProvider extends ChangeNotifier {
-
-
-
   DateTimeRange? selectedDateRange = DateTimeRange(
-    start: DateTime.now().subtract(Duration(days: 7)),
+    start: DateTime.now().subtract(const Duration(days: 7)),
     end: DateTime.now(),
   );
   DateTime get today => DateTime.now();
-  DateTime? startDate = DateTime.now().subtract(Duration(days: 7));
-  DateTime? endDate =DateTime.now();
+  DateTime? startDate = DateTime.now().subtract(const Duration(days: 7));
+  DateTime? endDate = DateTime.now();
   String activeButton = 'Week';
 
   bool isYear = false;
   bool isMonth = true;
   bool isWeek = false;
 
+  String _selectedContentType = "ALL";
+  String _countryFilter = "";
+  String _stateFilter = "";
+  String _districtFilter = "";
+  String _talukaFilter = "";
+  String _cityFilter = "";
+
+  String get selectedContentType => _selectedContentType;
+  String get countryFilter => _countryFilter;
+  String get stateFilter => _stateFilter;
+  String get districtFilter => _districtFilter;
+  String get talukaFilter => _talukaFilter;
+  String get cityFilter => _cityFilter;
+
+  final List<String> _countryOptions = [];
+  List<String> get countryOptions => _countryOptions;
+
+  final List<String> _stateOptions = [];
+  List<String> get stateOptions => _stateOptions;
+
+  bool _isLoadingCountries = false;
+  bool get isLoadingCountries => _isLoadingCountries;
+
+  bool _isLoadingStates = false;
+  bool get isLoadingStates => _isLoadingStates;
+
   List<ContentWithRevenue> chartData = [];
   List<ContentWithRating> chartData1 = [];
-  List<Map<String,dynamic>> graphData = [];
+  List<Map<String, dynamic>> graphData = [];
 
+  List<ReportAndDataObject> _reportAndDataList = [];
+  List<ReportAndDataObject> get reportAndDataList => _reportAndDataList;
+
+  void _clearTopMoviesGraphState() {
+    chartData.clear();
+    chartData1.clear();
+    graphData.clear();
+  }
+
+  void setContentTypeFilter(String value) {
+    _selectedContentType = value;
+    notifyListeners();
+  }
+
+  void setCountryFilter(String value) {
+    _countryFilter = value;
+    notifyListeners();
+  }
+
+  void setStateFilter(String value) {
+    _stateFilter = value;
+    notifyListeners();
+  }
+
+  void setDistrictFilter(String value) {
+    _districtFilter = value;
+    notifyListeners();
+  }
+
+  void setTalukaFilter(String value) {
+    _talukaFilter = value;
+    notifyListeners();
+  }
+
+  setCityFilter(String value) {
+    _cityFilter = value;
+    notifyListeners();
+  }
+
+  Future<void> fetchCountriesIfNeeded() async {
+    if (_countryOptions.isNotEmpty || _isLoadingCountries) return;
+    await fetchCountries();
+  }
+
+  Future<void> fetchCountries() async {
+    _isLoadingCountries = true;
+    notifyListeners();
+    try {
+      final response = await http.get(
+        Uri.parse('https://countriesnow.space/api/v0.1/countries/positions'),
+      );
+      if (response.statusCode != 200) return;
+
+      final jsonBody = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = (jsonBody['data'] as List<dynamic>? ?? const []);
+      _countryOptions
+        ..clear()
+        ..addAll(
+          data
+              .map((item) =>
+                  (item as Map<String, dynamic>)['name']?.toString() ?? '')
+              .where((name) => name.trim().isNotEmpty),
+        );
+      _countryOptions
+          .sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    } catch (_) {
+      // Silent fallback; user can still type city/district/taluka.
+    } finally {
+      _isLoadingCountries = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchStatesByCountry(String country) async {
+    _isLoadingStates = true;
+    notifyListeners();
+    try {
+      final response = await http.post(
+        Uri.parse('https://countriesnow.space/api/v0.1/countries/states'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'country': country}),
+      );
+      if (response.statusCode != 200) return;
+
+      final jsonBody = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = jsonBody['data'] as Map<String, dynamic>?;
+      final states = (data?['states'] as List<dynamic>? ?? const []);
+      _stateOptions
+        ..clear()
+        ..addAll(
+          states
+              .map((item) =>
+                  (item as Map<String, dynamic>)['name']?.toString() ?? '')
+              .where((name) => name.trim().isNotEmpty),
+        );
+      _stateOptions.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    } catch (_) {
+      _stateOptions.clear();
+    } finally {
+      _isLoadingStates = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> selectCountryAndLoadStates(String country) async {
+    _countryFilter = country;
+    _stateFilter = '';
+    _stateOptions.clear();
+    notifyListeners();
+    if (country.trim().isEmpty) return;
+    await fetchStatesByCountry(country.trim());
+  }
+
+  void clearTopMoviesFilters() {
+    _selectedContentType = "ALL";
+    _countryFilter = "";
+    _stateFilter = "";
+    _districtFilter = "";
+    _talukaFilter = "";
+    _cityFilter = "";
+    notifyListeners();
+  }
+
+  Future<void> applyTopMoviesFilters(bool isRevenue) async {
+    if (activeButton == "Month") {
+      await _fetchByTimeRangeIndex(1, isRevenue);
+      return;
+    }
+    if (activeButton == "Year") {
+      await _fetchByTimeRangeIndex(2, isRevenue);
+      return;
+    }
+    await _fetchByTimeRangeIndex(0, isRevenue);
+  }
+
+  Future<void> _fetchByTimeRangeIndex(int selectedTimeRange, bool isRevenue) {
+    return isRevenue
+        ? fetchTopPerformingMovieGraph(selectedTimeRange)
+        : fetchTopRatedMovieGraph(selectedTimeRange);
+  }
+
+  String? _normalizeFilter(String value, {bool allAsNull = false}) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    if (allAsNull && trimmed.toUpperCase() == "ALL") return null;
+    return trimmed;
+  }
 
   falseAllFilter() {
     isYear = false;
@@ -50,11 +211,13 @@ class GraphProvider extends ChangeNotifier {
   }
 
   Future<void> fetchTopPerformingMovieGraph(int selectedTimeRange) async {
-    print("start date $startDate && end date $endDate");
-    String start = DateFormat('yyyy-MM-dd').format(startDate!);
-    String end = DateFormat('yyyy-MM-dd').format(endDate!);
+    if (startDate == null || endDate == null) return;
+
+    final start = DateFormat('yyyy-MM-dd').format(startDate!);
+    final end = DateFormat('yyyy-MM-dd').format(endDate!);
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
+
     if (selectedTimeRange == 0) {
       isWeek = true;
       isMonth = false;
@@ -69,58 +232,63 @@ class GraphProvider extends ChangeNotifier {
       isYear = true;
     }
 
-    String apiUrl = ApiConstant.topRevenueContentGraph(
+    final apiUrl = ApiConstant.topRevenueContentGraph(
       mediaHouse!.id,
       start,
       end,
       isYear,
       isMonth,
       isWeek,
+      contentType: _normalizeFilter(_selectedContentType, allAsNull: true),
+      country: _normalizeFilter(_countryFilter),
+      state: _normalizeFilter(_stateFilter),
+      district: _normalizeFilter(_districtFilter),
+      taluka: _normalizeFilter(_talukaFilter),
+      city: _normalizeFilter(_cityFilter),
     );
 
-    ApiHelper apiHelper = ApiHelper();
-    print(apiUrl);
+    final apiHelper = ApiHelper();
 
     try {
-      var response = await apiHelper.getApi(apiUrl);
-      print(response);
-      Map<String, dynamic> responseBody = json.decode(response.body);
+      _clearTopMoviesGraphState();
+      notifyListeners();
 
-      TopRevenueMovie topRevenueMovie = TopRevenueMovie.fromJson(responseBody);
+      final response = await apiHelper.getApi(apiUrl);
+      final responseBody = json.decode(response.body) as Map<String, dynamic>;
+      final topRevenueMovie = TopRevenueMovie.fromJson(responseBody);
+
       if (topRevenueMovie.success == true) {
-        if (topRevenueMovie.data!.contentWithRevenue != null) {
-          chartData.clear();
-          graphData.clear(); // Clear previous data to avoid duplication
-
-          chartData = topRevenueMovie.data!.contentWithRevenue!;
-
-          for (var data in chartData) {
-            // Assuming ContentWithRating has `label` and `value` properties
-            graphData.add({
-              "label": data.name, // Replace with actual property name from ContentWithRating
-              "value": data.totalRevenue, // Replace with actual property name from ContentWithRating
-            });
-          }
-
-          notifyListeners();
-        } else {
-          CustomToast.show(topRevenueMovie.message.toString(), isSuccess: topRevenueMovie.success!,);
+        final items = topRevenueMovie.data?.contentWithRevenue ?? [];
+        chartData = List<ContentWithRevenue>.from(items);
+        for (final data in chartData) {
+          graphData.add({
+            "label": data.name,
+            "value": data.totalRevenue,
+          });
         }
       } else {
-        CustomToast.show(topRevenueMovie.message.toString(), isSuccess: topRevenueMovie.success!,);
+        CustomToast.show(
+          topRevenueMovie.message.toString(),
+          isSuccess: topRevenueMovie.success ?? false,
+        );
       }
+      notifyListeners();
     } catch (error) {
+      _clearTopMoviesGraphState();
+      notifyListeners();
       debugPrint("Error occurred while fetching graph data: $error");
       throw Exception('Failed to fetch graph data. Error: $error');
     }
   }
 
   Future<void> fetchTopRatedMovieGraph(int selectedTimeRange) async {
-    print("start date $startDate && end date $endDate");
-    String start = DateFormat('yyyy-MM-dd').format(startDate!);
-    String end = DateFormat('yyyy-MM-dd').format(endDate!);
+    if (startDate == null || endDate == null) return;
+
+    final start = DateFormat('yyyy-MM-dd').format(startDate!);
+    final end = DateFormat('yyyy-MM-dd').format(endDate!);
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
+
     if (selectedTimeRange == 0) {
       isWeek = true;
       isMonth = false;
@@ -135,72 +303,74 @@ class GraphProvider extends ChangeNotifier {
       isYear = true;
     }
 
-    String apiUrl = ApiConstant.topRatedContentGraph(
+    final apiUrl = ApiConstant.topRatedContentGraph(
       mediaHouse!.id,
       start,
       end,
       isYear,
       isMonth,
       isWeek,
+      contentType: _normalizeFilter(_selectedContentType, allAsNull: true),
+      country: _normalizeFilter(_countryFilter),
+      state: _normalizeFilter(_stateFilter),
+      district: _normalizeFilter(_districtFilter),
+      taluka: _normalizeFilter(_talukaFilter),
+      city: _normalizeFilter(_cityFilter),
     );
 
-    ApiHelper apiHelper = ApiHelper();
-    print(apiUrl);
+    final apiHelper = ApiHelper();
 
     try {
-      var response = await apiHelper.getApi(apiUrl);
-      print(response);
-      Map<String, dynamic> responseBody = json.decode(response.body);
+      _clearTopMoviesGraphState();
+      notifyListeners();
 
-      TopRatedMovie topRevenueMovie = TopRatedMovie.fromJson(responseBody);
-      if (topRevenueMovie.success == true) {
-        if (topRevenueMovie.data!.contentWithRatings != null) {
-          chartData1.clear();
-          graphData.clear(); // Clear previous data to avoid duplication
+      final response = await apiHelper.getApi(apiUrl);
+      final responseBody = json.decode(response.body) as Map<String, dynamic>;
+      final topRatedMovie = TopRatedMovie.fromJson(responseBody);
 
-          chartData1 = topRevenueMovie.data!.contentWithRatings!;
-
-          for (var data in chartData1) {
-            // Assuming ContentWithRating has `label` and `value` properties
-            graphData.add({
-              "label": data.name, // Replace with actual property name from ContentWithRating
-              "value": data.avgRating, // Replace with actual property name from ContentWithRating
-            });
-          }
-
-          notifyListeners();
-        } else {
-          CustomToast.show(topRevenueMovie.message.toString(), isSuccess: topRevenueMovie.success!,);
+      if (topRatedMovie.success == true) {
+        final items = topRatedMovie.data?.contentWithRatings ?? [];
+        chartData1 = List<ContentWithRating>.from(items);
+        for (final data in chartData1) {
+          graphData.add({
+            "label": data.name,
+            "value": data.avgRating,
+          });
         }
       } else {
-        CustomToast.show(topRevenueMovie.message.toString(), isSuccess: topRevenueMovie.success!,);
+        CustomToast.show(
+          topRatedMovie.message.toString(),
+          isSuccess: topRatedMovie.success ?? false,
+        );
       }
+      notifyListeners();
     } catch (error) {
+      _clearTopMoviesGraphState();
+      notifyListeners();
       debugPrint("Error occurred while fetching graph data: $error");
       throw Exception('Failed to fetch graph data. Error: $error');
     }
   }
 
-  void setDateRange(String label, int days, BuildContext context, bool isRevenue) {
+  void setDateRange(
+      String label, int days, BuildContext context, bool isRevenue) {
     activeButton = label;
 
-    // Set start and end date based on the label
     if (label == "Custom Dates") {
-      pickDateRange(context,isRevenue); // Trigger date range picker
+      pickDateRange(context, isRevenue);
     } else {
       endDate = today;
       startDate = endDate!.subtract(Duration(days: days));
       selectedDateRange = DateTimeRange(start: startDate!, end: endDate!);
 
-      // Fetch graph data based on the label
       if (label == "Week") {
-        isRevenue?fetchTopPerformingMovieGraph(0):fetchTopRatedMovieGraph(0);
+        _fetchByTimeRangeIndex(0, isRevenue);
       } else if (label == "Month") {
-        isRevenue?fetchTopPerformingMovieGraph(1):fetchTopRatedMovieGraph(1);
+        _fetchByTimeRangeIndex(1, isRevenue);
       } else if (label == "Year") {
-        isRevenue?fetchTopPerformingMovieGraph(2):fetchTopRatedMovieGraph(2);
+        _fetchByTimeRangeIndex(2, isRevenue);
       } else {
-        isRevenue?fetchTopPerformingMovieGraph(0):fetchTopRatedMovieGraph(0);
+        _fetchByTimeRangeIndex(0, isRevenue);
       }
 
       notifyListeners();
@@ -208,60 +378,68 @@ class GraphProvider extends ChangeNotifier {
   }
 
   Future<void> pickDateRange(BuildContext context, bool isRevenue) async {
-    final DateTimeRange? picked = await showDateRangePicker(
+    final DateTimeRange? picked = await showDialog<DateTimeRange>(
       context: context,
-      firstDate: DateTime(2020),
-      lastDate: today,
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: SizedBox(
+            width: 560,
+            child: DateRangePickerDialog(
+              firstDate: DateTime(2020),
+              lastDate: today,
+              initialDateRange: selectedDateRange,
+              helpText: 'Select Custom Date Range',
+              confirmText: 'Apply',
+              cancelText: 'Cancel',
+            ),
+          ),
+        );
+      },
     );
 
-    // Update dates if the user selects a custom range
     if (picked != null) {
       selectedDateRange = picked;
       activeButton = 'Custom Dates';
-      startDate = picked.start;//DateFormat('yyyy-MM-dd').format(DateTime.parse("2025-05-01 00:00:00.000"));
+      startDate = picked.start;
       endDate = picked.end;
-      print("start date $startDate && end date $endDate");
-      isRevenue?fetchTopPerformingMovieGraph(0):fetchTopRatedMovieGraph(0);
+      _fetchByTimeRangeIndex(0, isRevenue);
       notifyListeners();
     }
   }
 
-
-
-
-  List<ReportAndDataObject> _reportAndDataList = [];
-  List<ReportAndDataObject> get reportAndDataList => _reportAndDataList;
-
   Future<void> getReportAndData(context) async {
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
-
-    String apiUrl = ApiConstant.reportAndData(
-      mediaHouse!.id
-    );
-
-    ApiHelper apiHelper = ApiHelper();
+    final apiUrl = ApiConstant.reportAndData(mediaHouse!.id);
+    final apiHelper = ApiHelper();
 
     try {
-      var response = await apiHelper.getApi(apiUrl);
-      Map<String, dynamic> responseBody = json.decode(response.body);
-      ReportAndDataResponse reportAndDataResponse = ReportAndDataResponse.fromJson(responseBody);
+      _reportAndDataList.clear();
+      notifyListeners();
+
+      final response = await apiHelper.getApi(apiUrl);
+      final responseBody = json.decode(response.body) as Map<String, dynamic>;
+      final reportAndDataResponse =
+          ReportAndDataResponse.fromJson(responseBody);
+
       if (reportAndDataResponse.success == true) {
-        if (reportAndDataResponse.data!.mediaHouse != null) {
-          _reportAndDataList.clear();
-          _reportAndDataList = reportAndDataResponse.data!.mediaHouse!;
-          notifyListeners();
-        } else {
-          CustomToast.show(reportAndDataResponse.message.toString(), isSuccess: reportAndDataResponse.success!,);
-        }
+        final items = reportAndDataResponse.data?.mediaHouse ?? [];
+        _reportAndDataList = List<ReportAndDataObject>.from(items);
       } else {
-        CustomToast.show(reportAndDataResponse.message.toString(), isSuccess: reportAndDataResponse.success!,);
+        CustomToast.show(
+          reportAndDataResponse.message.toString(),
+          isSuccess: reportAndDataResponse.success ?? false,
+        );
       }
+      notifyListeners();
     } catch (error) {
+      _reportAndDataList.clear();
+      notifyListeners();
       debugPrint("Error occurred while fetching graph data: $error");
       throw Exception('Failed to fetch graph data. Error: $error');
     }
   }
-
-
 }

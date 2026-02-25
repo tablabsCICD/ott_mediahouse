@@ -12,11 +12,17 @@ class ChartResponse {
   });
 
   factory ChartResponse.fromJson(Map<String, dynamic> json) => ChartResponse(
-    message: json["message"],
-    data: json["data"] == null ? [] : List<Datum>.from(json["data"]!.map((x) => Datum.fromJson(x))),
-    statusCode: json["statusCode"],
-    success: json["success"],
-  );
+        message: json["message"]?.toString(),
+        data: json["data"] == null
+            ? []
+            : List<Datum>.from(json["data"]!.map((x) => Datum.fromJson(x))),
+        statusCode: json["statusCode"] is int
+            ? json["statusCode"] as int
+            : int.tryParse(json["statusCode"]?.toString() ?? ''),
+        success: json["success"] == null
+            ? (json["isSuccess"] == true)
+            : (json["success"] == true),
+      );
 
   Map<String, dynamic> toJson() => {
     "message": message,
@@ -28,7 +34,7 @@ class ChartResponse {
 
 class Datum {
   String? label;
-  int? value;
+  double? value;
 
   Datum({
     this.label,
@@ -36,9 +42,13 @@ class Datum {
   });
 
   factory Datum.fromJson(Map<String, dynamic> json) => Datum(
-    label: json["label"],
-    value: json["value"],
-  );
+        label: json["label"]?.toString(),
+        value: json["value"] == null
+            ? null
+            : (json["value"] is num
+                ? (json["value"] as num).toDouble()
+                : double.tryParse(json["value"].toString())),
+      );
 
   Map<String, dynamic> toJson() => {
     "label": label,

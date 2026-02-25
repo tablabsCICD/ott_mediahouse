@@ -323,6 +323,9 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             "Upload Files",
             [
               UploadMediaHelpers.buildEnhancedUploadSection(
+                  "Censor Certificate", theme, context),
+              const SizedBox(height: 16),
+              UploadMediaHelpers.buildEnhancedUploadSection(
                   "Poster 1", theme, context),
               const SizedBox(height: 16),
               UploadMediaHelpers.buildEnhancedUploadSection(
@@ -332,13 +335,14 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                   "Poster 3", theme, context),
               const SizedBox(height: 16),
               UploadMediaHelpers.buildEnhancedUploadSection(
+                  "Teaser File", theme, context),
+              const SizedBox(height: 16),
+              UploadMediaHelpers.buildEnhancedUploadSection(
                   "Trailer File", theme, context),
               const SizedBox(height: 16),
               UploadMediaHelpers.buildEnhancedUploadSection(
                   "Movie File", theme, context),
               const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Censor Certificate", theme, context),
             ],
             theme,
           ),
@@ -358,6 +362,9 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             "Upload Files",
             [
               UploadMediaHelpers.buildEnhancedUploadSection(
+                  "Censor Certificate", theme, context),
+              const SizedBox(height: 16),
+              UploadMediaHelpers.buildEnhancedUploadSection(
                   "Poster 1", theme, context),
               const SizedBox(height: 16),
               UploadMediaHelpers.buildEnhancedUploadSection(
@@ -367,35 +374,10 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                   "Poster 3", theme, context),
               const SizedBox(height: 16),
               UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Trailer File", theme, context),
+                  "Teaser File", theme, context),
               const SizedBox(height: 16),
               UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Censor Certificate", theme, context),
-            ],
-            theme,
-          ),
-          const SizedBox(height: 8),
-          UploadFormHelpers.buildSectionCard(
-            "Episodes",
-            [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: theme.primaryColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: theme.primaryColor.withValues(alpha: 0.22),
-                  ),
-                ),
-                child: Text(
-                  "Upload episodes separately after series is created.",
-                  style: TextStyle(
-                    color: theme.canvasColor,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
+                  "Trailer File", theme, context),
             ],
             theme,
           ),
@@ -456,6 +438,72 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
               },
               theme,
             ),
+            const SizedBox(height: 16),
+            UploadFormHelpers.buildModernToggleRow(
+              'Registration Fee Paid',
+              'Y = Paid (upload allowed), N = Not paid (upload blocked)',
+              provider.isRegistrationFeePaid,
+              provider.toggleRegistrationFeePaid,
+              theme,
+            ),
+            const SizedBox(height: 16),
+            if (provider.isRegistrationFeePaid) ...[
+              CustomTextField(
+                controller: provider.registrationPaymentIdController,
+                hintText: "Enter transaction/payment id",
+                label: "Payment ID / Transaction ID",
+                textInputType: TextInputType.text,
+              ),
+              CustomTextField(
+                controller: provider.registrationPaymentDateController,
+                hintText: "Enter payment date (e.g. 2026-02-10)",
+                label: "Payment Date",
+                textInputType: TextInputType.datetime,
+              ),
+              CustomTextField(
+                controller: provider.registrationAmountPaidController,
+                hintText: "Enter amount paid",
+                label: "Amount Paid",
+                textInputType: TextInputType.number,
+              ),
+              CustomTextField(
+                controller: provider.registrationPlanTypeController,
+                hintText: "Enter plan (Basic/Premium)",
+                label: "Plan Type",
+                textInputType: TextInputType.text,
+              ),
+              CustomTextField(
+                controller: provider.registrationValidityController,
+                hintText: "Enter validity (e.g. 1 year / 2027-02-10)",
+                label: "Validity",
+                textInputType: TextInputType.text,
+              ),
+              CustomTextField(
+                controller: provider.registrationPaymentMethodController,
+                hintText: "Enter payment method (UPI/Card/Net Banking)",
+                label: "Payment Method",
+                textInputType: TextInputType.text,
+              ),
+            ] else ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.primaryColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: theme.primaryColor.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Text(
+                  "Set Registration Fee Paid = Y to fill payment details and enable upload.",
+                  style: TextStyle(
+                    color: theme.canvasColor,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
           ],
           theme,
         ),
@@ -641,7 +689,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   }
 
   bool _validatePageOne(VideoProvider provider) {
-    if (provider.selectedLanguages.isEmpty) {
+    /*  if (provider.selectedLanguages.isEmpty) {
       CustomToast.show("Please select at least one language", isSuccess: false);
       return false;
     }
@@ -659,7 +707,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
         isSuccess: false,
       );
       return false;
-    }
+    } */
     return true;
   }
 
@@ -669,7 +717,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     final rentalDuration = provider.rentalDurationController.text.trim();
     final price = double.tryParse(priceText);
 
-    if (releaseDate.isEmpty) {
+    /*  if (releaseDate.isEmpty) {
       CustomToast.show("Please select release date", isSuccess: false);
       return false;
     }
@@ -680,11 +728,32 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     if (rentalDuration.isEmpty) {
       CustomToast.show("Please select rental duration", isSuccess: false);
       return false;
-    }
+    } */
     return true;
   }
 
   bool _validatePageThree(VideoProvider provider) {
+    if (!provider.isRegistrationFeePaid) {
+      CustomToast.show(
+        "Registration fee is not paid (N). Upload is blocked.",
+        isSuccess: false,
+      );
+      return false;
+    }
+
+    if (provider.registrationPaymentIdController.text.trim().isEmpty ||
+        provider.registrationPaymentDateController.text.trim().isEmpty ||
+        provider.registrationAmountPaidController.text.trim().isEmpty ||
+        provider.registrationPlanTypeController.text.trim().isEmpty ||
+        provider.registrationValidityController.text.trim().isEmpty ||
+        provider.registrationPaymentMethodController.text.trim().isEmpty) {
+      CustomToast.show(
+        "Please fill all registration fee detail fields.",
+        isSuccess: false,
+      );
+      return false;
+    }
+
     final trailerUrl = provider.trailerUrlController.text.trim();
     if (trailerUrl.isEmpty) {
       CustomToast.show("Please upload trailer file", isSuccess: false);

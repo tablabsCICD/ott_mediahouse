@@ -1,7 +1,6 @@
-class AppRoutes{
-
-  static const login= '/login';
-  static const entry= '/splash';
+class AppRoutes {
+  static const login = '/login';
+  static const entry = '/splash';
   static const home = '/home';
 
   static const forgotPassword = '/forgot_password';
@@ -18,6 +17,4 @@ class AppRoutes{
 
   static const releaseContent = '/releaseContent';
   static const pendingContent = '/pendingContent';
-
-
 }

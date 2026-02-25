@@ -31,6 +31,9 @@ class MediaHouseProvider extends ChangeNotifier {
   TextEditingController panCardController = TextEditingController();
   TextEditingController shopActController = TextEditingController();
   TextEditingController gstController = TextEditingController();
+  TextEditingController bankProofController = TextEditingController();
+  TextEditingController identityProofController = TextEditingController();
+  TextEditingController addressProofController = TextEditingController();
   TextEditingController registrationCertificateController =
       TextEditingController();
   TextEditingController descriptionController = TextEditingController();
@@ -185,7 +188,8 @@ class MediaHouseProvider extends ChangeNotifier {
         debugPrint("Image upload response======${response.statusCode}");
         if (response.statusCode == 200) {
           final responseBody = await response.stream.bytesToString();
-          ImageUploadResponse imageUploadResponse = ImageUploadResponse.fromJson(jsonDecode(responseBody));
+          ImageUploadResponse imageUploadResponse =
+              ImageUploadResponse.fromJson(jsonDecode(responseBody));
           _uploadedImageUrl = imageUploadResponse.data!.fileUrl;
           print(lable + " = $_uploadedImageUrl");
           if ("Aadhaar Card" == lable) {
@@ -238,6 +242,30 @@ class MediaHouseProvider extends ChangeNotifier {
               'fileName': '',
               'fileSize': ''
             };
+          } else if ("Bank Proof" == lable) {
+            bankProofController.text = _uploadedImageUrl!;
+            uploadedDocuments['Bank Proof'] = {
+              'file': bankProofController.text,
+              'description': 'Cancelled cheque or bank account proof document.',
+              'fileName': '',
+              'fileSize': ''
+            };
+          } else if ("Identity Proof" == lable) {
+            identityProofController.text = _uploadedImageUrl!;
+            uploadedDocuments['Identity Proof'] = {
+              'file': identityProofController.text,
+              'description': 'Additional government-issued identity proof.',
+              'fileName': '',
+              'fileSize': ''
+            };
+          } else if ("Address Proof" == lable) {
+            addressProofController.text = _uploadedImageUrl!;
+            uploadedDocuments['Address Proof'] = {
+              'file': addressProofController.text,
+              'description': 'Proof of registered office address.',
+              'fileName': '',
+              'fileSize': ''
+            };
           } else {
             selectedImage = _uploadedImageUrl;
             profileController.text = _uploadedImageUrl!;
@@ -258,7 +286,8 @@ class MediaHouseProvider extends ChangeNotifier {
 
         if (response.statusCode == 200) {
           final responseBody = await response.stream.bytesToString();
-           ImageUploadResponse imageUploadResponse = ImageUploadResponse.fromJson(jsonDecode(responseBody));
+          ImageUploadResponse imageUploadResponse =
+              ImageUploadResponse.fromJson(jsonDecode(responseBody));
           _uploadedImageUrl = imageUploadResponse.data!.fileUrl;
           print(lable);
           if ("Aadhaar Card" == lable) {
@@ -308,6 +337,30 @@ class MediaHouseProvider extends ChangeNotifier {
               'file': registrationCertificateController.text,
               'description':
                   'Proof of business entity (LLC, Pvt Ltd, Corporation).',
+              'fileName': '',
+              'fileSize': ''
+            };
+          } else if ("Bank Proof" == lable) {
+            bankProofController.text = _uploadedImageUrl!;
+            uploadedDocuments['Bank Proof'] = {
+              'file': bankProofController.text,
+              'description': 'Cancelled cheque or bank account proof document.',
+              'fileName': '',
+              'fileSize': ''
+            };
+          } else if ("Identity Proof" == lable) {
+            identityProofController.text = _uploadedImageUrl!;
+            uploadedDocuments['Identity Proof'] = {
+              'file': identityProofController.text,
+              'description': 'Additional government-issued identity proof.',
+              'fileName': '',
+              'fileSize': ''
+            };
+          } else if ("Address Proof" == lable) {
+            addressProofController.text = _uploadedImageUrl!;
+            uploadedDocuments['Address Proof'] = {
+              'file': addressProofController.text,
+              'description': 'Proof of registered office address.',
               'fileName': '',
               'fileSize': ''
             };
@@ -390,6 +443,31 @@ class MediaHouseProvider extends ChangeNotifier {
             'file': _mediaHouse.shopAct == "" ? null : _mediaHouse.shopAct,
             'description':
                 'Legal license for business under the Shops & Establishments Act.',
+            'fileName': '',
+            'fileSize': ''
+          };
+
+          uploadedDocuments['Bank Proof'] = {
+            'file': _mediaHouse.bankProof == "" ? null : _mediaHouse.bankProof,
+            'description': 'Cancelled cheque or bank account proof document.',
+            'fileName': '',
+            'fileSize': ''
+          };
+
+          uploadedDocuments['Identity Proof'] = {
+            'file': _mediaHouse.identityProof == ""
+                ? null
+                : _mediaHouse.identityProof,
+            'description': 'Additional government-issued identity proof.',
+            'fileName': '',
+            'fileSize': ''
+          };
+
+          uploadedDocuments['Address Proof'] = {
+            'file': _mediaHouse.addressProof == ""
+                ? null
+                : _mediaHouse.addressProof,
+            'description': 'Proof of registered office address.',
             'fileName': '',
             'fileSize': ''
           };
@@ -508,7 +586,10 @@ class MediaHouseProvider extends ChangeNotifier {
       "email": mediaHouse.email,
       "adharCard": adharCardController.text,
       "gstCertificates": gstController.text,
-      "panCard": panCardController.text
+      "panCard": panCardController.text,
+      "bankProof": bankProofController.text,
+      "identityProof": identityProofController.text,
+      "addressProof": addressProofController.text,
     };
 
     debugPrint(data.toString());
@@ -578,6 +659,9 @@ class MediaHouseProvider extends ChangeNotifier {
     panCardController.text = mediaHouse.panCard ?? "";
     shopActController.text = mediaHouse.shopAct ?? "";
     gstController.text = mediaHouse.gstCertificates ?? "";
+    bankProofController.text = mediaHouse.bankProof ?? "";
+    identityProofController.text = mediaHouse.identityProof ?? "";
+    addressProofController.text = mediaHouse.addressProof ?? "";
     registrationCertificateController.text =
         mediaHouse.registrationCertificate ?? "";
     notifyListeners();
@@ -587,13 +671,19 @@ class MediaHouseProvider extends ChangeNotifier {
     print(title);
     if (title == "Shop Act") {
       print("clear controller");
-      shopActController.text == 'n/a';
+      shopActController.clear();
     } else if (title == "GST Certificate") {
       gstController.clear();
     } else if (title == "Pan Card") {
       panCardController.clear();
     } else if (title == "Aadhaar Card") {
       adharCardController.clear();
+    } else if (title == "Bank Proof") {
+      bankProofController.clear();
+    } else if (title == "Identity Proof") {
+      identityProofController.clear();
+    } else if (title == "Address Proof") {
+      addressProofController.clear();
     } else {
       registrationCertificateController.clear();
     }
@@ -604,8 +694,168 @@ class MediaHouseProvider extends ChangeNotifier {
   bool isMonth = true;
   bool isWeek = false;
   List<LineChartData> graphData = [];
+
+  String _customGraphContentType = "ALL";
+  String _customGraphCountry = "";
+  String _customGraphState = "";
+  String _customGraphDistrict = "";
+  String _customGraphTaluka = "";
+  String _customGraphCity = "";
+
+  String get customGraphContentType => _customGraphContentType;
+  String get customGraphCountry => _customGraphCountry;
+  String get customGraphState => _customGraphState;
+  String get customGraphDistrict => _customGraphDistrict;
+  String get customGraphTaluka => _customGraphTaluka;
+  String get customGraphCity => _customGraphCity;
+
+  final List<String> _customGraphCountryOptions = [];
+  List<String> get customGraphCountryOptions => _customGraphCountryOptions;
+
+  final List<String> _customGraphStateOptions = [];
+  List<String> get customGraphStateOptions => _customGraphStateOptions;
+
+  bool _isLoadingCustomGraphCountries = false;
+  bool get isLoadingCustomGraphCountries => _isLoadingCustomGraphCountries;
+
+  bool _isLoadingCustomGraphStates = false;
+  bool get isLoadingCustomGraphStates => _isLoadingCustomGraphStates;
+
+  String? _normalizeFilter(String value, {bool allAsNull = false}) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return null;
+    if (allAsNull && trimmed.toUpperCase() == "ALL") return null;
+    return trimmed;
+  }
+
+  void setCustomGraphContentType(String value) {
+    _customGraphContentType = value;
+    notifyListeners();
+  }
+
+  void setCustomGraphCountry(String value) {
+    _customGraphCountry = value;
+    notifyListeners();
+  }
+
+  void setCustomGraphState(String value) {
+    _customGraphState = value;
+    notifyListeners();
+  }
+
+  void setCustomGraphDistrict(String value) {
+    _customGraphDistrict = value;
+    notifyListeners();
+  }
+
+  void setCustomGraphTaluka(String value) {
+    _customGraphTaluka = value;
+    notifyListeners();
+  }
+
+  void setCustomGraphCity(String value) {
+    _customGraphCity = value;
+    notifyListeners();
+  }
+
+  void clearCustomGraphFilters() {
+    _customGraphContentType = "ALL";
+    _customGraphCountry = "";
+    _customGraphState = "";
+    _customGraphDistrict = "";
+    _customGraphTaluka = "";
+    _customGraphCity = "";
+    _customGraphStateOptions.clear();
+    notifyListeners();
+  }
+
+  Future<void> fetchCustomGraphCountriesIfNeeded() async {
+    if (_customGraphCountryOptions.isNotEmpty ||
+        _isLoadingCustomGraphCountries) {
+      return;
+    }
+    await fetchCustomGraphCountries();
+  }
+
+  Future<void> fetchCustomGraphCountries() async {
+    _isLoadingCustomGraphCountries = true;
+    notifyListeners();
+    try {
+      final response = await http.get(
+        Uri.parse('https://countriesnow.space/api/v0.1/countries/positions'),
+      );
+      if (response.statusCode != 200) return;
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = (body['data'] as List<dynamic>? ?? const []);
+      _customGraphCountryOptions
+        ..clear()
+        ..addAll(
+          data
+              .map((item) =>
+                  (item as Map<String, dynamic>)['name']?.toString() ?? '')
+              .where((name) => name.trim().isNotEmpty),
+        );
+      _customGraphCountryOptions
+          .sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    } catch (_) {
+      // Leave list empty on failure; manual location text filters still work.
+    } finally {
+      _isLoadingCustomGraphCountries = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchCustomGraphStatesByCountry(String country) async {
+    _isLoadingCustomGraphStates = true;
+    notifyListeners();
+    try {
+      final response = await http.post(
+        Uri.parse('https://countriesnow.space/api/v0.1/countries/states'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'country': country}),
+      );
+      if (response.statusCode != 200) return;
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = body['data'] as Map<String, dynamic>?;
+      final states = (data?['states'] as List<dynamic>? ?? const []);
+      _customGraphStateOptions
+        ..clear()
+        ..addAll(
+          states
+              .map((item) =>
+                  (item as Map<String, dynamic>)['name']?.toString() ?? '')
+              .where((name) => name.trim().isNotEmpty),
+        );
+      _customGraphStateOptions
+          .sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    } catch (_) {
+      _customGraphStateOptions.clear();
+    } finally {
+      _isLoadingCustomGraphStates = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> selectCustomGraphCountryAndLoadStates(String country) async {
+    _customGraphCountry = country.trim();
+    _customGraphState = '';
+    _customGraphStateOptions.clear();
+    notifyListeners();
+    if (_customGraphCountry.isEmpty) return;
+    await fetchCustomGraphStatesByCountry(_customGraphCountry);
+  }
+
   Future<void> releaseMovieCountGraph(
-      int selectedTimeRange, String startDate, String endDate) async {
+    int selectedTimeRange,
+    String startDate,
+    String endDate, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+  }) async {
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
     print(mediaHouse!.mediaHouseName! + ':::::::::MediaHouse:::::::');
@@ -633,6 +883,13 @@ class MediaHouseProvider extends ChangeNotifier {
       isYear,
       isMonth,
       isWeek,
+      contentType: contentType ??
+          _normalizeFilter(_customGraphContentType, allAsNull: true),
+      country: country ?? _normalizeFilter(_customGraphCountry),
+      state: state ?? _normalizeFilter(_customGraphState),
+      district: district ?? _normalizeFilter(_customGraphDistrict),
+      taluka: taluka ?? _normalizeFilter(_customGraphTaluka),
+      city: city ?? _normalizeFilter(_customGraphCity),
     );
     ApiHelper apiHelper = ApiHelper();
 
@@ -642,13 +899,14 @@ class MediaHouseProvider extends ChangeNotifier {
       Map<String, dynamic> responseBody = json.decode(response.body);
 
       ChartResponse chartResponse = ChartResponse.fromJson(responseBody);
-      if (chartResponse.success == true) {
+      final hasData = chartResponse.data != null && chartResponse.data!.isNotEmpty;
+      if (chartResponse.success == true || hasData) {
         graphData.clear();
         for (var data in chartResponse.data!) {
           graphData.add(
             LineChartData(
-              data.label as String,
-              (data.value as num).toDouble(),
+              (data.label ?? '').trim().isEmpty ? 'N/A' : data.label!,
+              data.value ?? 0,
             ),
           );
         }
@@ -663,7 +921,16 @@ class MediaHouseProvider extends ChangeNotifier {
   }
 
   Future<void> viewsCountGraph(
-      int selectedTimeRange, String startDate, String endDate) async {
+    int selectedTimeRange,
+    String startDate,
+    String endDate, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+  }) async {
     if (selectedTimeRange == 0) {
       isWeek = true;
       isMonth = false;
@@ -691,6 +958,13 @@ class MediaHouseProvider extends ChangeNotifier {
       isYear,
       isMonth,
       isWeek,
+      contentType: contentType ??
+          _normalizeFilter(_customGraphContentType, allAsNull: true),
+      country: country ?? _normalizeFilter(_customGraphCountry),
+      state: state ?? _normalizeFilter(_customGraphState),
+      district: district ?? _normalizeFilter(_customGraphDistrict),
+      taluka: taluka ?? _normalizeFilter(_customGraphTaluka),
+      city: city ?? _normalizeFilter(_customGraphCity),
     );
     ApiHelper apiHelper = ApiHelper();
 
@@ -700,13 +974,14 @@ class MediaHouseProvider extends ChangeNotifier {
       Map<String, dynamic> responseBody = json.decode(response.body);
 
       ChartResponse chartResponse = ChartResponse.fromJson(responseBody);
-      if (chartResponse.success == true) {
+      final hasData = chartResponse.data != null && chartResponse.data!.isNotEmpty;
+      if (chartResponse.success == true || hasData) {
         graphData.clear();
         for (var data in chartResponse.data!) {
           graphData.add(
             LineChartData(
-              data.label as String,
-              (data.value as num).toDouble(),
+              (data.label ?? '').trim().isEmpty ? 'N/A' : data.label!,
+              data.value ?? 0,
             ),
           );
         }
@@ -722,7 +997,16 @@ class MediaHouseProvider extends ChangeNotifier {
 
   // List<Map<String, dynamic>>? revenueCountList = [];
   Future<void> revenueGraphByMediaHouse(
-      int selectedTimeRange, String startDate, String endDate) async {
+    int selectedTimeRange,
+    String startDate,
+    String endDate, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+  }) async {
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
     print(mediaHouse!.mediaHouseName! + ':::::::::MediaHouse:::::::');
@@ -750,22 +1034,32 @@ class MediaHouseProvider extends ChangeNotifier {
       isYear,
       isMonth,
       isWeek,
+      contentType: contentType ??
+          _normalizeFilter(_customGraphContentType, allAsNull: true),
+      country: country ?? _normalizeFilter(_customGraphCountry),
+      state: state ?? _normalizeFilter(_customGraphState),
+      district: district ?? _normalizeFilter(_customGraphDistrict),
+      taluka: taluka ?? _normalizeFilter(_customGraphTaluka),
+      city: city ?? _normalizeFilter(_customGraphCity),
     );
+
+    debugPrint("✅" + apiUrl);
     ApiHelper apiHelper = ApiHelper();
 
     try {
       var response = await apiHelper.getApi(apiUrl);
-
+      debugPrint("✅" + response.body);
       Map<String, dynamic> responseBody = json.decode(response.body);
 
       ChartResponse chartResponse = ChartResponse.fromJson(responseBody);
-      if (chartResponse.success == true) {
+      final hasData = chartResponse.data != null && chartResponse.data!.isNotEmpty;
+      if (chartResponse.success == true || hasData) {
         graphData.clear();
         for (var data in chartResponse.data!) {
           graphData.add(
             LineChartData(
-              data.label as String,
-              (data.value as num).toDouble(),
+              (data.label ?? '').trim().isEmpty ? 'N/A' : data.label!,
+              data.value ?? 0,
             ),
           );
         }

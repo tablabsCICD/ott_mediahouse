@@ -53,32 +53,27 @@ class _ShortsPageState extends State<ShortsPage> {
     return true;
   }
 
-  Future<void> _pickFromDate() async {
-    final picked = await showDatePicker(
+  Future<void> _pickDateRange() async {
+    final picked = await showDateRangePicker(
       context: context,
-      initialDate: _fromDate ?? DateTime.now(),
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
+      initialDateRange: (_fromDate != null && _toDate != null)
+          ? DateTimeRange(start: _fromDate!, end: _toDate!)
+          : null,
     );
-    if (picked != null) {
-      setState(() {
-        _fromDate = picked;
-      });
-    }
+    if (picked == null) return;
+    setState(() {
+      _fromDate = picked.start;
+      _toDate = picked.end;
+    });
   }
 
-  Future<void> _pickToDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _toDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null) {
-      setState(() {
-        _toDate = picked;
-      });
-    }
+  String _formatDate(DateTime date) {
+    final dd = date.day.toString().padLeft(2, '0');
+    final mm = date.month.toString().padLeft(2, '0');
+    final yyyy = date.year.toString();
+    return '$dd/$mm/$yyyy';
   }
 
   void _resetFilters() {
@@ -92,33 +87,19 @@ class _ShortsPageState extends State<ShortsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isMobile = ResponsiveWidget.isMobile(context);
+    final isDesktop = ResponsiveWidget.isDesktop(context);
 
-    final crossAxisCount = ResponsiveWidget.isDesktop(context)
-        ? 4
+    final crossAxisCount = isDesktop
+        ? 5
         : ResponsiveWidget.isTablet(context)
-            ? 4
+            ? 3
             : 2;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Consumer<ShortProvider>(
         builder: (context, provider, _) {
-          if (provider.isLoading && provider.shorts.isEmpty) {
-            return Center(
-                child: CircularProgressIndicator(
-              color: theme.primaryColor,
-            ));
-          }
-
-          if (provider.shorts.isEmpty) {
-            return Center(
-              child: Text(
-                "No short films available",
-                style: TextStyle(color: theme.canvasColor),
-              ),
-            );
-          }
-
           final filteredShorts = provider.shorts.where((short) {
             final title = (short.title ?? '').toLowerCase();
             final date = _parseDate(short.createdAt ?? short.createdDate);
@@ -162,165 +143,39 @@ class _ShortsPageState extends State<ShortsPage> {
           final totalItems = filteredShorts.length + 1;
 
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 10 : 16,
+              vertical: 12,
+            ),
             child: Column(
               children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isCompact = constraints.maxWidth < 900;
-
-                    final searchField = SizedBox(
-                      width: isCompact ? double.infinity : 420,
-                      child: CustomTextField(
-                        controller: _searchCtrl,
-                        hintText: "Search shorts...",
-                        textInputType: TextInputType.text,
-                        prefixIcon: const Icon(Icons.search),
-                        onValueChange: (_) => setState(() {}),
-                      ),
-                    );
-
-                    final filterBar = Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: _pickFromDate,
-                          icon: const Icon(Icons.date_range, size: 18),
-                          label: Text(
-                            _fromDate == null
-                                ? "From"
-                                : "${_fromDate!.day}/${_fromDate!.month}/${_fromDate!.year}",
-                          ),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: _pickToDate,
-                          icon: const Icon(Icons.event, size: 18),
-                          label: Text(
-                            _toDate == null
-                                ? "To"
-                                : "${_toDate!.day}/${_toDate!.month}/${_toDate!.year}",
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: theme.dividerColor),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: _sortBy,
-                              dropdownColor: theme.cardColor,
-                              style: TextStyle(color: theme.canvasColor),
-                              iconEnabledColor: theme.canvasColor,
-                              onChanged: (value) {
-                                if (value != null) {
-                                  setState(() {
-                                    _sortBy = value;
-                                  });
-                                }
-                              },
-                              items: [
-                                DropdownMenuItem(
-                                  value: 'newest',
-                                  child: Text("Newest",
-                                      style:
-                                          TextStyle(color: theme.canvasColor)),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'oldest',
-                                  child: Text("Oldest",
-                                      style:
-                                          TextStyle(color: theme.canvasColor)),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'views_high',
-                                  child: Text("Views High",
-                                      style:
-                                          TextStyle(color: theme.canvasColor)),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'likes_high',
-                                  child: Text("Likes High",
-                                      style:
-                                          TextStyle(color: theme.canvasColor)),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'parts_high',
-                                  child: Text("Parts High",
-                                      style:
-                                          TextStyle(color: theme.canvasColor)),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'coins_high',
-                                  child: Text("Coins High",
-                                      style:
-                                          TextStyle(color: theme.canvasColor)),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'trending_first',
-                                  child: Text("Trending First",
-                                      style:
-                                          TextStyle(color: theme.canvasColor)),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'title_az',
-                                  child: Text("Title A-Z",
-                                      style:
-                                          TextStyle(color: theme.canvasColor)),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'title_za',
-                                  child: Text("Title Z-A",
-                                      style:
-                                          TextStyle(color: theme.canvasColor)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: _resetFilters,
-                          icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                          label: const Text("Reset"),
-                        ),
-                      ],
-                    );
-
-                    if (isCompact) {
-                      return Column(
-                        children: [
-                          searchField,
-                          const SizedBox(height: 8),
-                          Align(
-                              alignment: Alignment.centerRight,
-                              child: filterBar),
-                        ],
-                      );
-                    }
-
-                    return Row(
-                      children: [
-                        Expanded(child: searchField),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: filterBar,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                _buildTopAndFilterPanel(theme, filteredShorts.length),
                 const SizedBox(height: 8),
-                if (filteredShorts.isEmpty)
+                if (provider.isLoading)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: Text(
-                      "No shorts found for current filters",
-                      style: TextStyle(color: theme.canvasColor),
+                    child: LinearProgressIndicator(
+                      color: theme.primaryColor,
+                      backgroundColor:
+                          theme.dividerColor.withValues(alpha: 0.25),
+                    ),
+                  ),
+                if (filteredShorts.isEmpty)
+                  Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.inbox_outlined,
+                            size: 42, color: theme.primaryColor),
+                        const SizedBox(height: 8),
+                        Text(
+                          "No shorts found for current filters",
+                          style: TextStyle(
+                            color: theme.canvasColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 Expanded(
@@ -361,6 +216,178 @@ class _ShortsPageState extends State<ShortsPage> {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+
+  Widget _buildTopPanel(ThemeData theme, int count) {
+    return Row(
+      children: [
+        Icon(Icons.video_collection_rounded, color: theme.primaryColor),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            "Shorts Library",
+            style: TextStyle(
+              color: theme.canvasColor,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: theme.primaryColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            "$count items",
+            style: TextStyle(
+              color: theme.primaryColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: () => context.read<ShortProvider>().fetchShorts(),
+          icon: const Icon(Icons.refresh_rounded),
+        )
+      ],
+    );
+  }
+
+  Widget _buildTopAndFilterPanel(ThemeData theme, int count) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 980;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                theme.cardColor.withValues(alpha: 0.95),
+                theme.cardColor.withValues(alpha: 0.75),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: theme.dividerColor.withValues(alpha: 0.25),
+            ),
+          ),
+          child: Column(
+            children: [
+              _buildTopPanel(theme, count),
+              const SizedBox(height: 12),
+              compact
+                  ? Column(
+                      children: [
+                        _buildSearchField(theme),
+                        const SizedBox(height: 10),
+                        _buildFilterActions(theme, compact: true),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(flex: 2, child: _buildSearchField(theme)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 3,
+                          child: _buildFilterActions(theme, compact: false),
+                        ),
+                      ],
+                    ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchField(ThemeData theme) {
+    return CustomTextField(
+      controller: _searchCtrl,
+      hintText: "Search title, parts, trending...",
+      textInputType: TextInputType.text,
+      prefixIcon: Icon(
+        Icons.search,
+        color: theme.canvasColor,
+      ),
+      onValueChange: (_) => setState(() {}),
+    );
+  }
+
+  Widget _buildFilterActions(ThemeData theme, {required bool compact}) {
+    final dateText = (_fromDate != null && _toDate != null)
+        ? "${_formatDate(_fromDate!)} - ${_formatDate(_toDate!)}"
+        : "Select Date Range";
+
+    final dateButton = OutlinedButton.icon(
+      onPressed: _pickDateRange,
+      icon: const Icon(Icons.calendar_month_rounded, size: 18),
+      label: Text(dateText, overflow: TextOverflow.ellipsis),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: theme.canvasColor,
+        side: BorderSide(color: theme.dividerColor),
+      ),
+    );
+
+    final resetButton = TextButton.icon(
+      onPressed: _resetFilters,
+      icon: const Icon(Icons.restart_alt_rounded, size: 16),
+      label: const Text("Reset"),
+    );
+
+    final trendingChip = FilterChip(
+      selected: _sortBy == 'trending_first',
+      label: const Text('Trending'),
+      onSelected: (_) {
+        setState(() {
+          _sortBy = _sortBy == 'trending_first' ? 'newest' : 'trending_first';
+        });
+      },
+      backgroundColor: theme.cardColor.withValues(alpha: 0.7),
+      selectedColor: theme.primaryColor.withValues(alpha: 0.18),
+      checkmarkColor: theme.primaryColor,
+      side: BorderSide(
+        color: _sortBy == 'trending_first'
+            ? theme.primaryColor.withValues(alpha: 0.9)
+            : theme.dividerColor.withValues(alpha: 0.6),
+      ),
+      labelStyle: TextStyle(
+        color: _sortBy == 'trending_first'
+            ? theme.primaryColor
+            : theme.canvasColor.withValues(alpha: 0.88),
+        fontWeight: FontWeight.w600,
+      ),
+    );
+
+    if (compact) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.start,
+        children: [
+          SizedBox(width: 240, child: dateButton),
+          trendingChip,
+          resetButton,
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Expanded(child: dateButton),
+        const SizedBox(width: 8),
+        trendingChip,
+        const SizedBox(width: 6),
+        resetButton,
+      ],
     );
   }
 

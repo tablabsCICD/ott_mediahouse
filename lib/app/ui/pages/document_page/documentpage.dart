@@ -12,11 +12,49 @@ class DocumentsPage extends StatefulWidget {
 }
 
 class _DocumentsPageState extends State<DocumentsPage> {
+  static const List<String> _registrationDocumentOrder = [
+    'Registration Certificate',
+    'Aadhaar Card',
+    'Pan Card',
+    'GST Certificate',
+    'Shop Act',
+    'Bank Proof',
+    'Identity Proof',
+    'Address Proof',
+  ];
+
   String? _getFileUrl(dynamic raw) {
     if (raw == null) return null;
     final value = raw.toString().trim();
     if (value.isEmpty || value.toLowerCase() == "null") return null;
     return value;
+  }
+
+  String? _resolveDocumentUrl(MediaHouseProvider provider, String docType) {
+    final fromMap = _getFileUrl(provider.uploadedDocuments[docType]?['file']);
+    if (fromMap != null) return fromMap;
+
+    final media = provider.mediaHouse;
+    switch (docType) {
+      case 'Registration Certificate':
+        return _getFileUrl(media.registrationCertificate);
+      case 'Aadhaar Card':
+        return _getFileUrl(media.adharCard);
+      case 'Pan Card':
+        return _getFileUrl(media.panCard);
+      case 'GST Certificate':
+        return _getFileUrl(media.gstCertificates);
+      case 'Shop Act':
+        return _getFileUrl(media.shopAct);
+      case 'Bank Proof':
+        return _getFileUrl(media.bankProof);
+      case 'Identity Proof':
+        return _getFileUrl(media.identityProof);
+      case 'Address Proof':
+        return _getFileUrl(media.addressProof);
+      default:
+        return null;
+    }
   }
 
   Future<void> viewDocument(String fileUrl) async {
@@ -44,7 +82,7 @@ class _DocumentsPageState extends State<DocumentsPage> {
             TextButton(
               onPressed: () async {
                 // Proceed with document removal
-                await provider.clearController("DElete Title :$title");
+                await provider.clearController(title);
                 await provider.updateMediaHouseDocument();
                 setState(() {
                   provider.uploadedDocuments[docType]?['file'] = null;
@@ -69,7 +107,7 @@ class _DocumentsPageState extends State<DocumentsPage> {
     var selectedThemeData =
         Provider.of<ThemeProvider>(context, listen: true).getTheme;
     return Consumer<MediaHouseProvider>(builder: (context, provider, child) {
-      final keys = provider.uploadedDocuments.keys.toList();
+      final keys = List<String>.from(_registrationDocumentOrder);
       return Scaffold(
         backgroundColor: selectedThemeData.scaffoldBackgroundColor,
         body: SafeArea(
@@ -117,13 +155,13 @@ class _DocumentsPageState extends State<DocumentsPage> {
                         ),
                         itemBuilder: (context, index) {
                           final docType = keys[index];
-                          final fileUrl = _getFileUrl(
-                              provider.uploadedDocuments[docType]?['file']);
+                          final fileUrl =
+                              _resolveDocumentUrl(provider, docType);
                           final isUploaded = fileUrl != null;
                           final description = provider
                                   .uploadedDocuments[docType]?['description']
                                   ?.toString() ??
-                              "";
+                              "Upload $docType";
 
                           return Material(
                             color: selectedThemeData.cardColor,

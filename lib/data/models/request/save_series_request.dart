@@ -9,6 +9,8 @@ class SaveSeriesRequest {
   List<String>? genreList;
   bool? isDownloadable;
   bool? isFeatured;
+  String? registrationFeePaid;
+  String? registrationFeeDetails;
   List<LanguageList>? languageList;
   int? mediaHouseId;
   List<String>? posterUrlList;
@@ -18,9 +20,12 @@ class SaveSeriesRequest {
   String? releaseDate;
   String? rentlDuration;
   int? runtime;
+  int? numberOfAttempt;
+  int? fullAttempt;
   String? sensorCertificate;
   List<String>? subtitleLanguageList;
   String? title;
+  String? teaserUrl;
   String? trailerUrl;
 
 
@@ -33,6 +38,8 @@ class SaveSeriesRequest {
     this.genreList,
     this.isDownloadable,
     this.isFeatured,
+    this.registrationFeePaid,
+    this.registrationFeeDetails,
     this.languageList,
     this.mediaHouseId,
     this.posterUrlList,
@@ -42,9 +49,12 @@ class SaveSeriesRequest {
     this.releaseDate,
     this.rentlDuration,
     this.runtime,
+    this.numberOfAttempt,
+    this.fullAttempt,
     this.sensorCertificate,
     this.subtitleLanguageList,
     this.title,
+    this.teaserUrl,
     this.trailerUrl,
   });
 
@@ -57,6 +67,8 @@ class SaveSeriesRequest {
     genreList: json["genreList"] == null ? [] : List<String>.from(json["genreList"]!.map((x) => x)),
     isDownloadable: json["isDownloadable"],
     isFeatured: json["isFeatured"],
+    registrationFeePaid: json["registrationFeePaid"],
+    registrationFeeDetails: json["registrationFeeDetails"],
     languageList: json["languageList"] == null ? [] : List<LanguageList>.from(json["languageList"]!.map((x) => LanguageList.fromJson(x))),
     mediaHouseId: json["mediaHouseId"],
     posterUrlList: json["posterUrlList"] == null ? [] : List<String>.from(json["posterUrlList"]!.map((x) => x)),
@@ -66,9 +78,12 @@ class SaveSeriesRequest {
     releaseDate: json["releaseDate"],
     rentlDuration: json["rentlDuration"],
     runtime: json["runtime"],
+    numberOfAttempt: json["numberOfAttempt"],
+    fullAttempt: json["fullAttempt"],
     sensorCertificate: json["sensorCertificate"],
     subtitleLanguageList: json["subtitleLanguageList"] == null ? [] : List<String>.from(json["subtitleLanguageList"]!.map((x) => x)),
     title: json["title"],
+    teaserUrl: json["teaserUrl"],
     trailerUrl: json["trailerURL"],
   );
 
@@ -81,6 +96,8 @@ class SaveSeriesRequest {
     "genreList": genreList == null ? [] : List<dynamic>.from(genreList!.map((x) => x)),
     "isDownloadable": isDownloadable,
     "isFeatured": isFeatured,
+    "registrationFeePaid": registrationFeePaid,
+    "registrationFeeDetails": registrationFeeDetails,
     "languageList": languageList == null ? [] : List<dynamic>.from(languageList!.map((x) => x.toJson())),
     "mediaHouseId": mediaHouseId,
     "posterUrlList": posterUrlList == null ? [] : List<dynamic>.from(posterUrlList!.map((x) => x)),
@@ -90,9 +107,12 @@ class SaveSeriesRequest {
     "releaseDate": releaseDate,
     "rentlDuration": rentlDuration,
     "runtime": runtime,
+    "numberOfAttempt": numberOfAttempt,
+    "fullAttempt": fullAttempt,
     "sensorCertificate": sensorCertificate,
     "subtitleLanguageList": subtitleLanguageList == null ? [] : List<dynamic>.from(subtitleLanguageList!.map((x) => x)),
     "title": title,
+    "teaserUrl": teaserUrl,
     "trailerURL": trailerUrl,
   };
 }

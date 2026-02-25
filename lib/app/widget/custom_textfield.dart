@@ -92,9 +92,9 @@ class _CustomTextFieldState extends State<CustomTextField> {
             decoration: InputDecoration(
               filled: true,
               fillColor: widget.readOnly == true
-                  ? theme.disabledColor.withOpacity(0.05)
+                  ? theme.disabledColor.withValues(alpha: 0.05)
                   : theme.inputDecorationTheme.fillColor ??
-                      theme.cardColor.withOpacity(0.05),
+                      theme.cardColor.withValues(alpha: 0.05),
               hintText: widget.hintText,
               hintStyle:
                   inputTheme.hintStyle ?? TextStyle(color: theme.hintColor),
@@ -112,7 +112,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(
-                  color: theme.dividerColor.withOpacity(0.6),
+                  color: theme.dividerColor.withValues(alpha: 0.6),
                   width: 1,
                 ),
               ),
@@ -164,6 +164,9 @@ class _CustomTextFieldState extends State<CustomTextField> {
   }
 
   String? Function(String?)? _buildValidator() {
+    if (widget.validator != null) {
+      return widget.validator as String? Function(String?);
+    }
     if (!widget.isValidator) return null;
     if (widget.isPhoneNumber) {
       return Validators.compose([

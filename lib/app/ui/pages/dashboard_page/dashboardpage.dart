@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:media_house/app/provider/mediaHouseProvider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
@@ -6,7 +8,6 @@ import 'package:media_house/app/ui/pages/dashboard_page/components/settlementCar
 import 'package:media_house/app/ui/pages/dashboard_page/components/buildSummaryCard.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/components/contentUploadCrad.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/select_upload_type.dart';
-import 'package:media_house/app/ui/pages/uploadContent_page/upload_video.dart';
 import 'package:media_house/app/widget/CustomLineGraph.dart';
 import 'package:media_house/app/widget/TopMoviesLineGraph.dart';
 import 'package:media_house/app/widget/show_toast.dart';
@@ -54,6 +55,9 @@ class _DashboardPageState extends State<DashboardPage> {
     Provider.of<UserProvider>(context);
 
     return Consumer<MediaHouseProvider>(builder: (context, provider, child) {
+      final screen = MediaQuery.of(context).size;
+      final mobileGraphHeight =
+          math.min(620.0, math.max(460.0, screen.height * 0.68));
       return Scaffold(
         backgroundColor: selectedThemeData.scaffoldBackgroundColor,
         body: ResponsiveWidget.isMobile(context) ////mobile view////
@@ -123,21 +127,12 @@ class _DashboardPageState extends State<DashboardPage> {
                               value:
                                   "${provider.mediaHouseDashboardData.viewRevenue ?? 0.0}",
                               onTap: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return Dialog(
-                                      backgroundColor:
-                                          selectedThemeData.cardColor,
-                                      child: CustomLineGraph(
-                                        title: 'Revenue Graph',
-                                        yAxisLabel: 'sales',
-                                        canPop: true,
-                                        graphNumber: 0,
-                                        metrics: ["revenue"],
-                                      ),
-                                    );
-                                  },
+                                _showGraphDialog(
+                                  theme: selectedThemeData,
+                                  title: 'Revenue Graph',
+                                  yAxisLabel: 'sales',
+                                  graphNumber: 0,
+                                  metrics: const ["revenue"],
                                 );
                               },
                             ),
@@ -148,21 +143,12 @@ class _DashboardPageState extends State<DashboardPage> {
                               value:
                                   "${provider.mediaHouseDashboardData.totalViews ?? 0}",
                               onTap: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return Dialog(
-                                      backgroundColor:
-                                          selectedThemeData.cardColor,
-                                      child: CustomLineGraph(
-                                        title: 'Views Graph',
-                                        yAxisLabel: 'views',
-                                        canPop: true,
-                                        graphNumber: 1,
-                                        metrics: ["views"],
-                                      ),
-                                    );
-                                  },
+                                _showGraphDialog(
+                                  theme: selectedThemeData,
+                                  title: 'Views Graph',
+                                  yAxisLabel: 'views',
+                                  graphNumber: 1,
+                                  metrics: const ["views"],
                                 );
                               },
                             ),
@@ -173,21 +159,12 @@ class _DashboardPageState extends State<DashboardPage> {
                               value:
                                   "${provider.mediaHouseDashboardData.approvedContent ?? 0}",
                               onTap: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return Dialog(
-                                      backgroundColor:
-                                          selectedThemeData.cardColor,
-                                      child: CustomLineGraph(
-                                        title: 'Released Content',
-                                        yAxisLabel: 'Released',
-                                        canPop: true,
-                                        graphNumber: 2,
-                                        metrics: ["Released"],
-                                      ),
-                                    );
-                                  },
+                                _showGraphDialog(
+                                  theme: selectedThemeData,
+                                  title: 'Released Content',
+                                  yAxisLabel: 'Released',
+                                  graphNumber: 2,
+                                  metrics: const ["Released"],
                                 );
                               },
                             ),
@@ -212,13 +189,26 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                       SizedBox(height: 20),
                       SizedBox(
-                        height: 400,
+                        height: mobileGraphHeight,
                         child: Card(
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
                           color: selectedThemeData.cardColor,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: TopMoviesLineGraph(
-                              isRevenue: true,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              border: Border.all(
+                                color: selectedThemeData.dividerColor
+                                    .withValues(alpha: 0.22),
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: TopMoviesLineGraph(
+                                isRevenue: true,
+                              ),
                             ),
                           ),
                         ),
@@ -303,21 +293,12 @@ class _DashboardPageState extends State<DashboardPage> {
                                     value:
                                         "${provider.mediaHouseDashboardData.viewRevenue ?? 0.0}",
                                     onTap: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return Dialog(
-                                            backgroundColor:
-                                                selectedThemeData.cardColor,
-                                            child: CustomLineGraph(
-                                              title: 'Revenue Graph',
-                                              yAxisLabel: 'sales',
-                                              canPop: true,
-                                              graphNumber: 0,
-                                              metrics: ["revenue"],
-                                            ),
-                                          );
-                                        },
+                                      _showGraphDialog(
+                                        theme: selectedThemeData,
+                                        title: 'Revenue Graph',
+                                        yAxisLabel: 'sales',
+                                        graphNumber: 0,
+                                        metrics: const ["revenue"],
                                       );
                                     },
                                   ),
@@ -328,21 +309,12 @@ class _DashboardPageState extends State<DashboardPage> {
                                     value:
                                         "${provider.mediaHouseDashboardData.totalViews ?? 0}",
                                     onTap: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return Dialog(
-                                            backgroundColor:
-                                                selectedThemeData.cardColor,
-                                            child: CustomLineGraph(
-                                              title: 'Views Graph',
-                                              yAxisLabel: 'views',
-                                              canPop: true,
-                                              graphNumber: 1,
-                                              metrics: ["views"],
-                                            ),
-                                          );
-                                        },
+                                      _showGraphDialog(
+                                        theme: selectedThemeData,
+                                        title: 'Views Graph',
+                                        yAxisLabel: 'views',
+                                        graphNumber: 1,
+                                        metrics: const ["views"],
                                       );
                                     },
                                   ),
@@ -353,21 +325,12 @@ class _DashboardPageState extends State<DashboardPage> {
                                     value:
                                         "${provider.mediaHouseDashboardData.approvedContent ?? 0}",
                                     onTap: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (BuildContext context) {
-                                          return Dialog(
-                                            backgroundColor:
-                                                selectedThemeData.cardColor,
-                                            child: CustomLineGraph(
-                                              title: 'Released Content',
-                                              yAxisLabel: 'Released',
-                                              canPop: true,
-                                              graphNumber: 2,
-                                              metrics: ["Released"],
-                                            ),
-                                          );
-                                        },
+                                      _showGraphDialog(
+                                        theme: selectedThemeData,
+                                        title: 'Released Content',
+                                        yAxisLabel: 'Released',
+                                        graphNumber: 2,
+                                        metrics: const ["Released"],
                                       );
                                     },
                                   ),
@@ -394,31 +357,65 @@ class _DashboardPageState extends State<DashboardPage> {
                         ],
                       ),
                       SizedBox(height: 10),
-                      SizedBox(
-                        height: 300,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 1,
-                              child: ContentUploadCard(provider.mediaHouse),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isCompactDesktop = constraints.maxWidth < 1200;
+                          final graphCard = Card(
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
                             ),
-                            SizedBox(
-                              width: 10,
-                            ),
-                            Expanded(
-                              flex: 3,
-                              child: Card(
-                                color: selectedThemeData.cardColor,
-                                child: Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: TopMoviesLineGraph(
-                                    isRevenue: true,
-                                  ),
+                            color: selectedThemeData.cardColor,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: selectedThemeData.dividerColor
+                                      .withValues(alpha: 0.22),
+                                ),
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: TopMoviesLineGraph(
+                                  isRevenue: true,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          );
+
+                          if (isCompactDesktop) {
+                            return Column(
+                              children: [
+                                SizedBox(
+                                  height: 280,
+                                  child: ContentUploadCard(provider.mediaHouse),
+                                ),
+                                const SizedBox(height: 10),
+                                SizedBox(height: 460, child: graphCard),
+                              ],
+                            );
+                          }
+
+                          return SizedBox(
+                            height: 430,
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  flex: 1,
+                                  child: ContentUploadCard(provider.mediaHouse),
+                                ),
+                                SizedBox(
+                                  width: 10,
+                                ),
+                                Expanded(
+                                  flex: 3,
+                                  child: graphCard,
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                       SizedBox(
                         height: 5,
@@ -430,6 +427,42 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
       );
     });
+  }
+
+  void _showGraphDialog({
+    required ThemeData theme,
+    required String title,
+    required String yAxisLabel,
+    required int graphNumber,
+    required List<String> metrics,
+  }) {
+    final size = MediaQuery.of(context).size;
+    final dialogWidth = math.min(size.width * 0.95, 1100.0);
+    final dialogHeight = math.min(size.height * 0.9, 760.0);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: theme.cardColor,
+          insetPadding: EdgeInsets.symmetric(
+            horizontal: ResponsiveWidget.isMobile(context) ? 10 : 24,
+            vertical: ResponsiveWidget.isMobile(context) ? 16 : 24,
+          ),
+          child: SizedBox(
+            width: dialogWidth,
+            height: dialogHeight,
+            child: CustomLineGraph(
+              title: title,
+              yAxisLabel: yAxisLabel,
+              canPop: true,
+              graphNumber: graphNumber,
+              metrics: metrics,
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildActionButton(ThemeData theme, IconData icon, String tooltip,
