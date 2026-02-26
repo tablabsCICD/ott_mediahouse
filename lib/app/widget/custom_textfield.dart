@@ -23,6 +23,7 @@ class CustomTextField extends StatefulWidget {
   final Function(String)? onValueChange;
   final IconData? suffixIcon;
   final Widget? prefixIcon;
+  final bool showRequiredAsterisk;
 
   const CustomTextField({
     required this.controller,
@@ -43,6 +44,7 @@ class CustomTextField extends StatefulWidget {
     this.onValueChange,
     this.suffixIcon,
     this.prefixIcon,
+    this.showRequiredAsterisk = false,
     super.key,
     this.validatorMsg,
     this.validator,
@@ -68,11 +70,20 @@ class _CustomTextFieldState extends State<CustomTextField> {
           if (widget.label != null)
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
-              child: Text(
-                widget.label!,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              child: RichText(
+                text: TextSpan(
+                  style: DefaultTextStyle.of(context).style.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                  children: [
+                    TextSpan(text: widget.label!),
+                    if (widget.showRequiredAsterisk)
+                      const TextSpan(
+                        text: ' *',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                  ],
                 ),
               ),
             ),

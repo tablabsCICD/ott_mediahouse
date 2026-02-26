@@ -79,6 +79,9 @@ class _SignUpPageState extends State<SignUpPage> {
     'firmType',
     'email',
     'contactNumber',
+    'directorName',
+    'directorEmail',
+    'directorMobile',
     'city',
     'state',
     'country',
@@ -103,28 +106,29 @@ class _SignUpPageState extends State<SignUpPage> {
   };
   final Set<String> _uploadFields = {
     'logo',
-    'profileImage',
     'addressProof',
     'adharCard',
     'panCard',
     'identityProof',
     'bankProof',
     'gstCertificates',
-    'registrationCertificate',
     'shopAct',
   };
   final Set<String> _requiredUploadFields = {
     'registrationCertificate',
+    'adharCard',
+    'panCard',
+    'bankProof',
+    'gstCertificates',
   };
 
   final List<String> _stepOneFields = [
     'mediaHouseName',
     'firmType',
-    'discription',
+    'registrationCertificate',
     'email',
     'emailId',
     'contactNumber',
-    'refferedBy',
   ];
 
   final List<String> _stepTwoFields = [
@@ -136,12 +140,12 @@ class _SignUpPageState extends State<SignUpPage> {
     'officeBuilding',
     'area',
     'pincode',
-    'ceoName',
-    'ceoEmail',
-    'ceoMobile',
     'directorName',
     'directorEmail',
     'directorMobile',
+    'ceoName',
+    'ceoEmail',
+    'ceoMobile',
   ];
 
   final List<String> _stepThreeFields = [
@@ -150,14 +154,12 @@ class _SignUpPageState extends State<SignUpPage> {
     'bankAccountNumber',
     'bankIFSCNumber',
     'logo',
-    'profileImage',
     'addressProof',
     'adharCard',
     'panCard',
     'identityProof',
     'bankProof',
     'gstCertificates',
-    'registrationCertificate',
     'shopAct',
   ];
 
@@ -181,19 +183,22 @@ class _SignUpPageState extends State<SignUpPage> {
       appBar: AppBar(
         backgroundColor: selectedThemeData.scaffoldBackgroundColor,
         elevation: 0,
-        toolbarHeight: ResponsiveWidget.isMobile(context) ? 10 : 10,
+        toolbarHeight: ResponsiveWidget.isMobile(context) ? 10 : 50,
         /*   title: SizedBox(
           height: ResponsiveWidget.isMobile(context) ? 70 : 100,
           child: Image.asset(ImageConstant.logo),
         ), */
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: Icon(
-              isDark ? Icons.wb_sunny_outlined : Icons.nightlight_round,
-              color: selectedThemeData.canvasColor,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10.0),
+            child: IconButton(
+              icon: Icon(
+                isDark ? Icons.wb_sunny_outlined : Icons.nightlight_round,
+                color: selectedThemeData.canvasColor,
+              ),
+              onPressed: themeProvider.toggleTheme,
             ),
-            onPressed: themeProvider.toggleTheme,
           ),
         ],
       ),

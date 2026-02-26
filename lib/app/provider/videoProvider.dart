@@ -120,6 +120,9 @@ class VideoProvider extends ChangeNotifier {
   final TextEditingController castRoleController = TextEditingController();
   final TextEditingController castDescriptionController = TextEditingController();
   final TextEditingController castImageController = TextEditingController();
+  final TextEditingController crewNameController = TextEditingController();
+  final TextEditingController crewRoleController = TextEditingController();
+  final TextEditingController crewImageController = TextEditingController();
   final TextEditingController rentalDurationController =
       TextEditingController();
   final TextEditingController registrationFeeDetailsController =
@@ -138,6 +141,9 @@ class VideoProvider extends ChangeNotifier {
       TextEditingController();
   final List<Map<String, String>> _pendingCasts = [];
   List<Map<String, String>> get pendingCasts => List.unmodifiable(_pendingCasts);
+  final List<Map<String, String>> _pendingCrews = [];
+  List<Map<String, String>> get pendingCrews =>
+      List.unmodifiable(_pendingCrews);
 
   bool isEnbale = false;
   List<Content> _contentList = [];
@@ -174,6 +180,7 @@ class VideoProvider extends ChangeNotifier {
   double poster2UploadProgress = 0.0;
   double poster3UploadProgress = 0.0;
   double castImageUploadProgress = 0.0;
+  double crewImageUploadProgress = 0.0;
 
   // Individual uploading status for each file type
   bool _isTrailerUploading = false;
@@ -184,6 +191,7 @@ class VideoProvider extends ChangeNotifier {
   bool _isPoster2Uploading = false;
   bool _isPoster3Uploading = false;
   bool _isCastImageUploading = false;
+  bool _isCrewImageUploading = false;
 
   // Getters for uploading status
   bool get isTrailerUploading => _isTrailerUploading;
@@ -194,6 +202,7 @@ class VideoProvider extends ChangeNotifier {
   bool get isPoster2Uploading => _isPoster2Uploading;
   bool get isPoster3Uploading => _isPoster3Uploading;
   bool get isCastImageUploading => _isCastImageUploading;
+  bool get isCrewImageUploading => _isCrewImageUploading;
 
   // Dynamic audio language controllers and lists
   final Map<String, TextEditingController> audioControllers = {};
@@ -335,6 +344,8 @@ class VideoProvider extends ChangeNotifier {
         return poster3Controller.text.isNotEmpty;
       case "Cast Image":
         return castImageController.text.isNotEmpty;
+      case "Crew Image":
+        return crewImageController.text.isNotEmpty;
       default:
         if (label.endsWith(" Audio")) {
           final language = label.replaceAll(" Audio", "");
@@ -363,6 +374,8 @@ class VideoProvider extends ChangeNotifier {
         return _isPoster3Uploading;
       case "Cast Image":
         return _isCastImageUploading;
+      case "Crew Image":
+        return _isCrewImageUploading;
       default:
         if (label.endsWith(" Audio")) {
           final language = label.replaceAll(" Audio", "");
@@ -384,6 +397,8 @@ class VideoProvider extends ChangeNotifier {
       return getUploadStatus(label) ? 1.0 : 0.0;
     } else if (label == "Cast Image") {
       return castImageUploadProgress;
+    } else if (label == "Crew Image") {
+      return crewImageUploadProgress;
     } else if (label.endsWith(" Audio")) {
       final language = label.replaceAll(" Audio", "");
       return _audioUploadProgress[language] ?? 0.0;
@@ -418,6 +433,9 @@ class VideoProvider extends ChangeNotifier {
       case "Cast Image":
         _isCastImageUploading = status;
         break;
+      case "Crew Image":
+        _isCrewImageUploading = status;
+        break;
     }
   }
 
@@ -447,6 +465,9 @@ class VideoProvider extends ChangeNotifier {
         break;
       case "Cast Image":
         castImageUploadProgress = progress;
+        break;
+      case "Crew Image":
+        crewImageUploadProgress = progress;
         break;
     }
   }
@@ -1381,6 +1402,7 @@ class VideoProvider extends ChangeNotifier {
           castImageController.text.trim().isEmpty);
 
   bool get hasAnyCastToSave => _pendingCasts.isNotEmpty || hasCastDraft;
+  bool get hasAnyCrewToSave => _pendingCrews.isNotEmpty || hasCrewDraft;
 
   Map<String, String> _buildCastFromControllers() {
     return {
@@ -1423,6 +1445,52 @@ class VideoProvider extends ChangeNotifier {
     castImageController.clear();
     castImageUploadProgress = 0.0;
     _isCastImageUploading = false;
+    if (notify) notifyListeners();
+  }
+
+  bool get hasCrewDraft =>
+      crewNameController.text.trim().isNotEmpty ||
+      crewRoleController.text.trim().isNotEmpty ||
+      crewImageController.text.trim().isNotEmpty;
+
+  Map<String, String> _buildCrewFromControllers() {
+    return {
+      "name": crewNameController.text.trim(),
+      "role": crewRoleController.text.trim(),
+      "image": crewImageController.text.trim(),
+    };
+  }
+
+  bool addCurrentCrewToQueue() {
+    final crew = _buildCrewFromControllers();
+    if ((crew["name"] ?? "").isEmpty ||
+        (crew["role"] ?? "").isEmpty ||
+        (crew["image"] ?? "").isEmpty) {
+      CustomToast.show(
+        "Please fill crew name, role and crew image.",
+        isSuccess: false,
+      );
+      return false;
+    }
+    _pendingCrews.add(crew);
+    clearCrewDraft(notify: false);
+    notifyListeners();
+    CustomToast.show("Crew added to queue", isSuccess: true);
+    return true;
+  }
+
+  void removePendingCrewAt(int index) {
+    if (index < 0 || index >= _pendingCrews.length) return;
+    _pendingCrews.removeAt(index);
+    notifyListeners();
+  }
+
+  void clearCrewDraft({bool notify = true}) {
+    crewNameController.clear();
+    crewRoleController.clear();
+    crewImageController.clear();
+    crewImageUploadProgress = 0.0;
+    _isCrewImageUploading = false;
     if (notify) notifyListeners();
   }
 
@@ -1539,6 +1607,68 @@ class VideoProvider extends ChangeNotifier {
     notifyListeners();
     CustomToast.show(
       "${castsToSave.length} cast${castsToSave.length > 1 ? "s" : ""} saved successfully",
+      isSuccess: true,
+    );
+    return true;
+  }
+
+  Future<bool> saveAllCrewsForContent({
+    required int contentId,
+    int seasonId = 0,
+  }) async {
+    if (contentId <= 0) {
+      CustomToast.show("Invalid content ID for crew save.", isSuccess: false);
+      return false;
+    }
+
+    final crewsToSave = List<Map<String, String>>.from(_pendingCrews);
+    if (hasCrewDraft) {
+      final crewDraft = _buildCrewFromControllers();
+      if ((crewDraft["name"] ?? "").isEmpty ||
+          (crewDraft["role"] ?? "").isEmpty ||
+          (crewDraft["image"] ?? "").isEmpty) {
+        CustomToast.show(
+          "Please complete crew name, role and image before submit.",
+          isSuccess: false,
+        );
+        return false;
+      }
+      crewsToSave.add(crewDraft);
+    }
+
+    if (crewsToSave.isEmpty) return true;
+
+    for (final crew in crewsToSave) {
+      if ((crew["name"] ?? "").isEmpty ||
+          (crew["role"] ?? "").isEmpty ||
+          (crew["image"] ?? "").isEmpty) {
+        CustomToast.show(
+          "Each crew must have name, role and image.",
+          isSuccess: false,
+        );
+        return false;
+      }
+
+      final payload = {
+        "name": (crew["name"] ?? "").trim(),
+        "role": (crew["role"] ?? "").trim(),
+        "image": (crew["image"] ?? "").trim(),
+        "description": "",
+      };
+
+      final saved = await _saveSingleCastPayload(
+        contentId: contentId,
+        seasonId: seasonId,
+        cast: payload,
+      );
+      if (!saved) return false;
+    }
+
+    _pendingCrews.clear();
+    clearCrewDraft(notify: false);
+    notifyListeners();
+    CustomToast.show(
+      "${crewsToSave.length} crew${crewsToSave.length > 1 ? "s" : ""} saved successfully",
       isSuccess: true,
     );
     return true;
@@ -1738,6 +1868,9 @@ class VideoProvider extends ChangeNotifier {
       case "Cast Image":
         castImageController.text = url;
         break;
+      case "Crew Image":
+        crewImageController.text = url;
+        break;
     }
   }
 
@@ -1759,6 +1892,8 @@ class VideoProvider extends ChangeNotifier {
         return poster3UploadProgress;
       case "Cast Image":
         return castImageUploadProgress;
+      case "Crew Image":
+        return crewImageUploadProgress;
       default:
         return 0.0;
     }
@@ -2294,6 +2429,9 @@ class VideoProvider extends ChangeNotifier {
     castRoleController.clear();
     castDescriptionController.clear();
     castImageController.clear();
+    crewNameController.clear();
+    crewRoleController.clear();
+    crewImageController.clear();
     rentalDurationController.clear();
     registrationFeeDetailsController.clear();
     registrationPaymentIdController.clear();
@@ -2311,6 +2449,7 @@ class VideoProvider extends ChangeNotifier {
     poster2UploadProgress = 0.0;
     poster3UploadProgress = 0.0;
     castImageUploadProgress = 0.0;
+    crewImageUploadProgress = 0.0;
 
     _isTrailerUploading = false;
     _isTeaserUploading = false;
@@ -2320,6 +2459,7 @@ class VideoProvider extends ChangeNotifier {
     _isPoster2Uploading = false;
     _isPoster3Uploading = false;
     _isCastImageUploading = false;
+    _isCrewImageUploading = false;
     teaserFileName = null;
     trailerFileName = null;
     movieFileName = null;
@@ -2332,6 +2472,7 @@ class VideoProvider extends ChangeNotifier {
     _castList.clear();
     _directorList.clear();
     _pendingCasts.clear();
+    _pendingCrews.clear();
 
     _audioLanguages.clear();
     _audioUploadProgress.clear();
@@ -2462,6 +2603,9 @@ class VideoProvider extends ChangeNotifier {
     castRoleController.dispose();
     castDescriptionController.dispose();
     castImageController.dispose();
+    crewNameController.dispose();
+    crewRoleController.dispose();
+    crewImageController.dispose();
     searchContentController.dispose();
     super.dispose();
   }

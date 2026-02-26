@@ -332,8 +332,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             [
               _castImageSection(theme, provider),
               const SizedBox(height: 8),
-              UploadFormHelpers.builtModernMultiValueTextField(
-                  "Director", theme),
+              _crewListSection(theme, provider),
             ],
             theme,
           ),
@@ -390,12 +389,6 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                 label: "Description",
                 textInputType: TextInputType.text,
               ),
-              CustomTextField(
-                controller: provider.runTimeController,
-                hintText: "Enter number of episodes",
-                label: "Number of Episodes",
-                textInputType: TextInputType.number,
-              ),
             ],
             theme,
           ),
@@ -405,8 +398,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             [
               _castImageSection(theme, provider),
               const SizedBox(height: 8),
-              UploadFormHelpers.builtModernMultiValueTextField(
-                  "Director", theme),
+              _crewListSection(theme, provider),
             ],
             theme,
           ),
@@ -560,24 +552,19 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
 
   Widget _castImageSection(ThemeData theme, VideoProvider provider) {
     return UploadFormHelpers.buildSectionCard(
-      "Cast Image",
+      "Cast",
       [
         CustomTextField(
           controller: provider.castNameController,
           hintText: "Enter cast name",
           label: "Cast Name",
           textInputType: TextInputType.text,
+          showRequiredAsterisk: true,
         ),
         CustomTextField(
           controller: provider.castRoleController,
           hintText: "Enter cast role",
           label: "Cast Role",
-          textInputType: TextInputType.text,
-        ),
-        CustomTextField(
-          controller: provider.castDescriptionController,
-          hintText: "Enter cast description",
-          label: "Cast Description",
           textInputType: TextInputType.text,
         ),
         UploadMediaHelpers.buildEnhancedUploadSection(
@@ -652,6 +639,107 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                     onPressed: () => provider.removePendingCastAt(index),
                     icon: const Icon(Icons.delete_outline, color: Colors.red),
                     tooltip: "Remove cast",
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ],
+      theme,
+    );
+  }
+
+  Widget _crewListSection(ThemeData theme, VideoProvider provider) {
+    return UploadFormHelpers.buildSectionCard(
+      "Crew",
+      [
+        CustomTextField(
+          controller: provider.crewNameController,
+          hintText: "Enter crew name",
+          label: "Crew Name",
+          textInputType: TextInputType.text,
+          showRequiredAsterisk: true,
+        ),
+        CustomTextField(
+          controller: provider.crewRoleController,
+          hintText: "Enter crew role (Director/Writer/Producer)",
+          label: "Crew Role",
+          textInputType: TextInputType.text,
+          showRequiredAsterisk: true,
+        ),
+        UploadMediaHelpers.buildEnhancedUploadSection(
+          "Crew Image",
+          theme,
+          context,
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: provider.addCurrentCrewToQueue,
+                icon: const Icon(Icons.add),
+                label: const Text("Add Crew"),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.primaryColor,
+                  side: BorderSide(color: theme.primaryColor.withOpacity(0.4)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: provider.clearCrewDraft,
+                icon: const Icon(Icons.clear),
+                label: const Text("Clear Draft"),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.red,
+                  side: BorderSide(color: Colors.red.withOpacity(0.4)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (provider.pendingCrews.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            "Added Crews (${provider.pendingCrews.length})",
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: theme.canvasColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...List.generate(provider.pendingCrews.length, (index) {
+            final crew = provider.pendingCrews[index];
+            return Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: theme.cardColor.withOpacity(0.5),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      "${crew["name"] ?? ""} (${crew["role"] ?? ""})",
+                      style: TextStyle(
+                        color: theme.canvasColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => provider.removePendingCrewAt(index),
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    tooltip: "Remove crew",
                   ),
                 ],
               ),
@@ -1116,6 +1204,21 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             return;
           }
         }
+        if (provider.hasAnyCrewToSave) {
+          final contentId = content.id;
+          if (contentId == null) {
+            CustomToast.show(
+              "Content saved but content ID not received for crew save.",
+              isSuccess: false,
+            );
+            return;
+          }
+          final crewSaved =
+              await provider.saveAllCrewsForContent(contentId: contentId);
+          if (!crewSaved) {
+            return;
+          }
+        }
         provider.disposeData();
       }
       if (content != null && mounted) {
@@ -1141,6 +1244,21 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
           return;
         }
       }
+      if (provider.hasAnyCrewToSave) {
+        final contentId = content.id;
+        if (contentId == null) {
+          CustomToast.show(
+            "Content saved but content ID not received for crew save.",
+            isSuccess: false,
+          );
+          return;
+        }
+        final crewSaved =
+            await provider.saveAllCrewsForContent(contentId: contentId);
+        if (!crewSaved) {
+          return;
+        }
+      }
       provider.disposeData();
     }
     if (content != null && mounted) {
@@ -1163,11 +1281,7 @@ const List<String> _rentalDurations = [
   "Three Day",
   "One Week",
   "Two Week",
-  "One Month",
-  "Three Month",
-  "Six Month",
-  "One Year",
-  "Lifetime",
+  "One Month"
 ];
 
 const List<String> _genres = [
