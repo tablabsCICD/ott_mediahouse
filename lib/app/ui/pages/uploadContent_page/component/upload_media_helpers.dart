@@ -363,7 +363,9 @@ class UploadMediaHelpers {
   }
 
   static bool isImageFile(String label) {
-    return label == "Censor Certificate" || label.startsWith("Poster");
+    return label == "Censor Certificate" ||
+        label.startsWith("Poster") ||
+        label == "Cast Image";
   }
 
   static String? getImageUrl(String label, VideoProvider provider) {
@@ -383,6 +385,10 @@ class UploadMediaHelpers {
       case "Poster 3":
         return provider.poster3Controller.text.isNotEmpty
             ? provider.poster3Controller.text
+            : null;
+      case "Cast Image":
+        return provider.castImageController.text.isNotEmpty
+            ? provider.castImageController.text
             : null;
       default:
         return null;
@@ -405,6 +411,8 @@ class UploadMediaHelpers {
         return provider.poster2Controller.text.isNotEmpty;
       case "Poster 3":
         return provider.poster3Controller.text.isNotEmpty;
+      case "Cast Image":
+        return provider.castImageController.text.isNotEmpty;
       default:
       // Check for dynamically added audio languages
         if (label.endsWith(" Audio")) {
@@ -428,6 +436,8 @@ class UploadMediaHelpers {
       case "Poster 2":
       case "Poster 3":
         return getUploadStatus(label, provider) ? 1.0 : 0.0;
+      case "Cast Image":
+        return provider.castImageUploadProgress;
       default:
       // Check for dynamically added audio languages
         if (label.endsWith(" Audio")) {
@@ -449,6 +459,7 @@ class UploadMediaHelpers {
       case "Poster 1":
       case "Poster 2":
       case "Poster 3":
+      case "Cast Image":
         return provider.getUploadingStatusByLabel(label);
       default:
         if (label.endsWith(" Audio")) {

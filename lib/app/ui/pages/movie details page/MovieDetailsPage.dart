@@ -105,9 +105,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
           body: Stack(
             fit: StackFit.expand,
             children: [
-              /*  _buildBackground(movie.posterUrlList?.isNotEmpty == true
-                  ? movie.posterUrlList!.first
-                  : null), */
               _darkOverlay(),
               SafeArea(
                 child: SingleChildScrollView(
@@ -217,13 +214,13 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
             _metricChip("Revenue", _compactNum(movie.totalRevenue)),
             _metricChip("Views", _compactNum(movie.views)),
             _metricChip("Likes", _compactNum(movie.ratingCount)),
-            _metricChip(
-                "Comments", _compactNum(movie.fullAttempt ?? movie.numberOfAttempt)),
+            _metricChip("Comments",
+                _compactNum(movie.fullAttempt ?? movie.numberOfAttempt)),
           ],
         ),
         const SizedBox(height: 10),
         SizedBox(
-          height: 220,
+          height: 500,
           child: MovieRevenueGraph(
             title: 'MovieDetailsGraph',
             yAxisLabel: 'sales',
@@ -299,41 +296,13 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        color: const Color(0xFF0E1730),
+        color: Colors.transparent,
         border: Border.all(color: Colors.white24),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _mediaPreview(movie),
-          InkWell(
-            onTap: () => setState(() => isTrailer = !isTrailer),
-            child: Container(
-              height: 48,
-              width: double.infinity,
-              color: const Color(0xFF616161),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    isTrailer ? Icons.analytics_outlined : Icons.photo_outlined,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    isTrailer ? "See Analytics" : "Show Poster",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22 / 1.35,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
             child: Text(
@@ -343,19 +312,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                 fontSize: 28 / 1.35,
                 fontWeight: FontWeight.w800,
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _headerChip(Icons.verified_user_outlined,
-                    "Status: ${_displayValue(movie.approvalStatus)}"),
-                _headerChip(Icons.business_outlined,
-                    "MediaHouse: ${_displayValue(movie.mediaHouseName)}"),
-              ],
             ),
           ),
           const SizedBox(height: 8),
@@ -387,9 +343,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                 : movie.reason,
           ),
           const SizedBox(height: 12),
-          _censorCertificateCard(movie),
-          const SizedBox(height: 10),
-          _quickActionRow(movie, provider, onDelete),
           const Padding(
             padding: EdgeInsets.fromLTRB(14, 10, 14, 6),
             child: Text(
@@ -402,110 +355,10 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
             ),
           ),
           _castList(movie),
-          const SizedBox(height: 12),
+          _censorCertificateCard(movie),
+          const SizedBox(height: 10),
           _trailerCard(movie),
           const SizedBox(height: 14),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerChip(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1B2B4B),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF4C6B9A)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.white70),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _mediaPreview(Content movie) {
-    if (!isTrailer) {
-      return Container(
-        color: const Color(0xFF111111),
-        child: SizedBox(
-          height: 190,
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: MovieRevenueGraph(
-              title: 'MovieDetailsGraph',
-              yAxisLabel: 'sales',
-              graphNumber: 0,
-              contentId: movie.id!,
-              metrics: const ["revenue"],
-            ),
-          ),
-        ),
-      );
-    }
-
-    if ((movie.posterUrlList ?? []).isEmpty ||
-        (movie.posterUrlList!.first).trim().isEmpty) {
-      return Container(
-        height: 190,
-        color: Colors.black,
-        alignment: Alignment.center,
-        child: const Text(
-          'Poster not available',
-          style: TextStyle(color: Colors.grey),
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 190,
-      width: double.infinity,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.network(
-            movie.posterUrlList!.first,
-            fit: BoxFit.cover,
-          ),
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0x33000000), Color(0xCC000000)],
-              ),
-            ),
-          ),
-          Positioned(
-            left: 8,
-            right: 8,
-            bottom: 8,
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                _metricChip("Revenue", _compactNum(movie.totalRevenue)),
-                _metricChip("Views", _compactNum(movie.views)),
-                _metricChip("Likes", _compactNum(movie.ratingCount)),
-                _metricChip(
-                  "Comments",
-                  _compactNum(movie.fullAttempt ?? movie.numberOfAttempt),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -553,7 +406,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
             ),
           ),
           SizedBox(
-            height: 165,
+            height: 300,
             width: double.infinity,
             child: TrailerPage(trailerUrl: movie.trailerUrl ?? ''),
           ),
@@ -563,6 +416,8 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
   }
 
   Widget _censorCertificateCard(Content movie) {
+    final certUrl = movie.sensorCertificate;
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 14),
       padding: const EdgeInsets.all(10),
@@ -571,104 +426,75 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF7AA5E6)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFF14345E),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.workspace_premium_outlined,
-              color: Colors.amberAccent,
+          const Text(
+            "Censor Certificate",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Censor Certificate",
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _displayValue(movie.sensorCertificate),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+          const SizedBox(height: 10),
 
-  Widget _quickActionRow(
-      Content movie, VideoProvider provider, VoidCallback onDelete) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _actionPill(
-            label: "Watch Trailer",
-            icon: Icons.play_circle_fill,
-            onTap: () {
-              provider.setValu(movie);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      TrailerPage(trailerUrl: movie.trailerUrl ?? ''),
+          /// ✅ IMAGE VIEW
+          if (certUrl != null && certUrl.trim().isNotEmpty)
+            GestureDetector(
+              onTap: () {
+                /// 🔍 Full screen preview
+                showDialog(
+                  context: context,
+                  builder: (_) => Dialog(
+                    backgroundColor: Colors.black,
+                    child: InteractiveViewer(
+                      child: Image.network(certUrl),
+                    ),
+                  ),
+                );
+              },
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(
+                  certUrl,
+                  height: 140,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+
+                  /// 🔄 Loading
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return Container(
+                      height: 140,
+                      alignment: Alignment.center,
+                      child: const CircularProgressIndicator(),
+                    );
+                  },
+
+                  /// ❌ Error fallback
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      height: 140,
+                      alignment: Alignment.center,
+                      child: const Text(
+                        "Image not available",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
-          _actionPill(
-            label: "Watch Movie",
-            icon: Icons.movie_creation_outlined,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      TrailerPage(trailerUrl: movie.contentUrl ?? ''),
-                ),
-              );
-            },
-          ),
-          _actionPill(
-            label: "Edit",
-            icon: Icons.edit,
-            onTap: () {
-              provider.setValu(movie);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditVideoMovie(movieId: movie.id!),
-                ),
-              );
-            },
-          ),
-          _actionPill(
-            label: "Delete",
-            icon: Icons.delete_outline,
-            color: const Color(0xFF912B2B),
-            onTap: onDelete,
-          ),
+              ),
+            )
+          else
+            Container(
+              height: 120,
+              alignment: Alignment.center,
+              child: const Text(
+                "Certificate not available",
+                style: TextStyle(color: Colors.grey),
+              ),
+            ),
         ],
       ),
     );
@@ -927,7 +753,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
               inside: BorderSide(color: Colors.white24, width: 0.5),
             ),
             children: [
-              _tableRow("Content ID", _displayValue(movie.id)),
               _tableRow("Title", _displayValue(movie.title)),
               _tableRow("Content Type", _displayValue(movie.type)),
               _tableRow("Approval Status", _displayValue(movie.approvalStatus)),
@@ -964,14 +789,10 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
               _tableRow(
                   "Subtitles", (movie.subtitleLanguageList ?? []).join(', ')),
               _tableRow("Age Rating", movie.ageRating ?? "N/A"),
-              _tableRow(
-                  "Sensor Certificate", _displayValue(movie.sensorCertificate)),
               _tableRow("Media House", _displayValue(movie.mediaHouseName)),
-              _tableRow("Media House ID", _displayValue(movie.mediaHouseId)),
               _tableRow("Rental Duration", _displayValue(movie.rentlDuration)),
               _tableRow(
                   "No. of Attempts", _displayValue(movie.numberOfAttempt)),
-              _tableRow("Full Attempts", _displayValue(movie.fullAttempt)),
               _tableRow("Registration Fee Paid",
                   _displayValue(movie.registrationFeePaid)),
               _tableRow("Registration Fee Details",
@@ -986,19 +807,8 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
                   (movie.availability?.platforms ?? []).isNotEmpty
                       ? movie.availability!.platforms!.join(', ')
                       : "N/A"),
-              _tableRow("Teaser Available",
-                  (movie.teaserUrl ?? '').trim().isNotEmpty ? "Yes" : "No"),
-              _tableRow("Trailer Available",
-                  (movie.trailerUrl ?? '').trim().isNotEmpty ? "Yes" : "No"),
-              _tableRow("Video Available",
-                  (movie.contentUrl ?? '').trim().isNotEmpty ? "Yes" : "No"),
               _tableRow("Uploaded On", _formatEpoch(movie.uploadDateTime)),
               _tableRow("Approved On", _formatEpoch(movie.approvedDateTime)),
-              _tableRow("Watched Seconds", _displayValue(movie.watchedSeconds)),
-              _tableRow(
-                  "Watched Percentage", _displayValue(movie.watchedPercentage)),
-              _tableRow("Season ID", _displayValue(movie.seasonId)),
-              _tableRow("Episode ID", _displayValue(movie.episodeId)),
               _tableRow("Platform Percentage",
                   _displayValue(movie.adminIncentivePecentage)),
               _tableRow("MediaHouse Percentage",
@@ -1116,11 +926,5 @@ class _MovieDetailsPageState extends State<MovieDetailsPage> {
         ),
       ),
     );
-  }
-
-  Widget _buildBackground(String? imageUrl) {
-    return imageUrl != null && imageUrl.isNotEmpty
-        ? Image.network(imageUrl, fit: BoxFit.cover)
-        : Container(color: Colors.black);
   }
 }

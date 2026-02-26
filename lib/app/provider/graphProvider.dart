@@ -58,6 +58,8 @@ class GraphProvider extends ChangeNotifier {
 
   List<ReportAndDataObject> _reportAndDataList = [];
   List<ReportAndDataObject> get reportAndDataList => _reportAndDataList;
+  bool _isLoadingReportData = false;
+  bool get isLoadingReportData => _isLoadingReportData;
 
   void _clearTopMoviesGraphState() {
     chartData.clear();
@@ -167,6 +169,12 @@ class GraphProvider extends ChangeNotifier {
     notifyListeners();
     if (country.trim().isEmpty) return;
     await fetchStatesByCountry(country.trim());
+  }
+
+  void clearStateOptions() {
+    _stateOptions.clear();
+    _isLoadingStates = false;
+    notifyListeners();
   }
 
   void clearTopMoviesFilters() {
@@ -410,23 +418,64 @@ class GraphProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> getReportAndData(context) async {
+  Future<void> getReportAndData(
+    BuildContext context, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
-    final apiUrl = ApiConstant.reportAndData(mediaHouse!.id);
-    final apiHelper = ApiHelper();
+    if (mediaHouse?.id == null) {
+      _reportAndDataList.clear();
+      notifyListeners();
+      return;
+    }
 
+    final String? start =
+        startDate == null ? null : DateFormat('yyyy-MM-dd').format(startDate);
+    final String? end =
+        endDate == null ? null : DateFormat('yyyy-MM-dd').format(endDate);
+
+    final apiUrl = ApiConstant.reportAndData(
+      mediaHouse!.id,
+      contentType: _normalizeFilter(contentType ?? "", allAsNull: true),
+      country: _normalizeFilter(country ?? ""),
+      state: _normalizeFilter(state ?? ""),
+      district: _normalizeFilter(district ?? ""),
+      taluka: _normalizeFilter(taluka ?? ""),
+      city: _normalizeFilter(city ?? ""),
+      startDate: start,
+      endDate: end,
+    );
+    final apiHelper = ApiHelper();
+    debugPrint(apiUrl);
     try {
+      _isLoadingReportData = true;
       _reportAndDataList.clear();
       notifyListeners();
 
       final response = await apiHelper.getApi(apiUrl);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        _reportAndDataList = [];
+        CustomToast.show(
+          "Failed to load reports (status ${response.statusCode}).",
+          isSuccess: false,
+        );
+        return;
+      }
+
       final responseBody = json.decode(response.body) as Map<String, dynamic>;
-      final reportAndDataResponse =
+      ReportAndDataResponse reportAndDataResponse =
           ReportAndDataResponse.fromJson(responseBody);
 
       if (reportAndDataResponse.success == true) {
-        final items = reportAndDataResponse.data?.mediaHouse ?? [];
+        final items = reportAndDataResponse.data?.contents ?? [];
         _reportAndDataList = List<ReportAndDataObject>.from(items);
       } else {
         CustomToast.show(
@@ -437,9 +486,14 @@ class GraphProvider extends ChangeNotifier {
       notifyListeners();
     } catch (error) {
       _reportAndDataList.clear();
-      notifyListeners();
       debugPrint("Error occurred while fetching graph data: $error");
-      throw Exception('Failed to fetch graph data. Error: $error');
+      CustomToast.show(
+        "Unable to load report data right now.",
+        isSuccess: false,
+      );
+    } finally {
+      _isLoadingReportData = false;
+      notifyListeners();
     }
   }
 }

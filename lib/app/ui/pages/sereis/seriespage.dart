@@ -54,13 +54,28 @@ class _SeriesPageState extends State<SeriesPage> {
   }
 
   Future<void> _pickDateRange() async {
-    final picked = await showDateRangePicker(
+    final picked = await showDialog<DateTimeRange>(
       context: context,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-      initialDateRange: (_fromDate != null && _toDate != null)
-          ? DateTimeRange(start: _fromDate!, end: _toDate!)
-          : null,
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: SizedBox(
+            width: 560,
+            child: DateRangePickerDialog(
+              firstDate: DateTime(2000),
+              lastDate: DateTime.now(),
+              initialDateRange: (_fromDate != null && _toDate != null)
+                  ? DateTimeRange(start: _fromDate!, end: _toDate!)
+                  : null,
+              helpText: 'Select Date Range',
+              confirmText: 'Apply',
+              cancelText: 'Cancel',
+            ),
+          ),
+        );
+      },
     );
     if (picked == null) return;
     setState(() {

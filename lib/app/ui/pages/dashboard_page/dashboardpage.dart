@@ -117,75 +117,74 @@ class _DashboardPageState extends State<DashboardPage> {
                             provider),
                       ),
                       SizedBox(height: 10),
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            BuildSummaryCard(
-                              icon: Icons.currency_rupee_sharp,
-                              title: "Revenue",
-                              value:
-                                  "${provider.mediaHouseDashboardData.viewRevenue ?? 0.0}",
-                              onTap: () {
-                                _showGraphDialog(
-                                  theme: selectedThemeData,
-                                  title: 'Revenue Graph',
-                                  yAxisLabel: 'sales',
-                                  graphNumber: 0,
-                                  metrics: const ["revenue"],
-                                );
-                              },
-                            ),
-                            SizedBox(width: 10),
-                            BuildSummaryCard(
-                              icon: Icons.visibility_outlined,
-                              title: "Views",
-                              value:
-                                  "${provider.mediaHouseDashboardData.totalViews ?? 0}",
-                              onTap: () {
-                                _showGraphDialog(
-                                  theme: selectedThemeData,
-                                  title: 'Views Graph',
-                                  yAxisLabel: 'views',
-                                  graphNumber: 1,
-                                  metrics: const ["views"],
-                                );
-                              },
-                            ),
-                            SizedBox(width: 10),
-                            BuildSummaryCard(
-                              icon: Icons.play_circle_outline_sharp,
-                              title: "Released Content",
-                              value:
-                                  "${provider.mediaHouseDashboardData.approvedContent ?? 0}",
-                              onTap: () {
-                                _showGraphDialog(
-                                  theme: selectedThemeData,
-                                  title: 'Released Content',
-                                  yAxisLabel: 'Released',
-                                  graphNumber: 2,
-                                  metrics: const ["Released"],
-                                );
-                              },
-                            ),
-                            SizedBox(width: 10),
-                            BuildSummaryCard(
-                              icon: Icons.hourglass_top_outlined,
-                              title: "Pending Content",
-                              value:
-                                  "${provider.mediaHouseDashboardData.pendingContentCount ?? 0}",
-                              onTap: () {},
-                            ),
-                            SizedBox(width: 10),
-                            BuildSummaryCard(
-                              icon: Icons.schedule,
-                              title: "Upcoming Content",
-                              value:
-                                  "${provider.mediaHouseDashboardData.upcomingContentCount ?? 0}",
-                              onTap: () {},
-                            ),
-                          ],
-                        ),
+                      GridView.count(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 1.35,
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
+                        children: [
+                          BuildSummaryCard(
+                            icon: Icons.currency_rupee_sharp,
+                            title: "Revenue",
+                            value:
+                                "${provider.mediaHouseDashboardData.viewRevenue ?? 0.0}",
+                            onTap: () {
+                              _showGraphDialog(
+                                theme: selectedThemeData,
+                                title: 'Revenue Graph',
+                                yAxisLabel: 'sales',
+                                graphNumber: 0,
+                                metrics: const ["revenue"],
+                              );
+                            },
+                          ),
+                          BuildSummaryCard(
+                            icon: Icons.visibility_outlined,
+                            title: "Views",
+                            value:
+                                "${provider.mediaHouseDashboardData.totalViews ?? 0}",
+                            onTap: () {
+                              _showGraphDialog(
+                                theme: selectedThemeData,
+                                title: 'Views Graph',
+                                yAxisLabel: 'views',
+                                graphNumber: 1,
+                                metrics: const ["views"],
+                              );
+                            },
+                          ),
+                          BuildSummaryCard(
+                            icon: Icons.play_circle_outline_sharp,
+                            title: "Released Content",
+                            value:
+                                "${provider.mediaHouseDashboardData.approvedContent ?? 0}",
+                            onTap: () {
+                              _showGraphDialog(
+                                theme: selectedThemeData,
+                                title: 'Released Content',
+                                yAxisLabel: 'Released',
+                                graphNumber: 2,
+                                metrics: const ["Released"],
+                              );
+                            },
+                          ),
+                          BuildSummaryCard(
+                            icon: Icons.hourglass_top_outlined,
+                            title: "Pending Content",
+                            value:
+                                "${provider.mediaHouseDashboardData.pendingContentCount ?? 0}",
+                            onTap: () {},
+                          ),
+                          BuildSummaryCard(
+                            icon: Icons.schedule,
+                            title: "Upcoming Content",
+                            value:
+                                "${provider.mediaHouseDashboardData.upcomingContentCount ?? 0}",
+                            onTap: () {},
+                          ),
+                        ],
                       ),
                       SizedBox(height: 20),
                       SizedBox(

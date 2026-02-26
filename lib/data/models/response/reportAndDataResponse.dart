@@ -2,86 +2,96 @@ class ReportAndDataResponse {
   String? message;
   Data? data;
   int? statusCode;
+  dynamic total;
   bool? success;
 
   ReportAndDataResponse({
     this.message,
     this.data,
     this.statusCode,
+    this.total,
     this.success,
   });
 
-  factory ReportAndDataResponse.fromJson(Map<String, dynamic> json) => ReportAndDataResponse(
-    message: json["message"],
-    data: json["data"] == null ? null : Data.fromJson(json["data"]),
-    statusCode: json["statusCode"],
-    success: json["success"],
-  );
+  factory ReportAndDataResponse.fromJson(Map<String, dynamic> json) =>
+      ReportAndDataResponse(
+        message: json["message"],
+        data: json["data"] == null ? null : Data.fromJson(json["data"]),
+        statusCode: json["statusCode"],
+        total: json["total"],
+        success: json["success"],
+      );
 
   Map<String, dynamic> toJson() => {
-    "message": message,
-    "data": data?.toJson(),
-    "statusCode": statusCode,
-    "success": success,
-  };
+        "message": message,
+        "data": data?.toJson(),
+        "statusCode": statusCode,
+        "total": total,
+        "success": success,
+      };
 }
 
 class Data {
-  List<ReportAndDataObject>? mediaHouse;
+  String? mediaHouse;
+  List<ReportAndDataObject>? contents;
 
   Data({
     this.mediaHouse,
+    this.contents,
   });
 
   factory Data.fromJson(Map<String, dynamic> json) => Data(
-    mediaHouse: json["MediaHouse"] == null ? [] : List<ReportAndDataObject>.from(json["MediaHouse"]!.map((x) => ReportAndDataObject.fromJson(x))),
-  );
+        mediaHouse: json["mediaHouse"],
+        contents: json["contents"] == null
+            ? []
+            : List<ReportAndDataObject>.from(
+                json["contents"]!.map((x) => ReportAndDataObject.fromJson(x))),
+      );
 
   Map<String, dynamic> toJson() => {
-    "MediaHouse": mediaHouse == null ? [] : List<dynamic>.from(mediaHouse!.map((x) => x.toJson())),
-  };
+        "mediaHouse": mediaHouse,
+        "contents": contents == null
+            ? []
+            : List<dynamic>.from(contents!.map((x) => x.toJson())),
+      };
 }
 
 class ReportAndDataObject {
-  int? contentId;
-  String? contentName;
-  String? contentStatus;
-  dynamic releasedDate;
-  int? totalViews;
-  dynamic totalRevenue;
-  int? currentPecentageIncentive;
-  int? earnedIncentive;
+  DateTime? releasedDate;
+  double? percentageMediaHouse;
+  double? revenue;
+  double? netRevenue;
+  String? movieName;
+  int? views;
 
   ReportAndDataObject({
-    this.contentId,
-    this.contentName,
-    this.contentStatus,
     this.releasedDate,
-    this.totalViews,
-    this.totalRevenue,
-    this.currentPecentageIncentive,
-    this.earnedIncentive,
+    this.percentageMediaHouse,
+    this.revenue,
+    this.netRevenue,
+    this.movieName,
+    this.views,
   });
 
-  factory ReportAndDataObject.fromJson(Map<String, dynamic> json) => ReportAndDataObject(
-    contentId: json["contentId"],
-    contentName: json["contentName"],
-    contentStatus: json["contentStatus"],
-    releasedDate: json["releasedDate"],
-    totalViews: json["totalViews"],
-    totalRevenue: json["totalRevenue"],
-    currentPecentageIncentive: json["currentPecentageIncentive"],
-    earnedIncentive: json["earnedIncentive"],
-  );
+  factory ReportAndDataObject.fromJson(Map<String, dynamic> json) =>
+      ReportAndDataObject(
+        releasedDate: json["releasedDate"] == null
+            ? null
+            : DateTime.parse(json["releasedDate"]),
+        percentageMediaHouse: json["percentageMediaHouse"]?.toDouble(),
+        revenue: json["revenue"],
+        netRevenue: json["netRevenue"],
+        movieName: json["movieName"],
+        views: json["views"],
+      );
 
   Map<String, dynamic> toJson() => {
-    "contentId": contentId,
-    "contentName": contentName,
-    "contentStatus": contentStatus,
-    "releasedDate": releasedDate,
-    "totalViews": totalViews,
-    "totalRevenue": totalRevenue,
-    "currentPecentageIncentive": currentPecentageIncentive,
-    "earnedIncentive": earnedIncentive,
-  };
+        "releasedDate":
+            "${releasedDate!.year.toString().padLeft(4, '0')}-${releasedDate!.month.toString().padLeft(2, '0')}-${releasedDate!.day.toString().padLeft(2, '0')}",
+        "percentageMediaHouse": percentageMediaHouse,
+        "revenue": revenue,
+        "netRevenue": netRevenue,
+        "movieName": movieName,
+        "views": views,
+      };
 }

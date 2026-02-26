@@ -211,6 +211,7 @@ class _AllContentPageState extends State<AllContentPage> {
         ),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -266,16 +267,8 @@ class _AllContentPageState extends State<AllContentPage> {
           if (isMobile)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildTypeChip(theme, "MOVIE", "Movies"),
-                    _buildTypeChip(theme, "SERIES", "Series"),
-                  ],
-                ),
-                const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -290,6 +283,15 @@ class _AllContentPageState extends State<AllContentPage> {
                       "To ${_formatShortDate(_endDate)}",
                       false,
                     ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildTypeChip(theme, "MOVIE", "Movies"),
+                    _buildTypeChip(theme, "SERIES", "Series"),
                   ],
                 ),
               ],
@@ -409,7 +411,7 @@ class _AllContentPageState extends State<AllContentPage> {
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 1.7,
+        childAspectRatio: 1.6,
       ),
       itemBuilder: (context, index) {
         if (index >= items.length) {

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:media_house/app/provider/graphProvider.dart';
 import 'package:media_house/app/ui/pages/movie%20details%20page/MovieDetailsPage.dart';
 import 'package:media_house/app/widget/TopMoviesLineGraph.dart';
+import 'package:media_house/app/widget/show_toast.dart';
 import 'package:media_house/data/models/response/reportAndDataResponse.dart';
 import 'package:provider/provider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
@@ -18,6 +19,15 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   bool _isAscending = true;
   bool _sortByRevenue = true;
   final NumberFormat _numberFormat = NumberFormat("#,##0.##");
+  String _reportContentType = 'ALL';
+  String _reportCountry = '';
+  String _reportState = '';
+  final TextEditingController _districtController = TextEditingController();
+  final TextEditingController _talukaController = TextEditingController();
+  final TextEditingController _cityController = TextEditingController();
+  DateTimeRange? _reportDateRange;
+
+  static const List<String> _contentTypeOptions = ['ALL', 'MOVIE', 'SERIES'];
 
   void _toggleSortOrder() {
     setState(() {
@@ -37,12 +47,12 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     sortedMovies.sort((a, b) {
       if (_sortByRevenue) {
         return _isAscending
-            ? _toDouble(a.totalRevenue).compareTo(_toDouble(b.totalRevenue))
-            : _toDouble(b.totalRevenue).compareTo(_toDouble(a.totalRevenue));
+            ? _toDouble(a.netRevenue).compareTo(_toDouble(b.netRevenue))
+            : _toDouble(b.netRevenue).compareTo(_toDouble(a.netRevenue));
       } else {
         return _isAscending
-            ? (a.contentName ?? '').compareTo(b.contentName ?? '')
-            : (b.contentName ?? '').compareTo(a.contentName ?? '');
+            ? (a.movieName ?? '').compareTo(b.movieName ?? '')
+            : (b.movieName ?? '').compareTo(a.movieName ?? '');
       }
     });
     return sortedMovies;
@@ -100,7 +110,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   title,
                   style: TextStyle(
                     fontSize: 12,
-                    color: selectedThemeData.primaryColor.withValues(alpha: 0.75),
+                    color:
+                        selectedThemeData.primaryColor.withValues(alpha: 0.75),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -169,25 +180,26 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       .map(
                         (movie) => DataRow(
                           cells: [
-                            DataCell(Text(movie.contentName ?? '-')),
+                            DataCell(Text(movie.movieName ?? '-')),
                             DataCell(Text("${movie.releasedDate ?? '-'}")),
-                            DataCell(Text(_formatNumber(_toInt(movie.totalViews)))),
+                            DataCell(Text(_formatNumber(_toInt(movie.views)))),
                             DataCell(
-                                Text(_formatNumber(_toDouble(movie.totalRevenue)))),
+                                Text(_formatNumber(_toDouble(movie.revenue)))),
                             DataCell(
-                                Text("${movie.currentPecentageIncentive ?? 0}%")),
+                                Text("${movie.percentageMediaHouse ?? 0}%")),
                             DataCell(
-                                Text(_formatNumber(_toInt(movie.earnedIncentive)))),
+                                Text(_formatNumber(_toInt(movie.netRevenue)))),
                             DataCell(
                               TextButton(
-                                onPressed: movie.contentId == null
+                                onPressed: movie.views == null
                                     ? null
                                     : () {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (context) => MovieDetailsPage(
-                                              movieId: movie.contentId!,
+                                            builder: (context) =>
+                                                MovieDetailsPage(
+                                              movieId: movie.views!,
                                             ),
                                           ),
                                         );
@@ -211,12 +223,558 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _reportDateRange =
+        DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now);
     _initData();
   }
 
+  @override
+  void dispose() {
+    _districtController.dispose();
+    _talukaController.dispose();
+    _cityController.dispose();
+    super.dispose();
+  }
+
   Future<void> _initData() async {
-    await Provider.of<GraphProvider>(context, listen: false)
-        .getReportAndData(context);
+    final provider = Provider.of<GraphProvider>(context, listen: false);
+    await provider.fetchCountriesIfNeeded();
+    await _applyReportFilters();
+  }
+
+  Future<void> _applyReportFilters() async {
+    final district = _districtController.text.trim();
+    final taluka = _talukaController.text.trim();
+    final city = _cityController.text.trim();
+
+    if (_reportCountry.isEmpty &&
+        (_reportState.isNotEmpty ||
+            district.isNotEmpty ||
+            taluka.isNotEmpty ||
+            city.isNotEmpty)) {
+      CustomToast.show("Select country first.", isSuccess: false);
+      return;
+    }
+    if (_reportState.isEmpty &&
+        (district.isNotEmpty || taluka.isNotEmpty || city.isNotEmpty)) {
+      CustomToast.show("Select state after country.", isSuccess: false);
+      return;
+    }
+    if (district.isEmpty && (taluka.isNotEmpty || city.isNotEmpty)) {
+      CustomToast.show("Enter district before taluka/city.", isSuccess: false);
+      return;
+    }
+    if (taluka.isEmpty && city.isNotEmpty) {
+      CustomToast.show("Enter taluka before city.", isSuccess: false);
+      return;
+    }
+
+    final provider = Provider.of<GraphProvider>(context, listen: false);
+    await provider.getReportAndData(
+      context,
+      contentType: _reportContentType,
+      country: _reportCountry,
+      state: _reportState,
+      district: district,
+      taluka: taluka,
+      city: city,
+      startDate: _reportDateRange?.start,
+      endDate: _reportDateRange?.end,
+    );
+  }
+
+  Future<void> _clearReportFilters() async {
+    final provider = Provider.of<GraphProvider>(context, listen: false);
+    setState(() {
+      _reportContentType = 'ALL';
+      _reportCountry = '';
+      _reportState = '';
+      _districtController.clear();
+      _talukaController.clear();
+      _cityController.clear();
+      final now = DateTime.now();
+      _reportDateRange = DateTimeRange(
+        start: now.subtract(const Duration(days: 30)),
+        end: now,
+      );
+    });
+    provider.clearStateOptions();
+    await _applyReportFilters();
+  }
+
+  Future<void> _pickReportDateRange() async {
+    final initial = _reportDateRange ??
+        DateTimeRange(
+          start: DateTime.now().subtract(const Duration(days: 30)),
+          end: DateTime.now(),
+        );
+    final picked = await showDialog<DateTimeRange>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: SizedBox(
+            width: 560,
+            child: DateRangePickerDialog(
+              firstDate: DateTime(2020),
+              lastDate: DateTime.now(),
+              initialDateRange: initial,
+              helpText: 'Select Date Range',
+              confirmText: 'Apply',
+              cancelText: 'Cancel',
+            ),
+          ),
+        );
+      },
+    );
+    if (picked == null) return;
+    setState(() {
+      _reportDateRange = picked;
+    });
+  }
+
+  Future<String?> _showSearchableSelectionDialog({
+    required BuildContext context,
+    required String title,
+    required List<String> options,
+    required String initialValue,
+    required ThemeData theme,
+  }) async {
+    final searchController = TextEditingController();
+    var filtered = List<String>.from(options);
+
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return Dialog(
+              backgroundColor: theme.cardColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: SizedBox(
+                width: 420,
+                height: 480,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: theme.canvasColor,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            icon: Icon(
+                              Icons.close,
+                              color: theme.primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      TextField(
+                        controller: searchController,
+                        onChanged: (value) {
+                          final query = value.trim().toLowerCase();
+                          setStateDialog(() {
+                            filtered = options
+                                .where((e) => e.toLowerCase().contains(query))
+                                .toList();
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: "Search...",
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: theme.canvasColor,
+                          ),
+                          border: const OutlineInputBorder(),
+                          enabledBorder: OutlineInputBorder(
+                            borderSide: BorderSide(
+                              color: theme.dividerColor.withValues(alpha: 0.55),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, ''),
+                          child: Text(
+                            "Clear Selection",
+                            style: TextStyle(color: theme.primaryColor),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Expanded(
+                        child: filtered.isEmpty
+                            ? Center(
+                                child: Text(
+                                  "No country found.",
+                                  style: TextStyle(
+                                    color: theme.primaryColor
+                                        .withValues(alpha: 0.65),
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) => Divider(
+                                  height: 1,
+                                  color: theme.dividerColor
+                                      .withValues(alpha: 0.35),
+                                ),
+                                itemBuilder: (context, index) {
+                                  final item = filtered[index];
+                                  final isSelected =
+                                      item.trim() == initialValue.trim();
+                                  return ListTile(
+                                    title: Text(
+                                      item,
+                                      style:
+                                          TextStyle(color: theme.canvasColor),
+                                    ),
+                                    trailing: isSelected
+                                        ? Icon(Icons.check,
+                                            color: theme.primaryColor)
+                                        : null,
+                                    onTap: () =>
+                                        Navigator.pop(dialogContext, item),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    searchController.dispose();
+    return selected;
+  }
+
+  Widget _buildReportFilters(GraphProvider provider, ThemeData theme) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final itemWidth = width > 1100
+            ? (width - 48) / 4
+            : width > 700
+                ? (width - 24) / 2
+                : width;
+
+        final dateLabel = _reportDateRange == null
+            ? "Select Date Range"
+            : "${DateFormat('dd MMM yyyy').format(_reportDateRange!.start)} - ${DateFormat('dd MMM yyyy').format(_reportDateRange!.end)}";
+
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            SizedBox(
+              width: itemWidth,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  canvasColor: theme.cardColor,
+                ),
+                child: DropdownButtonFormField<String>(
+                  value: _reportContentType,
+                  dropdownColor: theme.cardColor,
+                  style: const TextStyle(color: Colors.black),
+                  decoration: InputDecoration(
+                    labelText: "Content Type",
+                    labelStyle: TextStyle(
+                      color: theme.primaryColor.withValues(alpha: 0.75),
+                    ),
+                    border: const OutlineInputBorder(),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: theme.dividerColor.withValues(alpha: 0.55),
+                      ),
+                    ),
+                  ),
+                  items: _contentTypeOptions
+                      .map(
+                        (type) => DropdownMenuItem<String>(
+                          value: type,
+                          child: Text(
+                            type,
+                            style: const TextStyle(color: Colors.black),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _reportContentType = value);
+                  },
+                ),
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: () async {
+                  final selected = await _showSearchableSelectionDialog(
+                    context: context,
+                    title: "Select Country",
+                    options: provider.countryOptions,
+                    initialValue: _reportCountry,
+                    theme: theme,
+                  );
+                  if (selected == null) return;
+                  final country = selected.trim();
+                  setState(() {
+                    _reportCountry = country;
+                    _reportState = '';
+                    _districtController.clear();
+                    _talukaController.clear();
+                    _cityController.clear();
+                  });
+                  if (country.isEmpty) {
+                    provider.clearStateOptions();
+                    return;
+                  }
+                  await provider.fetchStatesByCountry(country);
+                },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: "Country",
+                    labelStyle: TextStyle(
+                      color: theme.primaryColor.withValues(alpha: 0.75),
+                    ),
+                    border: const OutlineInputBorder(),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: theme.dividerColor.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    suffixIcon: Icon(
+                      Icons.search,
+                      color: theme.primaryColor.withValues(alpha: 0.85),
+                    ),
+                  ),
+                  child: Text(
+                    _reportCountry.isEmpty ? "Search country" : _reportCountry,
+                    style: TextStyle(
+                      color: _reportCountry.isEmpty
+                          ? Colors.black.withValues(alpha: 0.55)
+                          : Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(6),
+                onTap: _reportCountry.isEmpty
+                    ? null
+                    : () async {
+                        final selected = await _showSearchableSelectionDialog(
+                          context: context,
+                          title: "Select State",
+                          options: provider.stateOptions,
+                          initialValue: _reportState,
+                          theme: theme,
+                        );
+                        if (selected == null) return;
+                        setState(() {
+                          _reportState = selected.trim();
+                          _districtController.clear();
+                          _talukaController.clear();
+                          _cityController.clear();
+                        });
+                      },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: "State",
+                    labelStyle: TextStyle(
+                      color: theme.primaryColor.withValues(alpha: 0.75),
+                    ),
+                    border: const OutlineInputBorder(),
+                    enabled: _reportCountry.isNotEmpty,
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: theme.dividerColor.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    suffixIcon: Icon(
+                      Icons.search,
+                      color: theme.primaryColor.withValues(alpha: 0.85),
+                    ),
+                  ),
+                  child: Text(
+                    _reportState.isEmpty ? "Search state" : _reportState,
+                    style: TextStyle(
+                      color: _reportState.isEmpty
+                          ? Colors.black.withValues(alpha: 0.55)
+                          : Colors.black,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: TextField(
+                controller: _districtController,
+                enabled: _reportState.isNotEmpty,
+                decoration: const InputDecoration(
+                  labelText: "District",
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) {
+                  setState(() {
+                    _talukaController.clear();
+                    _cityController.clear();
+                  });
+                },
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: TextField(
+                controller: _talukaController,
+                enabled: _districtController.text.trim().isNotEmpty,
+                decoration: const InputDecoration(
+                  labelText: "Taluka",
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: (_) {
+                  setState(() {
+                    _cityController.clear();
+                  });
+                },
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: TextField(
+                controller: _cityController,
+                enabled: _talukaController.text.trim().isNotEmpty,
+                decoration: const InputDecoration(
+                  labelText: "City",
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: OutlinedButton.icon(
+                onPressed: _pickReportDateRange,
+                icon: const Icon(Icons.date_range),
+                label: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    dateLabel,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: theme.primaryColor,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                  side: BorderSide(color: theme.dividerColor),
+                ),
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: ElevatedButton.icon(
+                onPressed: () async => _applyReportFilters(),
+                icon: const Icon(Icons.filter_alt),
+                label: const Text("Apply Filters"),
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: OutlinedButton.icon(
+                onPressed: _clearReportFilters,
+                icon: const Icon(Icons.refresh),
+                label: const Text("Reset"),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCompactReportList(
+      List<ReportAndDataObject> movies, ThemeData selectedThemeData) {
+    return Column(
+      children: movies
+          .map(
+            (movie) => Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              color: selectedThemeData.scaffoldBackgroundColor,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      movie.movieName ?? '-',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: selectedThemeData.primaryColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text("Release: ${movie.releasedDate ?? '-'}"),
+                    Text("Views: ${_formatNumber(_toInt(movie.views))}"),
+                    Text("Revenue: ${_formatNumber(_toDouble(movie.revenue))}"),
+                    Text("Commission: ${movie.percentageMediaHouse ?? 0}%"),
+                    Text(
+                        "Net Revenue: ${_formatNumber(_toInt(movie.netRevenue))}"),
+                    const SizedBox(height: 6),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: movie.views == null
+                            ? null
+                            : () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MovieDetailsPage(
+                                      movieId: movie.views!,
+                                    ),
+                                  ),
+                                );
+                              },
+                        child: const Text("Open"),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
   }
 
   @override
@@ -228,18 +786,19 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       backgroundColor: selectedThemeData.scaffoldBackgroundColor,
       body: Consumer<GraphProvider>(
         builder: (context, provider, child) {
+          final isCompact = MediaQuery.of(context).size.width < 820;
           final sortedMovies = getSortedMovies(provider);
           final totalViews = sortedMovies.fold<int>(
             0,
-            (sum, movie) => sum + _toInt(movie.totalViews),
+            (sum, movie) => sum + _toInt(movie.views),
           );
           final totalRevenue = sortedMovies.fold<double>(
             0,
-            (sum, movie) => sum + _toDouble(movie.totalRevenue),
+            (sum, movie) => sum + _toDouble(movie.revenue),
           );
           final totalNetRevenue = sortedMovies.fold<int>(
             0,
-            (sum, movie) => sum + _toInt(movie.earnedIncentive),
+            (sum, movie) => sum + _toInt(movie.netRevenue),
           );
 
           return RefreshIndicator(
@@ -262,7 +821,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   Text(
                     "Monitor performance and revenue across all published content.",
                     style: TextStyle(
-                      color: selectedThemeData.primaryColor.withValues(alpha: 0.7),
+                      color:
+                          selectedThemeData.primaryColor.withValues(alpha: 0.7),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -319,7 +879,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   ),
                   const SizedBox(height: 10),
                   Container(
-                    height: 360,
+                    height: isCompact ? 290 : 360,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: selectedThemeData.cardColor,
@@ -343,22 +903,39 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   Card(
                     color: selectedThemeData.cardColor,
                     child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: _buildReportFilters(provider, selectedThemeData),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Card(
+                    color: selectedThemeData.cardColor,
+                    child: Padding(
                       padding: const EdgeInsets.all(16),
-                      child: sortedMovies.isEmpty
-                          ? Center(
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 24),
-                                child: Text(
-                                  "No report data found.",
-                                  style: TextStyle(
-                                    color: selectedThemeData.primaryColor
-                                        .withValues(alpha: 0.7),
-                                  ),
-                                ),
-                              ),
+                      child: provider.isLoadingReportData
+                          ? const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 24),
+                              child: Center(child: CircularProgressIndicator()),
                             )
-                          : _buildMovieTable(sortedMovies, selectedThemeData),
+                          : sortedMovies.isEmpty
+                              ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 24),
+                                    child: Text(
+                                      "No report data found.",
+                                      style: TextStyle(
+                                        color: selectedThemeData.primaryColor
+                                            .withValues(alpha: 0.7),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : isCompact
+                                  ? _buildCompactReportList(
+                                      sortedMovies, selectedThemeData)
+                                  : _buildMovieTable(
+                                      sortedMovies, selectedThemeData),
                     ),
                   ),
                   const SizedBox(height: 12),

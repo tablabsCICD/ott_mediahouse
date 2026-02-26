@@ -31,6 +31,7 @@ class ApiConstant {
       "${baseUrl}api/admin/mediaHouseDashboardApi?mediaHouseId=$id";
 
   static String saveVideo = '${baseUrl}api/addContent';
+  static String saveCast = '${baseUrl}api/saveCast';
   static String editVideoById(id) => "${baseUrl}api/contentList/update/$id";
   static String getAllVideo = "${baseUrl}api/ContentList/getAll";
   static String getVideoById(id) => "${baseUrl}api/ContentList/getById?id=$id";
@@ -201,8 +202,41 @@ class ApiConstant {
       "${baseUrl}api/contentList/graph?contentListId=$id&startDate=$startDate&endDate=$endDate&isYear=$isYear&isMonth=$isMonth&isWeek=$isWeek";
 
   static String setPercentage = "${baseUrl}api/admin/saveMoviePercentAndRate";
-  static String reportAndData(id) =>
-      "${baseUrl}api/mediaHouseLineCharts/getDetailsOfMovieByMediaHouseId?mediaHouseId=$id";
+  static String reportAndData(
+    id, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+    String? startDate,
+    String? endDate,
+  }) {
+    final params = <String, String>{
+      'id': '$id',
+    };
+
+    void putIfNotBlank(String key, String? value) {
+      if (value != null && value.trim().isNotEmpty) {
+        params[key] = value.trim();
+      }
+    }
+
+    putIfNotBlank('contentType', contentType);
+    putIfNotBlank('country', country);
+    putIfNotBlank('state', state);
+    putIfNotBlank('district', district);
+    putIfNotBlank('taluka', taluka);
+    putIfNotBlank('city', city);
+    putIfNotBlank('startDate', startDate);
+    putIfNotBlank('endDate', endDate);
+
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    return "${baseUrl}api/reportAndDataMediaHouse/getById?$query";
+  }
 
   static String releaseMovieCountGraphByMediaHouse(
     id,
