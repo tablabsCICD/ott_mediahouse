@@ -65,7 +65,7 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       scaffoldMessengerKey: globalMessengerKey,
-      title: 'OTT Media House',
+      title: 'OTT Production House',
       theme: themeProvider.getTheme,
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,
@@ -76,4 +76,3 @@ class MyApp extends StatelessWidget {
   }
 }
 // latest code
-

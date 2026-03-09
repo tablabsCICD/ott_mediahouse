@@ -70,11 +70,11 @@ class _SetPercentageDialogState extends State<SetPercentageDialog> {
 
             const SizedBox(height: 10),
 
-            // Media House and Platform percentage display
+            // Production House and Platform percentage display
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Media House: $_percentage%"),
+                Text("Production House: $_percentage%"),
                 Text("Platform: ${100 - _percentage}%"),
               ],
             ),
@@ -89,7 +89,7 @@ class _SetPercentageDialogState extends State<SetPercentageDialog> {
                 cursorColor: selectedThemeData.primaryColor,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: "Media House %",
+                  labelText: "Production House %",
                   labelStyle: TextStyle(
                     color: selectedThemeData.canvasColor,
                   ),

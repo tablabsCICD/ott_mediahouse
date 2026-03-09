@@ -389,7 +389,7 @@ class MediaHouseProvider extends ChangeNotifier {
 
     try {
       var response = await apiHelper.getApi(apiUrl);
-      debugPrint("media house by id response::: ${response.body}");
+      debugPrint("Production house by id response::: ${response.body}");
 
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
@@ -478,11 +478,11 @@ class MediaHouseProvider extends ChangeNotifier {
         }
       } else {
         throw Exception(
-            'Failed to fetch Media House. Status code: ${response.statusCode}');
+            'Failed to fetch Production House. Status code: ${response.statusCode}');
       }
     } catch (error) {
       debugPrint("Error: $error");
-      throw Exception('An error occurred while fetching Media House.');
+      throw Exception('An error occurred while fetching Production House.');
     }
   }
 
@@ -899,17 +899,10 @@ class MediaHouseProvider extends ChangeNotifier {
       Map<String, dynamic> responseBody = json.decode(response.body);
 
       ChartResponse chartResponse = ChartResponse.fromJson(responseBody);
-      final hasData = chartResponse.data != null && chartResponse.data!.isNotEmpty;
+      final hasData =
+          chartResponse.data != null && chartResponse.data!.isNotEmpty;
       if (chartResponse.success == true || hasData) {
-        graphData.clear();
-        for (var data in chartResponse.data!) {
-          graphData.add(
-            LineChartData(
-              (data.label ?? '').trim().isEmpty ? 'N/A' : data.label!,
-              data.value ?? 0,
-            ),
-          );
-        }
+        _setNormalizedGraphData(chartResponse.data);
         notifyListeners();
       } else {
         CustomToast.show(chartResponse.message.toString());
@@ -974,17 +967,10 @@ class MediaHouseProvider extends ChangeNotifier {
       Map<String, dynamic> responseBody = json.decode(response.body);
 
       ChartResponse chartResponse = ChartResponse.fromJson(responseBody);
-      final hasData = chartResponse.data != null && chartResponse.data!.isNotEmpty;
+      final hasData =
+          chartResponse.data != null && chartResponse.data!.isNotEmpty;
       if (chartResponse.success == true || hasData) {
-        graphData.clear();
-        for (var data in chartResponse.data!) {
-          graphData.add(
-            LineChartData(
-              (data.label ?? '').trim().isEmpty ? 'N/A' : data.label!,
-              data.value ?? 0,
-            ),
-          );
-        }
+        _setNormalizedGraphData(chartResponse.data);
         notifyListeners();
       } else {
         CustomToast.show(chartResponse.message.toString());
@@ -1052,17 +1038,10 @@ class MediaHouseProvider extends ChangeNotifier {
       Map<String, dynamic> responseBody = json.decode(response.body);
 
       ChartResponse chartResponse = ChartResponse.fromJson(responseBody);
-      final hasData = chartResponse.data != null && chartResponse.data!.isNotEmpty;
+      final hasData =
+          chartResponse.data != null && chartResponse.data!.isNotEmpty;
       if (chartResponse.success == true || hasData) {
-        graphData.clear();
-        for (var data in chartResponse.data!) {
-          graphData.add(
-            LineChartData(
-              (data.label ?? '').trim().isEmpty ? 'N/A' : data.label!,
-              data.value ?? 0,
-            ),
-          );
-        }
+        _setNormalizedGraphData(chartResponse.data);
         notifyListeners();
       } else {
         CustomToast.show(chartResponse.message.toString(),
@@ -1072,6 +1051,27 @@ class MediaHouseProvider extends ChangeNotifier {
       debugPrint("Error occurred while fetching graph data: $error");
       throw Exception('Failed to fetch graph data. Error: $error');
     }
+  }
+
+  void _setNormalizedGraphData(List<dynamic>? rawData) {
+    graphData.clear();
+    if (rawData == null || rawData.isEmpty) return;
+
+    final Map<String, double> merged = <String, double>{};
+
+    for (final item in rawData) {
+      final rawLabel = (item.label ?? '').toString().trim();
+      final label = rawLabel.isEmpty ? 'N/A' : rawLabel;
+      final value = (item.value is num)
+          ? (item.value as num).toDouble()
+          : double.tryParse('${item.value}') ?? 0.0;
+
+      merged[label] = (merged[label] ?? 0.0) + value;
+    }
+
+    merged.forEach((label, value) {
+      graphData.add(LineChartData(label, value));
+    });
   }
 }
 

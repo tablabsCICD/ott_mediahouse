@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:media_house/app/core/constant/image_constant.dart';
 import 'package:media_house/app/provider/shorts_provider.dart';
@@ -16,41 +18,132 @@ class ShortsPage extends StatefulWidget {
 
 class _ShortsPageState extends State<ShortsPage> {
   final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
   String _query = '';
   DateTime? _fromDate;
   DateTime? _toDate;
   String _sortBy = 'newest';
+  String? _trendingLanguage;
+  static const List<String> _trendingLanguages = [
+    'Marathi',
+    'Hindi',
+    'English',
+    'Gujarati',
+    'Tamil',
+    'Telugu',
+    'Kannada',
+    'Malayalam',
+    'Punjabi',
+    'Bengali',
+  ];
 
   @override
   void initState() {
     super.initState();
     _searchCtrl.addListener(() {
-      setState(() {
-        _query = _searchCtrl.text.trim().toLowerCase();
+      _query = _searchCtrl.text.trim();
+      _searchDebounce?.cancel();
+      _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+        if (!mounted) return;
+        _loadShortsFromFilters();
       });
     });
-    context.read<ShortProvider>().fetchShorts();
+    context.read<ShortProvider>().fetchShorts(page: 0, size: 10);
   }
 
-  DateTime? _parseDate(dynamic rawDate) {
-    if (rawDate == null) return null;
-    if (rawDate is int) {
-      return rawDate > 9999999999
-          ? DateTime.fromMillisecondsSinceEpoch(rawDate)
-          : DateTime.fromMillisecondsSinceEpoch(rawDate * 1000);
+  Future<void> _loadShortsFromFilters() async {
+    final provider = context.read<ShortProvider>();
+    if (_sortBy == 'trending_first') {
+      await provider.fetchTrendingShorts(
+        lang: _trendingLanguage,
+        page: 0,
+        size: 10,
+      );
+      return;
     }
-    return DateTime.tryParse(rawDate.toString());
+    if (_fromDate != null && _toDate != null) {
+      await provider.fetchShortsByDateRange(
+        startDate: _fromDate!,
+        endDate: _toDate!,
+        page: 0,
+        size: 10,
+      );
+      return;
+    }
+    await provider.fetchShorts(
+      keyword: _query,
+      page: 0,
+      size: 10,
+    );
   }
 
-  bool _inDateRange(DateTime? date) {
-    if (date == null) return true;
-    if (_fromDate != null && date.isBefore(_fromDate!)) return false;
-    if (_toDate != null) {
-      final end =
-          DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
-      if (date.isAfter(end)) return false;
-    }
-    return true;
+  String get _selectedTrendingLanguageText =>
+      _trendingLanguage == null ? 'All Languages' : _trendingLanguage!;
+
+  Future<void> _pickTrendingLanguagePopup() async {
+    const allValue = '__ALL__';
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        final activeLanguage = _trendingLanguage;
+        Widget buildOption({
+          required String value,
+          required String label,
+          required bool selected,
+        }) {
+          return ListTile(
+            dense: true,
+            leading: Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_off_outlined,
+              color: selected
+                  ? theme.primaryColor
+                  : theme.canvasColor.withValues(alpha: 0.6),
+            ),
+            title: Text(label),
+            onTap: () => Navigator.pop(dialogContext, value),
+          );
+        }
+
+        return AlertDialog(
+          title: const Text('Select Trending Language'),
+          content: SizedBox(
+            width: 320,
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                buildOption(
+                  value: allValue,
+                  label: 'All Languages',
+                  selected: activeLanguage == null,
+                ),
+                ..._trendingLanguages.map(
+                  (language) => buildOption(
+                    value: language,
+                    label: language,
+                    selected: activeLanguage == language,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted || picked == null) return;
+
+    setState(() {
+      _trendingLanguage = picked == allValue ? null : picked;
+    });
   }
 
   Future<void> _pickDateRange() async {
@@ -82,6 +175,7 @@ class _ShortsPageState extends State<ShortsPage> {
       _fromDate = picked.start;
       _toDate = picked.end;
     });
+    await _loadShortsFromFilters();
   }
 
   String _formatDate(DateTime date) {
@@ -93,10 +187,13 @@ class _ShortsPageState extends State<ShortsPage> {
 
   void _resetFilters() {
     setState(() {
+      _searchCtrl.clear();
+      _query = '';
       _fromDate = null;
       _toDate = null;
       _sortBy = 'newest';
     });
+    context.read<ShortProvider>().fetchShorts(page: 0, size: 10);
   }
 
   @override
@@ -115,47 +212,11 @@ class _ShortsPageState extends State<ShortsPage> {
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Consumer<ShortProvider>(
         builder: (context, provider, _) {
-          final filteredShorts = provider.shorts.where((short) {
-            final title = (short.title ?? '').toLowerCase();
-            final date = _parseDate(short.createdAt ?? short.createdDate);
-            final matchesSearch = _query.isEmpty || title.contains(_query);
-            return matchesSearch && _inDateRange(date);
-          }).toList();
-
-          filteredShorts.sort((a, b) {
-            switch (_sortBy) {
-              case 'views_high':
-                return (b.viewCount ?? 0).compareTo(a.viewCount ?? 0);
-              case 'likes_high':
-                return (b.likeCount ?? 0).compareTo(a.likeCount ?? 0);
-              case 'parts_high':
-                return (b.totalParts ?? 0).compareTo(a.totalParts ?? 0);
-              case 'coins_high':
-                return (b.coinsPerPart ?? 0).compareTo(a.coinsPerPart ?? 0);
-              case 'title_az':
-                return (a.title ?? '').compareTo(b.title ?? '');
-              case 'title_za':
-                return (b.title ?? '').compareTo(a.title ?? '');
-              case 'trending_first':
-                return (b.isTrending == true ? 1 : 0)
-                    .compareTo(a.isTrending == true ? 1 : 0);
-              case 'oldest':
-                final aDate =
-                    _parseDate(a.createdAt ?? a.createdDate) ?? DateTime(1970);
-                final bDate =
-                    _parseDate(b.createdAt ?? b.createdDate) ?? DateTime(1970);
-                return aDate.compareTo(bDate);
-              case 'newest':
-              default:
-                final aDate =
-                    _parseDate(a.createdAt ?? a.createdDate) ?? DateTime(1970);
-                final bDate =
-                    _parseDate(b.createdAt ?? b.createdDate) ?? DateTime(1970);
-                return bDate.compareTo(aDate);
-            }
-          });
-
-          final totalItems = filteredShorts.length + 1;
+          final loadedShorts = provider.shorts;
+          final totalItems = loadedShorts.length + 1;
+          final countLabel = provider.shortsTotalItems > 0
+              ? provider.shortsTotalItems
+              : loadedShorts.length;
 
           return Padding(
             padding: EdgeInsets.symmetric(
@@ -164,7 +225,7 @@ class _ShortsPageState extends State<ShortsPage> {
             ),
             child: Column(
               children: [
-                _buildTopAndFilterPanel(theme, filteredShorts.length),
+                _buildTopAndFilterPanel(theme, countLabel),
                 const SizedBox(height: 8),
                 if (provider.isLoading)
                   Padding(
@@ -175,7 +236,7 @@ class _ShortsPageState extends State<ShortsPage> {
                           theme.dividerColor.withValues(alpha: 0.25),
                     ),
                   ),
-                if (filteredShorts.isEmpty)
+                if (loadedShorts.isEmpty)
                   Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -209,7 +270,7 @@ class _ShortsPageState extends State<ShortsPage> {
                         return _buildAddShortTile(theme);
                       }
 
-                      final short = filteredShorts[index - 1];
+                      final short = loadedShorts[index - 1];
                       return _buildShortTile(short, theme);
                     },
                   ),
@@ -266,7 +327,7 @@ class _ShortsPageState extends State<ShortsPage> {
         const SizedBox(width: 8),
         IconButton(
           tooltip: 'Refresh',
-          onPressed: () => context.read<ShortProvider>().fetchShorts(),
+          onPressed: _loadShortsFromFilters,
           icon: const Icon(Icons.refresh_rounded),
         )
       ],
@@ -332,7 +393,6 @@ class _ShortsPageState extends State<ShortsPage> {
         Icons.search,
         color: theme.canvasColor,
       ),
-      onValueChange: (_) => setState(() {}),
     );
   }
 
@@ -360,10 +420,15 @@ class _ShortsPageState extends State<ShortsPage> {
     final trendingChip = FilterChip(
       selected: _sortBy == 'trending_first',
       label: const Text('Trending'),
-      onSelected: (_) {
-        setState(() {
-          _sortBy = _sortBy == 'trending_first' ? 'newest' : 'trending_first';
-        });
+      onSelected: (selected) async {
+        if (selected) {
+          setState(() => _sortBy = 'trending_first');
+          await _pickTrendingLanguagePopup();
+          await _loadShortsFromFilters();
+          return;
+        }
+        setState(() => _sortBy = 'newest');
+        await _loadShortsFromFilters();
       },
       backgroundColor: theme.cardColor.withValues(alpha: 0.7),
       selectedColor: theme.primaryColor.withValues(alpha: 0.18),
@@ -381,6 +446,38 @@ class _ShortsPageState extends State<ShortsPage> {
       ),
     );
 
+    final trendingLanguageTag = InkWell(
+      onTap: _sortBy == 'trending_first'
+          ? () async {
+              await _pickTrendingLanguagePopup();
+              await _loadShortsFromFilters();
+            }
+          : null,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        constraints: const BoxConstraints(minWidth: 120),
+        alignment: Alignment.center,
+        child: Text(
+          _selectedTrendingLanguageText,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: theme.canvasColor.withValues(alpha: 0.88),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+
+    final trendingLanguageWrap = Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.6)),
+      ),
+      child: trendingLanguageTag,
+    );
+
     if (compact) {
       return Wrap(
         spacing: 8,
@@ -389,6 +486,7 @@ class _ShortsPageState extends State<ShortsPage> {
         children: [
           SizedBox(width: 240, child: dateButton),
           trendingChip,
+          if (_sortBy == 'trending_first') trendingLanguageWrap,
           resetButton,
         ],
       );
@@ -400,6 +498,10 @@ class _ShortsPageState extends State<ShortsPage> {
         Expanded(child: dateButton),
         const SizedBox(width: 8),
         trendingChip,
+        if (_sortBy == 'trending_first') ...[
+          const SizedBox(width: 8),
+          SizedBox(width: 150, child: trendingLanguageWrap),
+        ],
         const SizedBox(width: 6),
         resetButton,
       ],
@@ -444,7 +546,6 @@ class _ShortsPageState extends State<ShortsPage> {
       onTap: () async {
         final navigator = Navigator.of(context);
         final messenger = ScaffoldMessenger.of(context);
-        final shortProvider = context.read<ShortProvider>();
 
         final deleted = await navigator.push<bool>(
           MaterialPageRoute(
@@ -462,7 +563,7 @@ class _ShortsPageState extends State<ShortsPage> {
             ),
           );
 
-          shortProvider.fetchShorts();
+          _loadShortsFromFilters();
         }
       },
       child: ClipRRect(
@@ -566,6 +667,7 @@ class _ShortsPageState extends State<ShortsPage> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }

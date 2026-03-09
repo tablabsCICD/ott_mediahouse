@@ -31,7 +31,7 @@ class _SignUpPageState extends State<SignUpPage> {
   ];
 
   final Map<String, String> _labels = {
-    'mediaHouseName': 'Media House Name',
+    'mediaHouseName': 'Production House Name',
     'firmType': 'Firm Type',
     'discription': 'Description',
     'email': 'Email',
@@ -422,7 +422,7 @@ class _SignUpPageState extends State<SignUpPage> {
           child: Column(
             children: [
               Text(
-                'Media House Sign Up',
+                'Production House Sign Up',
                 style: TextStyle(
                   color: themeData.primaryColor,
                   fontSize: 18,

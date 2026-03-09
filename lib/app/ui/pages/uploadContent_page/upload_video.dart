@@ -104,7 +104,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     final options = {
       'key': _razorpayKeyId,
       'amount': amountInPaise,
-      'name': 'OTT Media House',
+      'name': 'OTT Production House',
       'description': 'Registration Fee',
       'prefill': {
         'contact': user?.mobileNumber ?? '',
@@ -118,7 +118,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       await WebRazorpayGateway.openCheckout(
         keyId: _razorpayKeyId,
         amountInPaise: amountInPaise,
-        merchantName: 'OTT Media House',
+        merchantName: 'OTT Production House',
         description: 'Registration Fee',
         prefillContact: user?.mobileNumber ?? '',
         prefillEmail: user?.emailId ?? '',
@@ -300,7 +300,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             [
               UploadFormHelpers.buildModernMultiSelectDropdownField(
                 'Languages',
-                _languages,
+                languages,
                 context,
                 theme,
               ),
@@ -342,7 +342,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             [
               UploadFormHelpers.buildModernDropdownField(
                 'Age Rating',
-                _ageRatings,
+                ageRatings,
                 context,
                 provider,
                 theme,
@@ -350,7 +350,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
               const SizedBox(height: 16),
               UploadFormHelpers.buildModernMultiSelectDropdownField(
                 'Genres',
-                _genres,
+                genres,
                 context,
                 theme,
               ),
@@ -372,7 +372,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             [
               UploadFormHelpers.buildModernMultiSelectDropdownField(
                 'Languages',
-                _languages,
+                languages,
                 context,
                 theme,
               ),
@@ -408,7 +408,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             [
               UploadFormHelpers.buildModernDropdownField(
                 'Age Rating',
-                _ageRatings,
+                ageRatings,
                 context,
                 provider,
                 theme,
@@ -416,7 +416,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
               const SizedBox(height: 16),
               UploadFormHelpers.buildModernMultiSelectDropdownField(
                 'Genres',
-                _genres,
+                genres,
                 context,
                 theme,
               ),
@@ -452,7 +452,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
               ),
               UploadFormHelpers.buildModernDropdownField(
                 'Rental Duration',
-                _rentalDurations,
+                rentalDurations,
                 context,
                 provider,
                 theme,
@@ -759,14 +759,14 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
           [
             UploadFormHelpers.buildModernMultiSelectDropdownField(
               'Audio Formats',
-              _audioFormats,
+              audioFormats,
               context,
               theme,
             ),
             const SizedBox(height: 16),
             UploadFormHelpers.buildModernMultiSelectDropdownField(
               'Subtitle Languages',
-              _languages,
+              languages,
               context,
               theme,
             ),
@@ -1128,7 +1128,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   }
 
   bool _validatePageThree(VideoProvider provider) {
-    if (!provider.isRegistrationFeePaid) {
+    /*  if (!provider.isRegistrationFeePaid) {
       CustomToast.show(
         "Registration fee is not paid (N). Upload is blocked.",
         isSuccess: false,
@@ -1147,7 +1147,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
         isSuccess: false,
       );
       return false;
-    }
+    } */
 
     final trailerUrl = provider.trailerUrlController.text.trim();
     if (trailerUrl.isEmpty) {
@@ -1163,13 +1163,13 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       }
     }
 
-    if (provider.hasIncompleteCastDraft) {
+    /*  if (provider.hasIncompleteCastDraft) {
       CustomToast.show(
         "Please complete cast draft or clear it before submit.",
         isSuccess: false,
       );
       return false;
-    }
+    } */
     return true;
   }
 
@@ -1267,14 +1267,14 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   }
 }
 
-const List<String> _ageRatings = [
+const List<String> ageRatings = [
   'U (Universal)',
   'U/A (Parental Guidance for Children Below 12)',
   'A (Adults Only)',
   'S (Restricted to a Special Class of Persons)',
 ];
 
-const List<String> _rentalDurations = [
+const List<String> rentalDurations = [
   "One Time",
   "One Day",
   "Two Day",
@@ -1284,7 +1284,7 @@ const List<String> _rentalDurations = [
   "One Month"
 ];
 
-const List<String> _genres = [
+const List<String> genres = [
   'Action',
   'Drama',
   'Comedy',
@@ -1302,7 +1302,7 @@ const List<String> _genres = [
   'Crime',
 ];
 
-const List<String> _audioFormats = [
+const List<String> audioFormats = [
   'Stereo',
   'Dolby',
   'Mono',
@@ -1311,7 +1311,7 @@ const List<String> _audioFormats = [
   'Dolby Digital (AC-3)',
 ];
 
-const List<String> _languages = [
+const List<String> languages = [
   'Hindi',
   'English',
   'Bengali',

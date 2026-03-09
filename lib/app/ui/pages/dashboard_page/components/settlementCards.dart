@@ -286,9 +286,9 @@ class _SettlementCardState extends State<SettlementCard> {
                 Divider(
                   color: selectedThemeData.canvasColor.withOpacity(0.2),
                 ),
-                _buildDetailRow('Media House Share %',
+                _buildDetailRow('Production House Share %',
                     _parseNumber(data.mediaHouseSharePercentage)),
-                _buildDetailRow('Media House Revenue Share',
+                _buildDetailRow('Production House Revenue Share',
                     _parseNumber(data.mediaHouseRevenueShare)),
                 Divider(
                   color: selectedThemeData.canvasColor.withOpacity(0.2),

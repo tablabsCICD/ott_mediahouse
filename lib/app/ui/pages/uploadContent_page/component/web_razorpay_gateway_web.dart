@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:html' as html;
 // ignore: avoid_web_libraries_in_flutter
-import 'dart:js_util' as js_util;
+import 'js_util_compat.dart' as js_util;
 
 class WebRazorpayGatewayImpl {
   static const String _checkoutScriptSrc =

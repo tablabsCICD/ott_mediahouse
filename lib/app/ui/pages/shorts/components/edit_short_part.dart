@@ -12,6 +12,7 @@ import '../../../../../data/models/response/content_image_upload_response.dart';
 import '../../../../../data/models/response/short_detail_response.dart';
 import '../../../../core/constant/api_constant.dart';
 import '../../../../provider/shorts_provider.dart';
+import '../../../../widget/show_toast.dart';
 
 class EditShortPartDialog extends StatefulWidget {
   final int shortId;
@@ -37,10 +38,9 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
   String? uploadedImageUrl;
   late String _initialTitle;
   late String _initialVideoUrl;
-  late String? _initialThumbnail;
+  late String _initialThumbnail;
   late bool _initialFreePreview;
-  late String? _intialCoin;
-
+  late String _intialCoin;
 
   @override
   void initState() {
@@ -55,9 +55,10 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
 
     _initialTitle = titleCtrl.text;
     _initialVideoUrl = videoUrlCtrl.text;
-    _initialThumbnail = uploadedImageUrl;
+    _initialThumbnail = uploadedImageUrl!;
     _initialFreePreview = isFreePreview;
-    _intialCoin = coinUrlCtrl.text;
+    //  _intialCoin = coinUrlCtrl.text;
+
     /// ✅ LISTEN FOR VIDEO UPLOAD RESULT
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<ShortProvider>();
@@ -77,12 +78,11 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
 
   bool get _hasChanges {
     return titleCtrl.text.trim() != _initialTitle ||
+        //    coinUrlCtrl.text.trim() != _intialCoin ||
         videoUrlCtrl.text.trim() != _initialVideoUrl ||
         uploadedImageUrl != _initialThumbnail ||
-        coinUrlCtrl.text.trim() != _intialCoin ||
         isFreePreview != _initialFreePreview;
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +108,7 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
                 child: Column(
                   children: [
                     _darkField("Title", titleCtrl),
-                    _darkField("Coins", coinUrlCtrl),
+                    //  _darkField("Price", coinUrlCtrl),
                     _videoCard(provider),
                     _thumbnailCard(),
                     _freePreviewSwitch(),
@@ -217,17 +217,15 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
 
           /// ⬆️ UPLOAD BUTTON
           else ...[
-              _uploadButton(
-                label: "Upload Video",
-                onTap: () => provider.uploadVideo(false),
-              ),
-            ],
+            _uploadButton(
+              label: "Upload Video",
+              onTap: () => provider.uploadVideo(false),
+            ),
+          ],
         ],
       ),
     );
   }
-
-
 
   // ===============================================================
   // THUMBNAIL CARD (CREATE-LIKE)
@@ -240,35 +238,35 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
       title: "Thumbnail",
       child: hasThumb
           ? Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              uploadedImageUrl!,
-              height: 120,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _actionRow(
-            onReplace: () async {
-              await pickImage(setState);
-            },
-            onRemove: () {
-              setState(() {
-                uploadedImageUrl = null;
-              });
-            },
-          ),
-        ],
-      )
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    uploadedImageUrl!,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _actionRow(
+                  onReplace: () async {
+                    await pickImage(setState);
+                  },
+                  onRemove: () {
+                    setState(() {
+                      uploadedImageUrl = null;
+                    });
+                  },
+                ),
+              ],
+            )
           : _uploadButton(
-        label: "Upload Thumbnail",
-        onTap: () async {
-         await pickImage(setState);
-        },
-      ),
+              label: "Upload Thumbnail",
+              onTap: () async {
+                await pickImage(setState);
+              },
+            ),
     );
   }
 
@@ -294,7 +292,6 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
     );
   }
 
-
   Widget _uploadButton({
     required String label,
     required VoidCallback onTap,
@@ -315,7 +312,6 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
       ),
     );
   }
-
 
   Widget _uploadCard({
     required String title,
@@ -406,7 +402,6 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
             backgroundColor: Colors.orange,
           ),
           onPressed: provider.isSubmitting || !_hasChanges ? null : _submit,
-
           child: provider.isSubmitting
               ? const CircularProgressIndicator(color: Colors.white)
               : const Text("Update Part"),
@@ -423,25 +418,26 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
     final provider = context.read<ShortProvider>();
 
     final body = {
-      "coins": coinUrlCtrl.text.trim(),
-      "durationSec": 0,
+      //  "coins": coinUrlCtrl.text.trim(),
       "id": widget.part.partId,
       "isFreePreview": isFreePreview,
-      "likes": 0,
-      "partNumber": 0,
-      "shortId": widget.shortId,
       "thumbnail": uploadedImageUrl,
       "title": titleCtrl.text.trim(),
       "videoUrl": videoUrlCtrl.text.trim(),
     };
 
-    final success = await provider.updateShortPart(body,widget.part.partId!);
+    final success = await provider.updateShortPart(body, widget.part.partId!);
 
     if (!mounted) return;
 
     if (success) {
+      CustomToast.show("Part updated successfully", isSuccess: true);
       Navigator.pop(context, true);
+      return;
     }
+
+    CustomToast.show("Failed to update part. Please try again.",
+        isSuccess: false);
   }
 
   io.File? imageFile;
@@ -454,8 +450,7 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
       final uri = Uri.parse(ApiConstant.uploadContentImg);
       uploadProgress = 0;
 
-      http.MultipartRequest request =
-      http.MultipartRequest('POST', uri);
+      http.MultipartRequest request = http.MultipartRequest('POST', uri);
 
       Uint8List bytes;
 
@@ -511,7 +506,6 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
       debugPrint("❌ Upload error: $e");
     }
   }
-
 
   Future<void> pickImage(StateSetter setState) async {
     if (kIsWeb) {

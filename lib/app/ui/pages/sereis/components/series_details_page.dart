@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_house/app/ui/pages/DisplayTrailer.dart';
 import 'package:media_house/app/ui/pages/sereis/components/season_details.dart';
@@ -8,6 +9,8 @@ import 'package:provider/provider.dart';
 import '../../../../../device/utils/ResponsiveWidget.dart';
 import '../../../../provider/series_provider.dart';
 import '../../../../provider/themeProvider.dart';
+import '../../../../provider/videoProvider.dart';
+import '../../editMovie.dart';
 import '../../movie details page/component/actionButtonWidget.dart';
 import 'create_season_page.dart';
 
@@ -27,6 +30,9 @@ class SeriesDetailsPage extends StatefulWidget {
 
 class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
   int selectedSeasonIndex = 0;
+  int _posterIndex = 0;
+  bool _showFullDescription = false;
+  final PageController _posterController = PageController();
 
   @override
   void initState() {
@@ -36,18 +42,22 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
   }
 
   @override
+  void dispose() {
+    _posterController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context).getTheme;
+    final isDesktop = ResponsiveWidget.isDesktop(context);
 
     return Consumer<SeriesProvider>(
       builder: (context, provider, _) {
         if (provider.loading) {
           return Scaffold(
             backgroundColor: theme.scaffoldBackgroundColor,
-            body: Center(
-                child: CircularProgressIndicator(
-              color: theme.primaryColor,
-            )),
+            body: _loadingSkeleton(theme),
           );
         }
 
@@ -58,250 +68,215 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
             body: Center(
               child: Text(
                 provider.error ?? "No data",
+                style: TextStyle(color: theme.canvasColor),
                 textAlign: TextAlign.center,
               ),
             ),
           );
         }
 
-        Series series = data.series;
-        List<SeasonBundle> seasonList = data.seasons ?? [];
-
-        final hasSeasons = seasonList.isNotEmpty;
-        final currentSeason = hasSeasons
-            ? seasonList[selectedSeasonIndex.clamp(0, seasonList.length - 1)]
-            : null;
-
-        final episodes = currentSeason?.episodes ?? [];
+        final series = data.series;
+        final seasons = [...data.seasons]..sort(
+            (a, b) => (a.season.seasonNumber ?? 0).compareTo(
+              b.season.seasonNumber ?? 0,
+            ),
+          );
+        if (seasons.isNotEmpty && selectedSeasonIndex >= seasons.length) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            setState(() => selectedSeasonIndex = seasons.length - 1);
+          });
+        }
+        final safeIndex = selectedSeasonIndex.clamp(
+          0,
+          seasons.isEmpty ? 0 : seasons.length - 1,
+        );
+        final currentSeason = seasons.isEmpty ? null : seasons[safeIndex];
 
         return Scaffold(
           backgroundColor: theme.scaffoldBackgroundColor,
-          extendBodyBehindAppBar: true,
           appBar: AppBar(
-            forceMaterialTransparency: true,
-            title: ResponsiveWidget.isDesktop(context)
-                ? const SizedBox()
-                : Text(
-                    series.title ?? '',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                      color: theme.primaryColor,
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            centerTitle: true,
+            title: Text(
+              series.title,
+              style: TextStyle(
+                color: theme.canvasColor,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          body: SafeArea(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    theme.scaffoldBackgroundColor,
+                    theme.cardColor.withValues(alpha: 0.2),
+                    theme.scaffoldBackgroundColor,
+                  ],
+                ),
+              ),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isDesktop ? 24 : 14,
+                  vertical: 14,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1360),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 280),
+                          child: isDesktop
+                              ? _topDesktopLayout(
+                                  theme, series, seasons, currentSeason)
+                              : _topMobileLayout(
+                                  theme,
+                                  series,
+                                  seasons,
+                                  currentSeason,
+                                ),
+                        ),
+                        const SizedBox(height: 18),
+                        _seasonSection(theme, seasons),
+                        const SizedBox(height: 18),
+                        _episodeSection(theme, currentSeason),
+                      ],
                     ),
                   ),
-            backgroundColor: Colors.transparent,
-            centerTitle: true,
-            elevation: 0,
-          ),
-          body: Stack(
-            fit: StackFit.expand,
-            children: [
-              _buildBackground(
-                series.posterUrlList?.isNotEmpty == true
-                    ? series.posterUrlList!.first
-                    : null,
+                ),
               ),
-              _darkOverlay(),
-              ResponsiveWidget.isDesktop(context)
-                  ? _desktopLayout(
-                      context,
-                      theme,
-                      series,
-                      seasonList,
-                      currentSeason,
-                      episodes,
-                    )
-                  : _mobileLayout(
-                      context,
-                      theme,
-                      series,
-                      seasonList,
-                      currentSeason,
-                      episodes,
-                    ),
-            ],
+            ),
           ),
         );
       },
     );
   }
 
-  // ===================== DESKTOP UI =====================
-
-  Widget _desktopLayout(
-    BuildContext context,
+  Widget _topDesktopLayout(
     ThemeData theme,
     Series series,
     List<SeasonBundle> seasons,
     SeasonBundle? currentSeason,
-    List episodes,
   ) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 2,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: _buildBody(
-              context,
-              theme,
-              series,
-              seasons,
-              currentSeason,
-              episodes,
-              showTrailerButton: false,
-            ),
-          ),
-        ),
-        Expanded(
-          flex: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: TrailerPage(
-              trailerUrl: series.trailerURL ?? '',
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ===================== MOBILE UI =====================
-
-  Widget _mobileLayout(
-    BuildContext context,
-    ThemeData theme,
-    Series series,
-    List<SeasonBundle> seasons,
-    SeasonBundle? currentSeason,
-    List episodes,
-  ) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+    return _surfaceCard(
+      theme,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 80),
-          _buildBody(
-            context,
-            theme,
-            series,
-            seasons,
-            currentSeason,
-            episodes,
-            showTrailerButton: true,
+          Expanded(
+            flex: 4,
+            child: _leftPosterPanel(theme, series),
+          ),
+          SizedBox(
+            width: 20,
+          ),
+          Expanded(
+            flex: 6,
+            child: Column(
+              children: [
+                _rightInfoPanel(theme, series),
+                const SizedBox(height: 14),
+                _analyticsSection(theme, series, seasons),
+                if (currentSeason != null) ...[
+                  const SizedBox(height: 14),
+                  _surfaceCard(
+                    theme,
+                    child: buildSeasonAnalyticsDashboard(theme, currentSeason),
+                  ),
+                ]
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ===================== MAIN BODY =====================
-
-  Widget _buildBody(
-    BuildContext context,
+  Widget _topMobileLayout(
     ThemeData theme,
     Series series,
     List<SeasonBundle> seasons,
     SeasonBundle? currentSeason,
-    List episodes, {
-    required bool showTrailerButton,
-  }) {
+  ) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Center(
-          child: Text(
-            series.title ?? "",
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: theme.primaryColor,
-            ),
+        _leftPosterPanel(theme, series),
+        const SizedBox(height: 14),
+        _rightInfoPanel(theme, series),
+        const SizedBox(height: 14),
+        _analyticsSection(theme, series, seasons),
+        if (currentSeason != null) ...[
+          const SizedBox(height: 14),
+          _surfaceCard(
+            theme,
+            child: buildSeasonAnalyticsDashboard(theme, currentSeason),
           ),
-        ),
-
-        const SizedBox(height: 16),
-
-        _posterSlider(series),
-
-        const SizedBox(height: 16),
-
-        _actionButtons(context, series, showTrailerButton),
-
-        const SizedBox(height: 16),
-
-        Text(series.description ?? "",
-            style: const TextStyle(color: Colors.white70)),
-
-        const SizedBox(height: 16),
-
-        _addSeasonButton(context),
-
-        const SizedBox(height: 16),
-
-        if (seasons.isNotEmpty) _seasonTabs(seasons, theme),
-
-        const SizedBox(height: 16),
-
-        if (currentSeason != null)
-          buildSeasonAnalyticsDashboard(theme, currentSeason),
-
-        const SizedBox(height: 16),
-
-        /*  if (currentSeason != null)
-          buildSeasonApprovalUI(theme, currentSeason, context),*/
-
-        //  const SizedBox(height: 16),
-
-        if (currentSeason != null)
-          buildEpisodeManagementTable(theme, currentSeason),
+        ]
       ],
     );
   }
 
-  // ===================== UI WIDGETS =====================
+  Widget _leftPosterPanel(ThemeData theme, Series series) {
+    final posters = series.posterUrlList;
 
-  Widget _posterSlider(Series series) {
-    return SizedBox(
-      height: 220,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: series.posterUrlList?.length ?? 0,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (_, i) => ClipRRect(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ClipRRect(
           borderRadius: BorderRadius.circular(14),
-          child: Image.network(
-            series.posterUrlList![i],
-            width: 320,
-            fit: BoxFit.cover,
+          child: AspectRatio(
+            aspectRatio: 2 / 3,
+            child: posters.isEmpty
+                ? _posterFallback(theme)
+                : PageView.builder(
+                    controller: _posterController,
+                    itemCount: posters.length,
+                    onPageChanged: (index) {
+                      if (!mounted) return;
+                      setState(() => _posterIndex = index);
+                    },
+                    itemBuilder: (_, i) {
+                      return Image.network(
+                        posters[i],
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _posterFallback(theme),
+                      );
+                    },
+                  ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _actionButtons(BuildContext context, Series series, bool showTrailer) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (showTrailer)
-          ActionButtonWidget(
-            label: "Watch Trailer",
-            icon: Icons.play_circle_fill,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      TrailerPage(trailerUrl: series.trailerURL ?? ''),
+        if (posters.length > 1) ...[
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(posters.length, (index) {
+              final isActive = _posterIndex == index;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                height: 6,
+                width: isActive ? 18 : 6,
+                decoration: BoxDecoration(
+                  color: isActive ? theme.primaryColor : theme.dividerColor,
+                  borderRadius: BorderRadius.circular(8),
                 ),
               );
-            },
+            }),
           ),
-        const SizedBox(width: 16),
-        ActionButtonWidget(
-          label: 'Rent ₹${series.price}',
-          icon: Icons.movie,
+        ],
+        const SizedBox(height: 14),
+        _dashboardButton(
+          theme,
+          label: "Rent Rs ${series.price}",
+          icon: Icons.currency_rupee,
+          backgroundColor: theme.primaryColor,
           onTap: () {
             showDialog(
               context: context,
@@ -309,361 +284,992 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
             );
           },
         ),
+        const SizedBox(height: 10),
+        _dashboardButton(
+          theme,
+          label: "Watch Trailer",
+          icon: Icons.play_circle_fill,
+          backgroundColor: const Color(0xFF0F4C81),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TrailerPage(trailerUrl: series.trailerURL),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+        _dashboardButton(
+          theme,
+          label: "Edit Series",
+          icon: Icons.edit,
+          backgroundColor: const Color(0xFF155EEF),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EditVideoMovie(movie: widget.content),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+        _dashboardButton(
+          theme,
+          label: "Delete Series",
+          icon: Icons.delete_outline,
+          backgroundColor: const Color(0xFFB42318),
+          onTap: () => _confirmDelete(widget.content),
+        ),
       ],
     );
   }
 
-  Widget _addSeasonButton(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: ActionButtonWidget(
-        label: "Add Season",
-        icon: Icons.add_circle,
-        onTap: () {
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (_) => AddSeasonDialog(
-              seriesId: widget.seriesId,
-              onSuccess: () {
-                Provider.of<SeriesProvider>(context, listen: false)
-                    .loadSeries(widget.seriesId);
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // ===================== SEASON TABS =====================
-
-  Widget _seasonTabs(List<SeasonBundle> seasons, ThemeData theme) {
-    return SizedBox(
-      height: 50,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: seasons.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final season = seasons[index];
-          final isSelected = index == selectedSeasonIndex;
-
-          return InkWell(
-            onTap: () {
-              setState(() => selectedSeasonIndex = index);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? theme.primaryColor.withOpacity(0.15)
-                    : theme.cardColor.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    "Season ${season.season.seasonNumber}",
-                    style: TextStyle(
-                      color:
-                          isSelected ? theme.primaryColor : theme.canvasColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      backgroundColor: theme.primaryColor,
-                      foregroundColor: Colors.white,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SeasonDetailPage(
-                            seriesId: season.season.id!,
-                            seasonBundle: season,
-                          ),
-                        ),
-                      );
-                    },
-                    child: const Text("View"),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // ===================== ANALYTICS =====================
-
-  Widget buildSeasonAnalyticsDashboard(ThemeData theme, SeasonBundle season) {
-    return Row(
+  Widget _rightInfoPanel(ThemeData theme, Series series) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _analyticsCard("Revenue", "₹${0}"),
-        _analyticsCard("Views", "${0}"),
-        _analyticsCard("Episodes", "${season.episodes.length}"),
+        Text(
+          series.title,
+          style: TextStyle(
+            color: theme.canvasColor,
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            height: 1.1,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          "Directors: ${_joinOrNA(series.directorList)}",
+          style: TextStyle(
+            color: theme.canvasColor.withValues(alpha: 0.8),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _sectionLabel(theme, "Cast"),
+        const SizedBox(height: 8),
+        _castRow(theme, series.castList),
+        const SizedBox(height: 12),
+        _sectionLabel(theme, "Genres"),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: series.genreList.isEmpty
+              ? [_genreChip(theme, "NA")]
+              : series.genreList.map((g) => _genreChip(theme, g)).toList(),
+        ),
+        const SizedBox(height: 12),
+        _sectionLabel(theme, "Description"),
+        const SizedBox(height: 8),
+        Text(
+          series.description,
+          maxLines: _showFullDescription ? null : 4,
+          overflow: _showFullDescription
+              ? TextOverflow.visible
+              : TextOverflow.ellipsis,
+          style: TextStyle(
+            color: theme.canvasColor.withValues(alpha: 0.85),
+            height: 1.45,
+          ),
+        ),
+        if (series.description.length > 150)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () {
+                setState(() => _showFullDescription = !_showFullDescription);
+              },
+              child: Text(_showFullDescription ? "Show less" : "Read more"),
+            ),
+          ),
       ],
     );
   }
 
-  Widget _analyticsCard(String title, String value) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 6),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(.05),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Column(
-          children: [
-            Text(title, style: const TextStyle(color: Colors.white70)),
-            const SizedBox(height: 6),
-            Text(value,
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
+  Widget _analyticsSection(
+    ThemeData theme,
+    Series series,
+    List<SeasonBundle> seasons,
+  ) {
+    final allEpisodes = seasons.expand((s) => s.episodes).toList();
+    final totalEpisodes = allEpisodes.length;
+    final totalViews = allEpisodes.fold<int>(
+      0,
+      (sum, e) => sum + (e.viewCount ?? 0),
+    );
+    final totalLikes = widget.content.ratingCount ?? 0;
+    final totalRevenue = widget.content.totalRevenue ?? 0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cross = constraints.maxWidth > 900
+            ? 5
+            : constraints.maxWidth > 620
+                ? 3
+                : 2;
+
+        final cards = [
+          _analyticsCard(
+              theme, Icons.currency_rupee, "Total Revenue", "$totalRevenue"),
+          _analyticsCard(theme, Icons.remove_red_eye_outlined, "Total Views",
+              "$totalViews"),
+          _analyticsCard(
+              theme, Icons.favorite_border, "Total Likes", "$totalLikes"),
+          _analyticsCard(theme, Icons.movie_creation_outlined, "Total Episodes",
+              "$totalEpisodes"),
+          _analyticsCard(
+              theme, Icons.sell_outlined, "Price / Rent", "Rs ${series.price}"),
+        ];
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: cards
+              .map((card) => SizedBox(
+                    width: (constraints.maxWidth - (12 * (cross - 1))) / cross,
+                    child: card,
+                  ))
+              .toList(),
+        );
+      },
     );
   }
 
-  // ===================== APPROVAL =====================
-
-  Widget buildSeasonApprovalUI(
-      ThemeData theme, SeasonBundle season, BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            "Approval Status: ${season.season.active}",
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          Row(
-            children: [
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.check_circle),
-                label: const Text("Approve"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.cancel),
-                label: const Text("Reject"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                ),
-              ),
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
-  // ===================== EPISODE TABLE =====================
-
-  Widget buildEpisodeManagementTable(ThemeData theme, SeasonBundle season) {
-    final episodes = season.episodes;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor.withOpacity(.95),
-        borderRadius: BorderRadius.circular(14),
-      ),
+  Widget _analyticsCard(
+    ThemeData theme,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    return _surfaceCard(
+      theme,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Episode Management",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Container(
+            height: 32,
+            width: 32,
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: theme.primaryColor, size: 18),
           ),
           const SizedBox(height: 12),
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: episodes.length,
-            onReorder: (oldIndex, newIndex) {
-              if (newIndex > oldIndex) newIndex--;
-              final item = episodes.removeAt(oldIndex);
-              episodes.insert(newIndex, item);
-            },
-            itemBuilder: (context, i) {
-              final ep = episodes[i];
-
-              return Container(
-                key: ValueKey(ep.id),
-                margin: const EdgeInsets.symmetric(vertical: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.cardColor.withOpacity(.85),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    /// Episode Number Badge
-                    Container(
-                      height: 36,
-                      width: 36,
-                      decoration: BoxDecoration(
-                        color: theme.primaryColor,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        "E${ep.episodeNumber}",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    /// Thumbnail
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.network(
-                        ep.posterUrl ?? '',
-                        width: 120,
-                        height: 70,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          width: 120,
-                          height: 70,
-                          color: Colors.grey.shade800,
-                          child: const Icon(Icons.movie, color: Colors.white54),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(width: 14),
-
-                    /// Episode Info
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            ep.title ?? "",
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 16,
-                            children: [
-                              _metaChip(Icons.timer, "${ep.runtime} min"),
-                              _metaChip(
-                                  Icons.visibility, "${ep.viewCount} views"),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    /// Action Buttons
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: "Edit Episode",
-                          icon: const Icon(Icons.edit_outlined),
-                          onPressed: () {},
-                        ),
-                        IconButton(
-                          tooltip: "Delete Episode",
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () {},
-                        ),
-                        ReorderableDragStartListener(
-                          index: i,
-                          child: const Icon(Icons.drag_indicator),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
+          Text(
+            value,
+            style: TextStyle(
+              color: theme.canvasColor,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: theme.canvasColor.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _metaChip(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: Colors.white70),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.white70,
-            fontWeight: FontWeight.w600,
+  Widget _seasonSection(ThemeData theme, List<SeasonBundle> seasons) {
+    return _surfaceCard(
+      theme,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(theme, "Seasons"),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 520;
+
+              final button = ActionButtonWidget(
+                label: "Add Season",
+                icon: Icons.add,
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => AddSeasonDialog(
+                      seriesId: widget.seriesId,
+                      onSuccess: () {
+                        Provider.of<SeriesProvider>(context, listen: false)
+                            .loadSeries(widget.seriesId);
+                      },
+                    ),
+                  );
+                },
+              );
+
+              final title = Text(
+                "Manage seasons",
+                style: TextStyle(
+                  color: theme.canvasColor.withValues(alpha: 0.6),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    title,
+                    const SizedBox(height: 8),
+                    button,
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  title,
+                  const Spacer(),
+                  SizedBox(height: 34, child: button),
+                ],
+              );
+            },
           ),
+          const SizedBox(height: 10),
+          if (seasons.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                "No seasons available",
+                style: TextStyle(
+                  color: theme.canvasColor.withValues(alpha: 0.55),
+                  fontSize: 13,
+                ),
+              ),
+            )
+          else
+            _seasonCardList(theme, seasons),
+        ],
+      ),
+    );
+  }
+
+  Widget _seasonCardList(ThemeData theme, List<SeasonBundle> seasons) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        /// 📱 Mobile
+        if (constraints.maxWidth < 560) {
+          return Column(
+            children: List.generate(seasons.length, (index) {
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == seasons.length - 1 ? 0 : 8,
+                ),
+                child: _seasonCard(theme, seasons[index], index),
+              );
+            }),
+          );
+        }
+
+        /// 💻 Tablet (compact horizontal)
+        if (constraints.maxWidth <= 960) {
+          return SizedBox(
+            height: 110, // 🔥 reduced from 150
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: seasons.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (_, index) => SizedBox(
+                width: 200,
+                child: _seasonCard(theme, seasons[index], index),
+              ),
+            ),
+          );
+        }
+
+        /// 🖥 Desktop grid (tight)
+        final columns = (constraints.maxWidth / 260).floor().clamp(1, 4);
+        final cardWidth =
+            (constraints.maxWidth - ((columns - 1) * 10)) / columns;
+
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: List.generate(seasons.length, (index) {
+            return SizedBox(
+              width: cardWidth,
+              child: _seasonCard(theme, seasons[index], index),
+            );
+          }),
+        );
+      },
+    );
+  }
+
+  Widget _seasonCard(ThemeData theme, SeasonBundle bundle, int index) {
+    final selected = index == selectedSeasonIndex;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => setState(() => selectedSeasonIndex = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          constraints: const BoxConstraints(minHeight: 90),
+          decoration: BoxDecoration(
+            color: selected
+                ? theme.primaryColor.withValues(alpha: 0.1)
+                : theme.cardColor.withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? theme.primaryColor.withValues(alpha: 0.4)
+                  : theme.dividerColor.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Row(
+            children: [
+              /// LEFT CONTENT
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      "S${bundle.season.seasonNumber ?? '-'}",
+                      style: TextStyle(
+                        color: theme.canvasColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "${bundle.episodes.length} eps",
+                      style: TextStyle(
+                        color: theme.canvasColor.withValues(alpha: 0.65),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              /// RIGHT BUTTON (compact)
+              SizedBox(
+                height: 30,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SeasonDetailPage(
+                          seriesId: widget.seriesId,
+                          seasonBundle: bundle,
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    "View",
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _episodeSection(ThemeData theme, SeasonBundle? selectedSeason) {
+    return _surfaceCard(
+      theme,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionTitle(theme, "Episode List"),
+          const SizedBox(height: 12),
+          if (selectedSeason == null)
+            Text(
+              "No season selected",
+              style: TextStyle(
+                color: theme.canvasColor.withValues(alpha: 0.7),
+              ),
+            )
+          else
+            _seasonEpisodesGroup(theme, selectedSeason),
+        ],
+      ),
+    );
+  }
+
+  Widget _seasonEpisodesGroup(ThemeData theme, SeasonBundle seasonBundle) {
+    final episodes = [...seasonBundle.episodes]..sort(
+        (a, b) => (a.episodeNumber ?? 0).compareTo(b.episodeNumber ?? 0),
+      );
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Season ${seasonBundle.season.seasonNumber ?? '-'}",
+            style: TextStyle(
+              color: theme.primaryColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (episodes.isEmpty)
+            Text(
+              "No episodes",
+              style: TextStyle(
+                color: theme.canvasColor.withValues(alpha: 0.65),
+              ),
+            )
+          else
+            ...episodes.map((ep) => _episodeCard(theme, ep)),
+        ],
+      ),
+    );
+  }
+
+  Widget _episodeCard(ThemeData theme, Episode ep) {
+    final isPublished = ep.active == true;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 760;
+        final content = compact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _episodePoster(theme, ep),
+                      const SizedBox(width: 12),
+                      Expanded(child: _episodeInfo(theme, ep, isPublished)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _episodeActions(theme, ep),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  _episodePoster(theme, ep),
+                  const SizedBox(width: 12),
+                  Expanded(child: _episodeInfo(theme, ep, isPublished)),
+                  const SizedBox(width: 8),
+                  _episodeActions(theme, ep),
+                ],
+              );
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.cardColor.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.14),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: content,
+        );
+      },
+    );
+  }
+
+  Widget buildSeasonAnalyticsDashboard(ThemeData theme, SeasonBundle season) {
+    final cards = [
+      _seasonSmallCard(theme, "Revenue", "Rs 0"),
+      _seasonSmallCard(
+        theme,
+        "Views",
+        "${season.episodes.fold<int>(0, (s, e) => s + (e.viewCount ?? 0))}",
+      ),
+      _seasonSmallCard(theme, "Episodes", "${season.episodes.length}"),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 540;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Selected Season Highlights",
+              style: TextStyle(
+                color: theme.canvasColor,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (isCompact)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: cards
+                    .map((card) => SizedBox(
+                          width: (constraints.maxWidth - 8) / 2,
+                          child: card,
+                        ))
+                    .toList(),
+              )
+            else
+              Row(
+                children: cards
+                    .map((card) => Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: card,
+                          ),
+                        ))
+                    .toList(),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _seasonSmallCard(ThemeData theme, String title, String value) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.cardColor.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: theme.canvasColor,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            title,
+            style: TextStyle(
+              color: theme.canvasColor.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _episodePoster(ThemeData theme, Episode ep) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: 110,
+        height: 68,
+        child: Image.network(
+          ep.posterUrl ?? '',
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            color: theme.scaffoldBackgroundColor.withValues(alpha: 0.5),
+            child: const Icon(Icons.image_not_supported_outlined),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _episodeInfo(ThemeData theme, Episode ep, bool isPublished) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _episodeDisplayTitle(ep),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: theme.canvasColor,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 12,
+          runSpacing: 6,
+          children: [
+            _metaChip(theme, Icons.timer, "${ep.runtime ?? 0} min"),
+            _metaChip(theme, Icons.visibility, "${ep.viewCount ?? 0} views"),
+            _metaChip(
+              theme,
+              Icons.circle,
+              isPublished ? "Published" : "Draft",
+            ),
+          ],
         ),
       ],
     );
   }
 
-  // ===================== HELPERS =====================
-
-  Widget _buildBackground(String? imageUrl) {
-    return imageUrl != null && imageUrl.isNotEmpty
-        ? Image.network(imageUrl, fit: BoxFit.cover)
-        : Container(color: Colors.black);
+  Widget _episodeActions(ThemeData theme, Episode ep) {
+    return Wrap(
+      spacing: 2,
+      runSpacing: 2,
+      children: [
+        IconButton(
+          tooltip: "Edit Episode",
+          icon: Icon(Icons.edit_outlined, color: theme.canvasColor),
+          onPressed: () {},
+        ),
+        IconButton(
+          tooltip: "Delete Episode",
+          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+          onPressed: () {},
+        ),
+        IconButton(
+          tooltip: "View Episode",
+          icon: Icon(Icons.visibility_outlined, color: theme.primaryColor),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TrailerPage(trailerUrl: ep.videoUrl ?? ''),
+              ),
+            );
+          },
+        ),
+      ],
+    );
   }
 
-  Widget _darkOverlay() {
+  Widget _castRow(ThemeData theme, List<String> cast) {
+    if (cast.isEmpty) {
+      return Text(
+        "NA",
+        style: TextStyle(color: theme.canvasColor.withValues(alpha: 0.75)),
+      );
+    }
+
+    return SizedBox(
+      height: 78,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: cast.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, index) {
+          final name = cast[index];
+          return Column(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: _avatarColor(index),
+                child: Text(
+                  _initials(name),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              SizedBox(
+                width: 60,
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: theme.canvasColor,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _genreChip(ThemeData theme, String genre) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.black.withOpacity(0.8),
-            Colors.black.withOpacity(0.95),
+        color: theme.primaryColor.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        genre,
+        style: TextStyle(
+          color: theme.primaryColor,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _dashboardButton(
+    ThemeData theme, {
+    required String label,
+    required IconData icon,
+    required Color backgroundColor,
+    required VoidCallback onTap,
+  }) {
+    return _HoverButton(
+      onTap: onTap,
+      child: Container(
+        height: 44,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              backgroundColor,
+              backgroundColor.withValues(alpha: 0.9),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.2),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            )
           ],
         ),
       ),
     );
   }
 
-  Widget _buildConfirmationBox(BuildContext context, dynamic series) {
+  Widget _metaChip(ThemeData theme, IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: theme.canvasColor.withValues(alpha: 0.72)),
+        const SizedBox(width: 4),
+        Text(
+          text,
+          style: TextStyle(
+            color: theme.canvasColor.withValues(alpha: 0.75),
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _surfaceCard(
+    ThemeData theme, {
+    required Widget child,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
+  }) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: theme.cardColor.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.dividerColor.withValues(alpha: 0.18),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          )
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _posterFallback(ThemeData theme) {
+    return Container(
+      color: theme.scaffoldBackgroundColor.withValues(alpha: 0.4),
+      alignment: Alignment.center,
+      child: Icon(
+        Icons.movie_creation_outlined,
+        color: theme.canvasColor.withValues(alpha: 0.6),
+        size: 44,
+      ),
+    );
+  }
+
+  Widget _loadingSkeleton(ThemeData theme) {
+    return Center(
+      child: SizedBox(
+        width: 1200,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            children: [
+              _skeletonBlock(theme, height: 280),
+              const SizedBox(height: 14),
+              _skeletonBlock(theme, height: 160),
+              const SizedBox(height: 14),
+              _skeletonBlock(theme, height: 220),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _skeletonBlock(ThemeData theme, {required double height}) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: theme.cardColor.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(16),
+      ),
+    );
+  }
+
+  void _confirmDelete(Content movie) {
+    final theme = Provider.of<ThemeProvider>(context, listen: false).getTheme;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: theme.cardColor,
+        title: Text('Do you want to delete ${movie.title}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Provider.of<VideoProvider>(context, listen: false)
+                  .deleteVideo(movie.id!, context);
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _joinOrNA(List<String> values) {
+    if (values.isEmpty) return "NA";
+    return values.join(', ');
+  }
+
+  Widget _sectionTitle(ThemeData theme, String title) {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 18,
+          decoration: BoxDecoration(
+            color: theme.primaryColor,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            color: theme.canvasColor,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionLabel(ThemeData theme, String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        color: theme.canvasColor,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.2,
+      ),
+    );
+  }
+
+  String _episodeDisplayTitle(Episode episode) {
+    final number = episode.episodeNumber;
+    final title = (episode.title ?? '').trim();
+    if (number == null && title.isEmpty) return "Untitled Episode";
+    if (number == null) return title;
+    if (title.isEmpty) return "Episode $number";
+    return "E$number - $title";
+  }
+
+  String _initials(String input) {
+    final parts =
+        input.trim().split(RegExp(r'\s+')).where((e) => e.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
+  }
+
+  Color _avatarColor(int index) {
+    const palette = [
+      Color(0xFF2F80ED),
+      Color(0xFF9B51E0),
+      Color(0xFF27AE60),
+      Color(0xFFF2994A),
+      Color(0xFFEB5757),
+      Color(0xFF56CCF2),
+    ];
+    return palette[index % palette.length];
+  }
+
+  Widget _buildConfirmationBox(BuildContext context, Series series) {
     final theme = Provider.of<ThemeProvider>(context).getTheme;
 
     return AlertDialog(
       backgroundColor: theme.cardColor,
       title: Center(
         child: Text(
-          series.title ?? '',
+          series.title,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
@@ -674,7 +1280,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('price: ₹${series.price}'),
+          Text('Price: Rs ${series.price}'),
           const SizedBox(height: 10),
           const Text('Do you want to rent this series?'),
         ],
@@ -682,7 +1288,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text("Cancel"),
+          child: const Text('Cancel'),
         ),
         TextButton(
           style: TextButton.styleFrom(
@@ -690,9 +1296,46 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
             foregroundColor: Colors.white,
           ),
           onPressed: () => Navigator.pop(context),
-          child: const Text("Continue"),
+          child: const Text('Continue'),
         ),
       ],
+    );
+  }
+}
+
+class _HoverButton extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _HoverButton({required this.child, required this.onTap});
+
+  @override
+  State<_HoverButton> createState() => _HoverButtonState();
+}
+
+class _HoverButtonState extends State<_HoverButton> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final enableHover = kIsWeb;
+    return MouseRegion(
+      onEnter: (_) {
+        if (!enableHover) return;
+        setState(() => _hovering = true);
+      },
+      onExit: (_) {
+        if (!enableHover) return;
+        setState(() => _hovering = false);
+      },
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 150),
+          scale: _hovering ? 1.02 : 1,
+          child: widget.child,
+        ),
+      ),
     );
   }
 }

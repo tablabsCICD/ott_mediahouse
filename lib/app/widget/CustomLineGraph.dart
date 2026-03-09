@@ -40,6 +40,7 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
   DateTime? startDate = DateTime.now().subtract(Duration(days: 7));
   DateTime? endDate = DateTime.now();
   String activeButton = '1W';
+  bool _isFilterRangeLoading = false;
 
   @override
   void initState() {
@@ -63,6 +64,7 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
   }
 
   Future<void> _pickDateRange() async {
+    if (_isFilterRangeLoading) return;
     final DateTimeRange? picked = await showDialog<DateTimeRange>(
       context: context,
       builder: (dialogContext) {
@@ -75,7 +77,8 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
             child: DateRangePickerDialog(
               firstDate: DateTime(2020),
               lastDate: today,
-              initialDateRange: selectedDateRange,
+              initialDateRange:
+                  activeButton == 'Custom Dates' ? selectedDateRange : null,
               helpText: 'Select Custom Date Range',
               confirmText: 'Apply',
               cancelText: 'Cancel',
@@ -86,23 +89,23 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
     );
     if (!mounted) return;
     if (picked != null) {
-      final previousButton = activeButton;
-      selectedDateRange = picked;
-      activeButton = 'Custom Dates';
-      startDate = picked.start;
-      endDate = picked.end;
-      final selectedTimeRange = previousButton == '1M'
-          ? 1
-          : previousButton == '1Y'
-              ? 2
-              : 0;
-      await _fetchGraphData(selectedTimeRange, startDate!, endDate!);
+      setState(() {
+        _isFilterRangeLoading = true;
+        selectedDateRange = picked;
+        activeButton = 'Custom Dates';
+        startDate = picked.start;
+        endDate = picked.end;
+      });
+      await _fetchGraphData(0, startDate!, endDate!);
       if (!mounted) return;
-      setState(() {});
+      setState(() {
+        _isFilterRangeLoading = false;
+      });
     }
   }
 
   Future<void> _setDateRange(String label, int days) async {
+    if (_isFilterRangeLoading) return;
     int selectedTimeRange;
     if (label == '1W') {
       selectedTimeRange = 0;
@@ -116,16 +119,20 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
     final DateTime calculatedStartDate =
         calculatedEndDate.subtract(Duration(days: days));
 
-    // Fetch the graph data first
-    await _fetchGraphData(
-        selectedTimeRange, calculatedStartDate, calculatedEndDate);
-
-    // Update the state after data is fetched
     setState(() {
+      _isFilterRangeLoading = true;
       activeButton = label;
       startDate = calculatedStartDate;
       endDate = calculatedEndDate;
       selectedDateRange = DateTimeRange(start: startDate!, end: endDate!);
+    });
+
+    await _fetchGraphData(
+        selectedTimeRange, calculatedStartDate, calculatedEndDate);
+    if (!mounted) return;
+
+    setState(() {
+      _isFilterRangeLoading = false;
     });
   }
 
@@ -212,6 +219,8 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
               _buildTitle(selectedThemeData),
               const SizedBox(height: 10),
               _buildCompactFilterBar(selectedThemeData),
+              const SizedBox(height: 8),
+              _buildActiveFilterChips(selectedThemeData),
               const SizedBox(height: 10),
               SizedBox(
                 height: chartHeight,
@@ -255,19 +264,37 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
   Widget _buildChart(ThemeData selectedThemeData) {
     return Consumer<MediaHouseProvider>(
       builder: (context, provider, child) {
+        final indexedPoints = provider.graphData.asMap().entries.toList();
         return SfCartesianChart(
-          primaryXAxis: CategoryAxis(
+          primaryXAxis: NumericAxis(
             title: const AxisTitle(
               text: '<-------------- Time -------------->',
               textStyle: TextStyle(fontSize: 12),
             ),
+            interval: 1,
+            decimalPlaces: 0,
+            axisLabelFormatter: (AxisLabelRenderDetails details) {
+              final index = details.value.round();
+              final label = (index >= 0 && index < indexedPoints.length)
+                  ? indexedPoints[index].value.label
+                  : '';
+              return ChartAxisLabel(label, details.textStyle);
+            },
           ),
           tooltipBehavior: TooltipBehavior(enable: true),
+          onTooltipRender: (TooltipArgs args) {
+            final idx = (args.pointIndex ?? -1).toInt();
+            if (idx >= 0 && idx < indexedPoints.length) {
+              final point = indexedPoints[idx].value;
+              args.header = point.label;
+              args.text = point.value.toString();
+            }
+          },
           series: <CartesianSeries>[
-            LineSeries<LineChartData, String>(
-              dataSource: provider.graphData,
-              xValueMapper: (LineChartData data, _) => data.label,
-              yValueMapper: (LineChartData data, _) => data.value,
+            LineSeries<MapEntry<int, LineChartData>, int>(
+              dataSource: indexedPoints,
+              xValueMapper: (entry, _) => entry.key,
+              yValueMapper: (entry, _) => entry.value.value,
               color: selectedThemeData.primaryColor,
               markerSettings: MarkerSettings(
                 isVisible: true,
@@ -277,6 +304,66 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
               width: 3,
             ),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _buildActiveFilterChips(ThemeData theme) {
+    return Consumer<MediaHouseProvider>(
+      builder: (context, provider, child) {
+        final chips = <String>[];
+
+        if (provider.customGraphContentType.toUpperCase() != "ALL") {
+          chips.add("Type: ${provider.customGraphContentType}");
+        }
+        if (provider.customGraphCountry.trim().isNotEmpty) {
+          chips.add("Country: ${provider.customGraphCountry.trim()}");
+        }
+        if (provider.customGraphState.trim().isNotEmpty) {
+          chips.add("State: ${provider.customGraphState.trim()}");
+        }
+        if (provider.customGraphDistrict.trim().isNotEmpty) {
+          chips.add("District: ${provider.customGraphDistrict.trim()}");
+        }
+        if (provider.customGraphTaluka.trim().isNotEmpty) {
+          chips.add("Taluka: ${provider.customGraphTaluka.trim()}");
+        }
+        if (provider.customGraphCity.trim().isNotEmpty) {
+          chips.add("City: ${provider.customGraphCity.trim()}");
+        }
+
+        if (chips.isEmpty) return const SizedBox.shrink();
+
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: chips
+                .map(
+                  (chip) => Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: theme.primaryColor.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Text(
+                      chip,
+                      style: TextStyle(
+                        color: theme.canvasColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(growable: false),
+          ),
         );
       },
     );
@@ -341,7 +428,7 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
   Widget _buildTypeDropdown(MediaHouseProvider provider, ThemeData theme) {
     return DropdownButtonFormField<String>(
       initialValue: provider.customGraphContentType,
-      items: const ["ALL", "MOVIE", "SERIES", "SHORTS"]
+      items: const ["ALL", "MOVIE", "SERIES", "SHORT"]
           .map(
             (item) => DropdownMenuItem<String>(
               value: item,
@@ -349,7 +436,10 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
             ),
           )
           .toList(growable: false),
-      onChanged: (value) => provider.setCustomGraphContentType(value ?? "ALL"),
+      onChanged: (value) {
+        provider.setCustomGraphContentType(value ?? "ALL");
+        _applyCurrentFilters();
+      },
       decoration: _filterInputDecoration(theme, "Type"),
       dropdownColor: theme.cardColor,
     );
@@ -423,27 +513,28 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
 
     final districtCtrl = TextEditingController(text: _districtController.text);
     final talukaCtrl = TextEditingController(text: _talukaController.text);
+    final cityCtrl = TextEditingController(text: _cityController.text);
 
     await showDialog<void>(
       context: context,
       builder: (_) {
-        return Consumer<MediaHouseProvider>(
-          builder: (context, graphProvider, __) {
-            final countryValue = graphProvider.customGraphCountry.trim().isEmpty
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final countryValue = provider.customGraphCountry.trim().isEmpty
                 ? null
-                : graphProvider.customGraphCountry;
-            final stateValue = graphProvider.customGraphState.trim().isEmpty
+                : provider.customGraphCountry;
+            final stateValue = provider.customGraphState.trim().isEmpty
                 ? null
-                : graphProvider.customGraphState;
+                : provider.customGraphState;
             return Dialog(
               backgroundColor: theme.cardColor,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               child: SizedBox(
                 width: MediaQuery.of(context).size.width > 900
-                    ? 600 // desktop
+                    ? 600
                     : MediaQuery.of(context).size.width > 600
-                        ? 500 // tablet
+                        ? 500
                         : MediaQuery.of(context).size.width * 0.9,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -462,7 +553,7 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
                           ),
                           const Spacer(),
                           IconButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () => Navigator.pop(dialogContext),
                             icon: Icon(
                               Icons.close,
                               color: theme.canvasColor,
@@ -476,19 +567,19 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
                         theme: theme,
                         label: "Country",
                         value: countryValue,
-                        isLoading: graphProvider.isLoadingCustomGraphCountries,
+                        isLoading: provider.isLoadingCustomGraphCountries,
                         onTap: () async {
                           final selectedCountry = await _showSearchPickerDialog(
                             context: context,
                             theme: theme,
                             title: "Search Country",
-                            options: graphProvider.customGraphCountryOptions,
-                            initialValue: graphProvider.customGraphCountry,
+                            options: provider.customGraphCountryOptions,
+                            initialValue: provider.customGraphCountry,
                           );
                           if (selectedCountry == null) return;
-                          await graphProvider
-                              .selectCustomGraphCountryAndLoadStates(
-                                  selectedCountry);
+                          await provider.selectCustomGraphCountryAndLoadStates(
+                              selectedCountry);
+                          if (mounted) setDialogState(() {});
                         },
                       ),
                       const SizedBox(height: 8),
@@ -497,35 +588,42 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
                         theme: theme,
                         label: "State",
                         value: stateValue,
-                        isLoading: graphProvider.isLoadingCustomGraphStates,
-                        enabled:
-                            graphProvider.customGraphCountry.trim().isNotEmpty,
+                        isLoading: provider.isLoadingCustomGraphStates,
+                        enabled: provider.customGraphCountry.trim().isNotEmpty,
                         onTap: () async {
                           final selectedState = await _showSearchPickerDialog(
                             context: context,
                             theme: theme,
                             title: "Search State",
-                            options: graphProvider.customGraphStateOptions,
-                            initialValue: graphProvider.customGraphState,
+                            options: provider.customGraphStateOptions,
+                            initialValue: provider.customGraphState,
                           );
                           if (selectedState == null) return;
-                          graphProvider.setCustomGraphState(selectedState);
+                          provider.setCustomGraphState(selectedState);
+                          if (mounted) setDialogState(() {});
                         },
                       ),
                       const SizedBox(height: 8),
-                      _buildDialogTextField(theme, "District", districtCtrl,
-                          enabled:
-                              graphProvider.customGraphState.trim().isNotEmpty,
-                          onChanged: (_) => setState(() {})),
+                      _buildDialogTextField(
+                        theme,
+                        "District",
+                        districtCtrl,
+                        enabled: provider.customGraphState.trim().isNotEmpty,
+                        onChanged: (_) => setDialogState(() {}),
+                      ),
                       const SizedBox(height: 8),
-                      _buildDialogTextField(theme, "Taluka", talukaCtrl,
-                          enabled: districtCtrl.text.trim().isNotEmpty,
-                          onChanged: (_) => setState(() {})),
+                      _buildDialogTextField(
+                        theme,
+                        "Taluka",
+                        talukaCtrl,
+                        enabled: districtCtrl.text.trim().isNotEmpty,
+                        onChanged: (_) => setDialogState(() {}),
+                      ),
                       const SizedBox(height: 8),
                       _buildDialogTextField(
                         theme,
                         "City",
-                        _cityController,
+                        cityCtrl,
                         enabled: talukaCtrl.text.trim().isNotEmpty,
                       ),
                       const SizedBox(height: 12),
@@ -533,23 +631,21 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: () => Navigator.pop(dialogContext),
                               child: const Text("Cancel"),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () {
-                                if (graphProvider.customGraphCountry
+                              onPressed: () async {
+                                if (provider.customGraphCountry
                                     .trim()
                                     .isEmpty) {
                                   _showError("Please select Country");
                                   return;
                                 }
-                                if (graphProvider.customGraphState
-                                    .trim()
-                                    .isEmpty) {
+                                /*   if (provider.customGraphState.trim().isEmpty) {
                                   _showError("Please select State");
                                   return;
                                 }
@@ -561,21 +657,26 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
                                   _showError("Please enter Taluka");
                                   return;
                                 }
-                                if (_cityController.text.trim().isEmpty) {
+                                if (cityCtrl.text.trim().isEmpty) {
                                   _showError("Please enter City");
                                   return;
                                 }
-
+ */
                                 _districtController.text =
                                     districtCtrl.text.trim();
                                 _talukaController.text = talukaCtrl.text.trim();
+                                _cityController.text = cityCtrl.text.trim();
 
-                                graphProvider.setCustomGraphDistrict(
+                                provider.setCustomGraphDistrict(
                                     _districtController.text);
-                                graphProvider.setCustomGraphTaluka(
+                                provider.setCustomGraphTaluka(
                                     _talukaController.text);
+                                provider
+                                    .setCustomGraphCity(_cityController.text);
 
-                                Navigator.pop(context);
+                                await _applyCurrentFilters();
+                                if (!dialogContext.mounted) return;
+                                Navigator.pop(dialogContext);
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: theme.primaryColor,
@@ -598,7 +699,7 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
 
     districtCtrl.dispose();
     talukaCtrl.dispose();
-    _cityController.dispose();
+    cityCtrl.dispose();
   }
 
   void _showError(String message) {
@@ -612,12 +713,12 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
     String label,
     TextEditingController controller, {
     bool enabled = true,
-    Function(String)? onChanged, // 👈 ADD
+    Function(String)? onChanged,
   }) {
     return TextField(
       controller: controller,
       enabled: enabled,
-      onChanged: onChanged, // 👈 ADD
+      onChanged: onChanged,
       style: TextStyle(
         color: enabled ? theme.canvasColor : Colors.grey,
       ),
@@ -815,16 +916,49 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
       {'label': '1Y', 'days': 365},
     ];
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        ...filterOptions.map((range) => _buildFilterButton(
-              range['label'] as String,
-              range['days'] as int,
-              selectedThemeData,
-            )),
-        _buildFilterButton('Custom Dates', 0, selectedThemeData,
-            isCustom: true),
+        if (_isFilterRangeLoading)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: selectedThemeData.primaryColor,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "Updating graph...",
+                  style: TextStyle(
+                    color: selectedThemeData.canvasColor.withValues(alpha: 0.8),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.center,
+          children: [
+            ...filterOptions.map((range) => _buildFilterButton(
+                  range['label'] as String,
+                  range['days'] as int,
+                  selectedThemeData,
+                )),
+            _buildFilterButton('Custom Dates', 0, selectedThemeData,
+                isCustom: true),
+          ],
+        ),
       ],
     );
   }
@@ -832,24 +966,54 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
   Widget _buildFilterButton(String label, int days, ThemeData selectedThemeData,
       {bool isCustom = false}) {
     final bool isActive = activeButton == label;
-    return GestureDetector(
-      onTap: isCustom ? _pickDateRange : () => _setDateRange(label, days),
-      child: Container(
-        decoration: BoxDecoration(
-          color: isActive
-              ? selectedThemeData.primaryColor
-              : selectedThemeData.cardColor,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isActive ? selectedThemeData.primaryColor : Colors.grey,
-            width: 0.4,
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isActive ? Colors.white : selectedThemeData.canvasColor,
+    final bool showActiveLoader = _isFilterRangeLoading && isActive;
+    return Opacity(
+      opacity: _isFilterRangeLoading ? 0.7 : 1,
+      child: IgnorePointer(
+        ignoring: _isFilterRangeLoading,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: isCustom ? _pickDateRange : () => _setDateRange(label, days),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isActive
+                    ? selectedThemeData.primaryColor
+                    : selectedThemeData.cardColor,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color:
+                      isActive ? selectedThemeData.primaryColor : Colors.grey,
+                  width: 0.4,
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showActiveLoader) ...[
+                    const SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                  ],
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: isActive
+                          ? Colors.white
+                          : selectedThemeData.canvasColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

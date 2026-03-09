@@ -135,7 +135,7 @@ class _SignInPageState extends State<SignInPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Already have an account?',
+                    "Don't have an account?",
                     style: TextStyle(
                       color: selectedThemeData.canvasColor,
                       fontSize: 14,

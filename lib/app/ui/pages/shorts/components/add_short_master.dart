@@ -309,7 +309,7 @@ class AddShortMaster {
                                 if (mediaHouse == null) {
                                   setState(() => isSubmitting = false);
                                   showGlobalSnack(
-                                      "Sorry, Media House is not available.");
+                                      "Sorry, Production House is not available.");
                                   return;
                                 }
 

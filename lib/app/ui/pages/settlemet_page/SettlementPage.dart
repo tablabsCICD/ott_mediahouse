@@ -195,7 +195,7 @@ class _SettlementPageState extends State<SettlementPage> {
       _buildSortableColumn('OTT Share', (d) => d['OTTPlatformRevenueShare'], 6,
           selectedThemeData,
           numeric: true),
-      _buildSortableColumn('Media House Share',
+      _buildSortableColumn('Production House Share',
           (d) => d['MediaHouseRevenueShare'], 7, selectedThemeData,
           numeric: true),
       _buildSortableColumn(

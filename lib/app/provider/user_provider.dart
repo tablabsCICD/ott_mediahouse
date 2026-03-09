@@ -94,153 +94,6 @@ class UserProvider extends ChangeNotifier {
   List<User> get filteredUsers => _filteredUsers;
   User get userObj => user;
 
-  // Create a new user
-  Future<Map<String, dynamic>> createUser() async {
-    String apiUrl = ApiConstant.registration;
-    UserRequest userRequest = UserRequest();
-    userRequest.active = true;
-    userRequest.admin = false;
-    userRequest.age = '';
-    userRequest.area = cityController.text;
-    userRequest.city = cityController.text;
-    userRequest.country = countryController.text;
-    userRequest.deviceId = '';
-    userRequest.deviceName = '';
-    userRequest.deviceToken = '';
-    userRequest.district = districtController.text;
-    userRequest.dob = dobController.text;
-    userRequest.emailId = emailController.text;
-    userRequest.firstName = firstNameController.text;
-    userRequest.gender = selectedGender;
-    userRequest.joinDate = "";
-    userRequest.mobileNumber = mobileController.text;
-    userRequest.lastName = lastNameController.text;
-    userRequest.locationId = 0;
-    userRequest.officeBuilding = officeBuildingController.text;
-    userRequest.osName = "Web";
-    userRequest.password = passwordController.text;
-    userRequest.pincode = "411017";
-    userRequest.profilePhoto = profileController.text;
-    userRequest.refferedBy = [refferedByController.text];
-    userRequest.role = ["User"];
-    userRequest.taluka = "Mulashi";
-    userRequest.state = "Maharashtra"; //stateController.text;
-    userRequest.verified = true;
-
-    ApiHelper apiHelper = ApiHelper();
-
-    try {
-      var response =
-          await apiHelper.postApiWithBody(apiUrl, userRequest.toJson());
-      if (response.statusCode == 200) {
-        Map<String, dynamic> responseBody = json.decode(response.body);
-        AddUserResponse addUserResponse =
-            AddUserResponse.fromJson(responseBody);
-
-        if (addUserResponse.success == true) {
-          if (addUserResponse.data != null) {
-            user = addUserResponse.data!.user!;
-            notifyListeners();
-            return {'success': true, 'message': 'User created successfully'};
-          } else {
-            debugPrint("Empty data: ${addUserResponse.message}");
-            return {
-              'success': false,
-              'message': addUserResponse.message ?? 'No data returned'
-            };
-          }
-        } else {
-          debugPrint("Error: ${addUserResponse.message}");
-          return {
-            'success': false,
-            'message': addUserResponse.message ?? 'Error in response'
-          };
-        }
-      } else {
-        return {'failure': true, 'message': 'Something went wrong!'};
-      }
-    } catch (error) {
-      debugPrint("Error: $error");
-      return {
-        'success': false,
-        'message': 'An error occurred while adding user: $error'
-      };
-    }
-  }
-
-  // Update user data
-  Future<Map<String, Object>> updateUser() async {
-    User? user = await LocalSharePreferences.localSharePreferences.getUser();
-    String apiUrl = ApiConstant.editUserById;
-    ApiHelper apiHelper = ApiHelper();
-    Map<String, dynamic> data = {
-      "emailId": emailController.text,
-      "firstName": firstNameController.text,
-      "id": user!.id,
-      "lastName": lastNameController.text,
-      "mobileNumber": mobileController.text
-    };
-
-    try {
-      var response = await apiHelper.putApiWithBody(apiUrl, data);
-      if (response.statusCode == 200) {
-        Map<String, dynamic> responseBody = json.decode(response.body);
-        UpdateUserResponse updateUserResponse =
-            UpdateUserResponse.fromJson(responseBody);
-
-        debugPrint("data: ${updateUserResponse.message}");
-        if (updateUserResponse.success == true) {
-          if (updateUserResponse.data != null) {
-            user = updateUserResponse.data!;
-            print("before SEtData ${user.firstName}");
-            LocalSharePreferences localSharePreferences =
-                LocalSharePreferences();
-            localSharePreferences.setString(
-                SharedPreferencesConstant.currentUser,
-                jsonEncode(updateUserResponse.data!));
-            print(
-                "after SEtData ${await localSharePreferences.getString(SharedPreferencesConstant.currentUser)}");
-            notifyListeners();
-            return {
-              'success': true,
-              'message': updateUserResponse.message ?? ""
-            };
-          } else {
-            debugPrint("Empty data: ${updateUserResponse.message}");
-            return {
-              'success': false,
-              'message': updateUserResponse.message ?? 'No data returned'
-            };
-          }
-        } else {
-          debugPrint("Error: ${updateUserResponse.message}");
-          return {
-            'success': false,
-            'message': updateUserResponse.message ?? 'Error in response'
-          };
-        }
-      } else if (response.statusCode == 401 || response.statusCode == 404) {
-        Map<String, dynamic> responseBody = json.decode(response.body);
-        AddUserResponse addUserResponse =
-            AddUserResponse.fromJson(responseBody);
-        debugPrint("Error: ${addUserResponse.message}");
-        return {
-          'success': false,
-          'message': addUserResponse.message ?? 'Error in response'
-        };
-      } else {
-        return {'failure': true, 'message': 'Something went wrong!'};
-        // throw Exception('Failed to add user. Status code: ${response.statusCode}');
-      }
-    } catch (error) {
-      debugPrint("Error: $error");
-      return {
-        'success': false,
-        'message': 'An error occurred while update user: $error'
-      };
-    }
-  }
-
   Future<Map<String, Object>> updateMediaHouse() async {
     User? user = await LocalSharePreferences.localSharePreferences.getUser();
     String apiUrl = ApiConstant.editMediaHouseById;
@@ -445,7 +298,7 @@ class UserProvider extends ChangeNotifier {
 
     try {
       var response = await apiHelper.getApi(apiUrl);
-      debugPrint("media house by id response::: ${response.body}");
+      debugPrint("Production house by id response::: ${response.body}");
 
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
@@ -470,11 +323,11 @@ class UserProvider extends ChangeNotifier {
         }
       } else {
         throw Exception(
-            'Failed to fetch Media House. Status code: ${response.statusCode}');
+            'Failed to fetch Production House. Status code: ${response.statusCode}');
       }
     } catch (error) {
       debugPrint("Error: $error");
-      throw Exception('An error occurred while fetching Media House.');
+      throw Exception('An error occurred while fetching Production House.');
     }
   }
 
@@ -582,13 +435,13 @@ class UserProvider extends ChangeNotifier {
               return {'success': true, 'message': 'logged in successfully'};
             } else {
               CustomToast.show(
-                  "You are not media house user..try with media house user credentials...",
+                  "You are not Production house user..try with Production house user credentials...",
                   isSuccess: false);
               notifyListeners();
               return {
                 'success': false,
                 'message':
-                    "You are not media house user..try with media house user credentials..."
+                    "You are not Production house user..try with Production house user credentials..."
               };
             }
           } else {

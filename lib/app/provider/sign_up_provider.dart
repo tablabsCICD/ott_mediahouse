@@ -115,7 +115,8 @@ class SignUpProvider extends ChangeNotifier {
               .map((e) => (e as Map<String, dynamic>)['name']?.toString() ?? '')
               .where((e) => e.trim().isNotEmpty),
         );
-      _countryOptions.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      _countryOptions
+          .sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
     } catch (_) {
       // silent fallback
     } finally {
@@ -184,7 +185,7 @@ class SignUpProvider extends ChangeNotifier {
         'success': apiSuccess,
         'message': decoded['message'] ??
             (apiSuccess
-                ? 'Media house registered successfully'
+                ? 'Production house registered successfully'
                 : 'Signup failed'),
         'data': decoded,
       };

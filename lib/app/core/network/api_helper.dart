@@ -9,9 +9,8 @@ import '../constant/prefrense_constant.dart';
 import '../utils/sharepreferences.dart';
 
 class ApiHelper {
-
   Future<dynamic> getApi(String URL) async {
-    debugPrint(URL);
+    debugPrint("✅" + URL);
     final url = Uri.parse(URL);
     var request = await http.get(url).timeout(Duration(seconds: 10));
     debugPrint(request.body);
@@ -19,7 +18,7 @@ class ApiHelper {
   }
 
   Future<dynamic> deleteApi(String URL) async {
-    debugPrint(URL);
+    debugPrint("✅" + URL);
     var request = await http.delete(Uri.parse(URL), headers: {
       "Content-Type": "application/json",
     });
@@ -28,7 +27,7 @@ class ApiHelper {
   }
 
   Future<dynamic> postApi(String URL) async {
-    debugPrint(URL);
+    debugPrint("✅" + URL);
     var request = await http.post(Uri.parse(URL), headers: {
       "Content-Type": "application/json",
     });
@@ -36,9 +35,8 @@ class ApiHelper {
     return request;
   }
 
-  Future<dynamic> postApiWithBody(
-      String url, Map<String, dynamic> data) async {
-    debugPrint(url);
+  Future<dynamic> postApiWithBody(String url, Map<String, dynamic> data) async {
+    debugPrint("✅" + url);
     var body = json.encode(data);
     print(body);
     final response = await http.post(Uri.parse(url),
@@ -51,7 +49,7 @@ class ApiHelper {
   }
 
   Future<dynamic> putApi(String URL) async {
-    debugPrint(URL);
+    debugPrint("✅" + URL);
     var request = await http.put(Uri.parse(URL), headers: {
       "Content-Type": "application/json",
     });
@@ -59,9 +57,8 @@ class ApiHelper {
     return request;
   }
 
-  Future<dynamic> putApiWithBody(
-      String url, Map<String, dynamic> data) async {
-    debugPrint(url);
+  Future<dynamic> putApiWithBody(String url, Map<String, dynamic> data) async {
+    debugPrint("✅" + url);
     var body = json.encode(data);
     debugPrint(body);
     final response = await http.put(Uri.parse(url),
@@ -74,7 +71,7 @@ class ApiHelper {
   }
 
   Future<dynamic> postApiWithoutAuthToken(String URL) async {
-    debugPrint(URL);
+    debugPrint("✅" + URL);
     var request = await http.post(Uri.parse(URL));
     debugPrint(request.body);
     return request;
@@ -82,7 +79,7 @@ class ApiHelper {
 
   Future<dynamic> postApiWithoutBodyAndToken(
       String url, Map<String, dynamic> data) async {
-    debugPrint(url);
+    debugPrint("✅" + url);
     var body = json.encode(data);
     debugPrint(body);
     final response = await http.post(Uri.parse(url),

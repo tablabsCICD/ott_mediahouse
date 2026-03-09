@@ -118,7 +118,8 @@ class VideoProvider extends ChangeNotifier {
   final TextEditingController directorController = TextEditingController();
   final TextEditingController castNameController = TextEditingController();
   final TextEditingController castRoleController = TextEditingController();
-  final TextEditingController castDescriptionController = TextEditingController();
+  final TextEditingController castDescriptionController =
+      TextEditingController();
   final TextEditingController castImageController = TextEditingController();
   final TextEditingController crewNameController = TextEditingController();
   final TextEditingController crewRoleController = TextEditingController();
@@ -140,7 +141,8 @@ class VideoProvider extends ChangeNotifier {
   final TextEditingController registrationPaymentMethodController =
       TextEditingController();
   final List<Map<String, String>> _pendingCasts = [];
-  List<Map<String, String>> get pendingCasts => List.unmodifiable(_pendingCasts);
+  List<Map<String, String>> get pendingCasts =>
+      List.unmodifiable(_pendingCasts);
   final List<Map<String, String>> _pendingCrews = [];
   List<Map<String, String>> get pendingCrews =>
       List.unmodifiable(_pendingCrews);
@@ -150,11 +152,14 @@ class VideoProvider extends ChangeNotifier {
   List<Content> _filteredContentList = [];
   Content? _content = Content();
   Content _selectedContent = Content();
+  List<Map<String, dynamic>> _contentCastList = [];
 
   List<Content> get contentList => _contentList;
   List<Content> get filteredContentList => _filteredContentList;
   Content? get content => _content;
   Content get selectedContent => _selectedContent;
+  List<Map<String, dynamic>> get contentCastList =>
+      List.unmodifiable(_contentCastList);
 
   List<String> _selectedItems = [];
   List<String> get selectedItems => _selectedItems;
@@ -541,6 +546,7 @@ class VideoProvider extends ChangeNotifier {
       typeController.text = item;
     } else if (label == "Rental Duration") {
       rentalDurationController.text = item;
+      rentlDurationController.text = item;
     }
     notifyListeners();
   }
@@ -765,7 +771,7 @@ class VideoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Fetch movies by media house with pagination.
+  // Fetch movies by Production house with pagination.
   Future<void> fetchMoviesByMediaHouseId(
     int mediaHouseId, {
     String type = "MOVIE",
@@ -869,7 +875,7 @@ class VideoProvider extends ChangeNotifier {
     }
   }
 
-  // Fetch movies by status and media house with pagination.
+  // Fetch movies by status and Production house with pagination.
   Future<void> fetchMoviesByStatusAndMediaHouseId(
     String status,
     int mediaHouseId, {
@@ -883,17 +889,18 @@ class VideoProvider extends ChangeNotifier {
     final normalizedStatus = status.toUpperCase();
     final normalizedKeyword = (searchKeyword ?? "").trim();
     final normalizedType = type.toUpperCase();
-    final effectiveStartDate =
-        startDate ?? _formatDateOnly(DateTime(DateTime.now().year, 1, 1));
-    final effectiveEndDate = endDate ?? _formatDateOnly(DateTime.now());
+    final effectiveStartDate = startDate?.trim();
+    final effectiveEndDate = endDate?.trim();
 
     if (!loadMore) {
       _statusMediaHouseIdForPagination = mediaHouseId;
       _statusValueForPagination = normalizedStatus;
       _statusTypeForPagination = normalizedType;
       _statusKeywordForPagination = normalizedKeyword;
-      _statusStartDateForPagination = effectiveStartDate;
-      _statusEndDateForPagination = effectiveEndDate;
+      _statusStartDateForPagination =
+          (effectiveStartDate?.isNotEmpty ?? false) ? effectiveStartDate : null;
+      _statusEndDateForPagination =
+          (effectiveEndDate?.isNotEmpty ?? false) ? effectiveEndDate : null;
       _statusCurrentPage = 0;
       _statusTotalPages = 0;
       _hasMoreStatusItems = true;
@@ -909,8 +916,10 @@ class VideoProvider extends ChangeNotifier {
       mediaHouseId: mediaHouseId,
       type: normalizedType,
       approvalStatus: normalizedStatus,
-      startDate: effectiveStartDate,
-      endDate: effectiveEndDate,
+      startDate:
+          (effectiveStartDate?.isNotEmpty ?? false) ? effectiveStartDate : null,
+      endDate:
+          (effectiveEndDate?.isNotEmpty ?? false) ? effectiveEndDate : null,
       searchKeyword: normalizedKeyword,
       page: page,
       size: _itemsPerPage,
@@ -992,7 +1001,7 @@ class VideoProvider extends ChangeNotifier {
     );
   }
 
-  // Fetch released movies by media house with pagination.
+  // Fetch released movies by Production house with pagination.
   Future<void> fetchReleasedMoviesByMediaHouseId(
     int mediaHouseId, {
     String type = "MOVIE",
@@ -1134,7 +1143,7 @@ class VideoProvider extends ChangeNotifier {
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
     if (mediaHouse == null) {
-      CustomToast.show("Media house not found.", isSuccess: false);
+      CustomToast.show("Production house not found.", isSuccess: false);
       return null;
     }
 
@@ -1169,7 +1178,9 @@ class VideoProvider extends ChangeNotifier {
     saveContent.ratingCount = 0;
     saveContent.reason = '';
     saveContent.releaseDate = releaseDateController.text;
-    saveContent.rentlDuration = rentalDurationController.text;
+    saveContent.rentlDuration = rentalDurationController.text.isNotEmpty
+        ? rentalDurationController.text
+        : rentlDurationController.text;
     saveContent.totalRevenue = 0;
     saveContent.runtime = double.tryParse(runTimeController.text) ?? 0.0;
     saveContent.numberOfAttempt =
@@ -1223,7 +1234,7 @@ class VideoProvider extends ChangeNotifier {
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
     if (mediaHouse == null) {
-      CustomToast.show("Media house not found.", isSuccess: false);
+      CustomToast.show("Production house not found.", isSuccess: false);
       return null;
     }
 
@@ -1253,7 +1264,9 @@ class VideoProvider extends ChangeNotifier {
     saveContent.ratings = 0;
     saveContent.ratingCount = 0;
     saveContent.releaseDate = releaseDateController.text;
-    saveContent.rentlDuration = rentalDurationController.text;
+    saveContent.rentlDuration = rentalDurationController.text.isNotEmpty
+        ? rentalDurationController.text
+        : rentlDurationController.text;
     saveContent.runtime = int.tryParse(runTimeController.text) ?? 0;
     saveContent.numberOfAttempt =
         int.tryParse(numberOfAttemptController.text.trim()) ?? 0;
@@ -1304,7 +1317,7 @@ class VideoProvider extends ChangeNotifier {
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
     if (mediaHouse == null) {
-      CustomToast.show("Media House not found. Please login again.",
+      CustomToast.show("Production House not found. Please login again.",
           isSuccess: false);
       return null;
     }
@@ -1342,7 +1355,9 @@ class VideoProvider extends ChangeNotifier {
       saveContent.ratingCount = 0;
       saveContent.reason = '';
       saveContent.releaseDate = releaseDateController.text;
-      saveContent.rentlDuration = rentalDurationController.text;
+      saveContent.rentlDuration = rentalDurationController.text.isNotEmpty
+          ? rentalDurationController.text
+          : rentlDurationController.text;
       saveContent.totalRevenue = 0;
       saveContent.runtime = double.tryParse(runTimeController.text) ?? 0.0;
       saveContent.numberOfAttempt =
@@ -1520,11 +1535,11 @@ class VideoProvider extends ChangeNotifier {
       }
 
       final responseBody = json.decode(response.body);
-      final bool success = responseBody["success"] == true ||
-          responseBody["isSuccess"] == true;
+      final bool success =
+          responseBody["success"] == true || responseBody["isSuccess"] == true;
       if (!success) {
-        final message = (responseBody["message"] ?? "Failed to save cast.")
-            .toString();
+        final message =
+            (responseBody["message"] ?? "Failed to save cast.").toString();
         CustomToast.show(message, isSuccess: false);
         return false;
       }
@@ -1952,6 +1967,41 @@ class VideoProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> fetchCastByContentId(int contentId) async {
+    if (contentId <= 0) {
+      _contentCastList = [];
+      notifyListeners();
+      return;
+    }
+
+    final apiUrl = ApiConstant.getCastByContentId(contentId);
+    final apiHelper = ApiHelper();
+    try {
+      final response = await apiHelper.getApi(apiUrl);
+      if (response.statusCode != 200) {
+        _contentCastList = [];
+        notifyListeners();
+        return;
+      }
+
+      final responseBody = json.decode(response.body);
+      final dynamic castData = responseBody["data"]?["cast"];
+      if (castData is List) {
+        _contentCastList = castData
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      } else {
+        _contentCastList = [];
+      }
+      notifyListeners();
+    } catch (error) {
+      debugPrint("Error fetching cast by content id: $error");
+      _contentCastList = [];
+      notifyListeners();
+    }
+  }
+
   void setValu(Content movie) {
     releaseDateController.text = movie.releaseDate ?? "";
     ageRatingController.text = movie.ageRating ?? '';
@@ -1962,6 +2012,7 @@ class VideoProvider extends ChangeNotifier {
     titleController.text = movie.title ?? '';
     typeController.text = movie.type ?? '';
     rentlDurationController.text = movie.rentlDuration ?? "";
+    rentalDurationController.text = movie.rentlDuration ?? "";
     priceController.text = movie.price.toString() ?? "";
     runTimeController.text = movie.runtime.toString() ?? "";
     numberOfAttemptController.text = (movie.numberOfAttempt ?? 0).toString();
@@ -2048,6 +2099,13 @@ class VideoProvider extends ChangeNotifier {
   bool isMonth = true;
   bool isWeek = false;
   List<GraphData> chartData = [];
+  bool _isLoadingRatingReviews = false;
+  List<RatingReviewItem> _ratingReviews = [];
+  double _ratingAvg = 0;
+
+  bool get isLoadingRatingReviews => _isLoadingRatingReviews;
+  List<RatingReviewItem> get ratingReviews => _ratingReviews;
+  double get ratingAvg => _ratingAvg;
 
   falseAllFilter() {
     isYear = false;
@@ -2055,8 +2113,18 @@ class VideoProvider extends ChangeNotifier {
     isWeek = false;
   }
 
-  Future<void> contentRevenueGraph(int selectedTimeRange, int id,
-      String startDateString, String endDateString) async {
+  Future<void> contentRevenueGraph(
+    int selectedTimeRange,
+    int id,
+    String startDateString,
+    String endDateString, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+  }) async {
     if (selectedTimeRange == 0) {
       isWeek = true;
       isMonth = false;
@@ -2074,33 +2142,136 @@ class VideoProvider extends ChangeNotifier {
       isMonth = false;
       isYear = false;
     }
-    String apiUrl = ApiConstant.contentRevenueGraph(
+    final apiUrl = ApiConstant.contentRevenueGraph(
       id,
       startDateString,
       endDateString,
       isYear,
       isMonth,
       isWeek,
+      contentType: contentType,
+      country: country,
+      state: state,
+      district: district,
+      taluka: taluka,
+      city: city,
     );
-    ApiHelper apiHelper = ApiHelper();
+    final data = await _fetchContentGraphData(apiUrl);
+    chartData = data;
+    notifyListeners();
+  }
+
+  Future<List<GraphData>> fetchContentMetricGraphData(
+    int selectedTimeRange,
+    int id,
+    String startDateString,
+    String endDateString, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+  }) async {
+    if (selectedTimeRange == 0) {
+      isWeek = true;
+      isMonth = false;
+      isYear = false;
+    } else if (selectedTimeRange == 1) {
+      isWeek = false;
+      isMonth = true;
+      isYear = false;
+    } else if (selectedTimeRange == 2) {
+      isWeek = false;
+      isMonth = false;
+      isYear = true;
+    } else {
+      isWeek = false;
+      isMonth = false;
+      isYear = false;
+    }
+
+    final apiUrl = ApiConstant.contentRevenueGraph(
+      id,
+      startDateString,
+      endDateString,
+      isYear,
+      isMonth,
+      isWeek,
+      contentType: contentType,
+      country: country,
+      state: state,
+      district: district,
+      taluka: taluka,
+      city: city,
+    );
+    return _fetchContentGraphData(apiUrl);
+  }
+
+  Future<List<GraphData>> _fetchContentGraphData(String apiUrl) async {
+    final apiHelper = ApiHelper();
     try {
-      var response = await apiHelper.getApi(apiUrl);
-      Map<String, dynamic> responseBody = json.decode(response.body);
-      GraphResponse chartResponse = GraphResponse.fromJson(responseBody);
+      final response = await apiHelper.getApi(apiUrl);
+      final Map<String, dynamic> responseBody = json.decode(response.body);
+      final chartResponse = GraphResponse.fromJson(responseBody);
       if (chartResponse.success == true) {
-        chartData.clear();
-        chartData = chartResponse.data!;
-        for (var item in chartData) {
-          print('Label: ${item.label}, Value: ${item.value}');
-        }
-        notifyListeners();
-      } else {
-        CustomToast.show(chartResponse.message.toString(),
-            isSuccess: chartResponse.success!);
+        return chartResponse.data ?? <GraphData>[];
       }
+      CustomToast.show(chartResponse.message.toString(),
+          isSuccess: chartResponse.success ?? false);
+      return <GraphData>[];
     } catch (error) {
       debugPrint("Error occurred while fetching graph data: $error");
       throw Exception('Failed to fetch graph data. Error: $error');
+    }
+  }
+
+  Future<void> fetchRatingReviewByContentId(int contentId) async {
+    if (contentId <= 0) {
+      _ratingReviews = [];
+      _ratingAvg = 0;
+      notifyListeners();
+      return;
+    }
+
+    _isLoadingRatingReviews = true;
+    notifyListeners();
+
+    final apiUrl = ApiConstant.getRatingReviewByContentId(contentId);
+    final apiHelper = ApiHelper();
+    try {
+      final response = await apiHelper.getApi(apiUrl);
+      if (response.statusCode != 200) {
+        _ratingReviews = [];
+        _ratingAvg = 0;
+        return;
+      }
+
+      final Map<String, dynamic> body = json.decode(response.body);
+      final reviewRating = body['data']?['reviewRating'];
+      final reviews = reviewRating?['reviews'];
+      final avgRaw = reviewRating?['ratingAvg'];
+
+      _ratingAvg = avgRaw is num
+          ? avgRaw.toDouble()
+          : double.tryParse('${avgRaw ?? 0}') ?? 0;
+
+      if (reviews is List) {
+        _ratingReviews = reviews
+            .whereType<Map>()
+            .map((e) => RatingReviewItem.fromJson(
+                Map<String, dynamic>.from(e as Map<dynamic, dynamic>)))
+            .toList(growable: false);
+      } else {
+        _ratingReviews = [];
+      }
+    } catch (error) {
+      debugPrint('Error fetching rating reviews: $error');
+      _ratingReviews = [];
+      _ratingAvg = 0;
+    } finally {
+      _isLoadingRatingReviews = false;
+      notifyListeners();
     }
   }
 
@@ -2473,6 +2644,7 @@ class VideoProvider extends ChangeNotifier {
     _directorList.clear();
     _pendingCasts.clear();
     _pendingCrews.clear();
+    _contentCastList = [];
 
     _audioLanguages.clear();
     _audioUploadProgress.clear();
@@ -2608,5 +2780,44 @@ class VideoProvider extends ChangeNotifier {
     crewImageController.dispose();
     searchContentController.dispose();
     super.dispose();
+  }
+}
+
+class RatingReviewItem {
+  final int? createdAt;
+  final int? contentId;
+  final int? reviewId;
+  final int? userId;
+  final int rating;
+  final String title;
+  final String comment;
+  final String username;
+  final String userProfile;
+
+  RatingReviewItem({
+    required this.createdAt,
+    required this.contentId,
+    required this.reviewId,
+    required this.userId,
+    required this.rating,
+    required this.title,
+    required this.comment,
+    required this.username,
+    required this.userProfile,
+  });
+
+  factory RatingReviewItem.fromJson(Map<String, dynamic> json) {
+    int toInt(dynamic v) => v is int ? v : int.tryParse('${v ?? 0}') ?? 0;
+    return RatingReviewItem(
+      createdAt: json['createdAt'] is int ? json['createdAt'] as int : null,
+      contentId: json['contentId'] is int ? json['contentId'] as int : null,
+      reviewId: json['reviewId'] is int ? json['reviewId'] as int : null,
+      userId: json['userId'] is int ? json['userId'] as int : null,
+      rating: toInt(json['rating']),
+      title: (json['title'] ?? '').toString(),
+      comment: (json['comment'] ?? '').toString(),
+      username: (json['username'] ?? '').toString(),
+      userProfile: (json['userProfile'] ?? '').toString(),
+    );
   }
 }

@@ -32,9 +32,13 @@ class ApiConstant {
 
   static String saveVideo = '${baseUrl}api/addContent';
   static String saveCast = '${baseUrl}api/saveCast';
+  static String getCastByContentId(int contentId) =>
+      "${baseUrl}api/Cast/getByContentId?contentId=$contentId";
   static String editVideoById(id) => "${baseUrl}api/contentList/update/$id";
   static String getAllVideo = "${baseUrl}api/ContentList/getAll";
   static String getVideoById(id) => "${baseUrl}api/ContentList/getById?id=$id";
+  static String getRatingReviewByContentId(int id) =>
+      "${baseUrl}api/content/$id";
   static String getVideoByMediaHouseId(
     id, {
     String type = "MOVIE",
@@ -64,13 +68,33 @@ class ApiConstant {
     required int mediaHouseId,
     required String type,
     required String approvalStatus,
-    required String startDate,
-    required String endDate,
+    String? startDate,
+    String? endDate,
     String? searchKeyword,
     int page = 0,
     int size = 10,
-  }) =>
-      "${baseUrl}api/content/filter-advanced?mediaHouseId=$mediaHouseId&type=$type&approvalStatus=$approvalStatus&startDate=$startDate&endDate=$endDate&keyword=${searchKeyword ?? ''}&page=$page&size=$size";
+  }) {
+    final params = <String, String>{
+      'mediaHouseId': '$mediaHouseId',
+      'type': type,
+      'approvalStatus': approvalStatus,
+      'keyword': searchKeyword ?? '',
+      'page': '$page',
+      'size': '$size',
+    };
+
+    if (startDate != null && startDate.trim().isNotEmpty) {
+      params['startDate'] = startDate.trim();
+    }
+    if (endDate != null && endDate.trim().isNotEmpty) {
+      params['endDate'] = endDate.trim();
+    }
+
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    return "${baseUrl}api/content/filter-advanced?$query";
+  }
 
   static String savePromoter = '${baseUrl}api/savePromoters2';
   static String editPromoterById = "${baseUrl}user/updateUserBy/%7Bid%7D";
@@ -198,8 +222,46 @@ class ApiConstant {
   }
 
   static String contentRevenueGraph(
-          id, startDate, endDate, isYear, isMonth, isWeek) =>
-      "${baseUrl}api/contentList/graph?contentListId=$id&startDate=$startDate&endDate=$endDate&isYear=$isYear&isMonth=$isMonth&isWeek=$isWeek";
+    id,
+    startDate,
+    endDate,
+    isYear,
+    isMonth,
+    isWeek, {
+    String? contentType,
+    String? country,
+    String? state,
+    String? district,
+    String? taluka,
+    String? city,
+  }) {
+    final params = <String, String>{
+      'contentListId': '$id',
+      'startDate': '$startDate',
+      'endDate': '$endDate',
+      'isYear': '$isYear',
+      'isMonth': '$isMonth',
+      'isWeek': '$isWeek',
+    };
+
+    void putIfNotBlank(String key, String? value) {
+      if (value != null && value.trim().isNotEmpty) {
+        params[key] = value.trim();
+      }
+    }
+
+    putIfNotBlank('contentType', contentType);
+    putIfNotBlank('country', country);
+    putIfNotBlank('state', state);
+    putIfNotBlank('district', district);
+    putIfNotBlank('taluka', taluka);
+    putIfNotBlank('city', city);
+
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+    return "${baseUrl}api/contentList/graph?$query";
+  }
 
   static String setPercentage = "${baseUrl}api/admin/saveMoviePercentAndRate";
   static String reportAndData(
@@ -365,8 +427,55 @@ class ApiConstant {
   }
 
   //shorts
-  static String shortsMaster(id) =>
-      "${baseUrl}api/shortsMaster/by-mediahouse/$id";
+  static String shortsMaster(
+    id, {
+    String keyword = '',
+    int page = 0,
+    int size = 10,
+  }) =>
+      "${baseUrl}api/shortsMaster/by-mediahouse/$id?keyword=${Uri.encodeQueryComponent(keyword)}&page=$page&size=$size";
+  static String shortsTrending({
+    String? lang,
+    int page = 0,
+    int size = 10,
+  }) {
+    final params = <String, String>{
+      "page": "$page",
+      "size": "$size",
+    };
+    if (lang != null && lang.trim().isNotEmpty) {
+      params["lang"] = lang.trim();
+    }
+    final query = params.entries
+        .map((e) => "${e.key}=${Uri.encodeQueryComponent(e.value)}")
+        .join("&");
+    return "${baseUrl}api/shortsMaster/trending?$query";
+  }
+
+  static String filterShorts({
+    required int mediaHouseId,
+    String? startDate,
+    String? endDate,
+    int page = 0,
+    int size = 10,
+  }) {
+    final params = <String, String>{
+      "mediaHouseId": "$mediaHouseId",
+      "page": "$page",
+      "size": "$size",
+    };
+    if (startDate != null && startDate.trim().isNotEmpty) {
+      params["startDate"] = startDate.trim();
+    }
+    if (endDate != null && endDate.trim().isNotEmpty) {
+      params["endDate"] = endDate.trim();
+    }
+    final query = params.entries
+        .map((e) => "${e.key}=${Uri.encodeQueryComponent(e.value)}")
+        .join("&");
+    return "${baseUrl}api/shortsMaster/shorts/filter?$query";
+  }
+
   static String shortsDetails(id, userId) =>
       "${baseUrl}api/shortsMaster/$id?userId=$userId";
   static String addShortMaster = '${baseUrl}api/shortsMaster';

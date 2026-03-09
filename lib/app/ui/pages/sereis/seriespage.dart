@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:media_house/app/widget/movieCardHorizontal.dart';
 import 'package:provider/provider.dart';
@@ -14,36 +16,34 @@ class SeriesPage extends StatefulWidget {
 
 class _SeriesPageState extends State<SeriesPage> {
   final TextEditingController _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
   String _query = '';
   DateTime? _fromDate;
   DateTime? _toDate;
   bool _trendingOnly = false;
+  bool _suppressSearchListener = false;
+  String _lastRequestedFilterKey = '';
 
-  DateTime? _parseDate(dynamic rawDate) {
-    if (rawDate == null) return null;
+  Future<void> _loadSeriesFromFilters({bool force = false}) async {
+    final currentKey =
+        '${_query.trim()}|${_fromDate?.millisecondsSinceEpoch ?? ''}|${_toDate?.millisecondsSinceEpoch ?? ''}';
+    if (!force && currentKey == _lastRequestedFilterKey) return;
+    _lastRequestedFilterKey = currentKey;
 
-    if (rawDate is int) {
-      // Supports both unix seconds and milliseconds.
-      return rawDate > 9999999999
-          ? DateTime.fromMillisecondsSinceEpoch(rawDate)
-          : DateTime.fromMillisecondsSinceEpoch(rawDate * 1000);
-    }
-
-    return DateTime.tryParse(rawDate.toString());
-  }
-
-  bool _isInDateRange(DateTime? date) {
-    if (date == null) return true;
-    if (_fromDate != null && date.isBefore(_fromDate!)) return false;
-    if (_toDate != null) {
-      final end =
-          DateTime(_toDate!.year, _toDate!.month, _toDate!.day, 23, 59, 59);
-      if (date.isAfter(end)) return false;
-    }
-    return true;
+    await context.read<SeriesProvider>().fetchSeriesByMediaHouseId(
+          status: "APPROVED",
+          type: "SERIES",
+          searchKeyword: _query.trim().isEmpty ? null : _query.trim(),
+          startDate: _fromDate != null ? _formatDate(_fromDate!) : null,
+          endDate: _toDate != null ? _formatDate(_toDate!) : null,
+          page: 0,
+          loadMore: false,
+        );
   }
 
   void _resetFilters() {
+    _suppressSearchListener = true;
+    _searchDebounce?.cancel();
     setState(() {
       _fromDate = null;
       _toDate = null;
@@ -51,6 +51,8 @@ class _SeriesPageState extends State<SeriesPage> {
       _query = '';
       _trendingOnly = false;
     });
+    _suppressSearchListener = false;
+    _loadSeriesFromFilters(force: true);
   }
 
   Future<void> _pickDateRange() async {
@@ -82,6 +84,7 @@ class _SeriesPageState extends State<SeriesPage> {
       _fromDate = picked.start;
       _toDate = picked.end;
     });
+    await _loadSeriesFromFilters();
   }
 
   String _formatDate(DateTime date) {
@@ -157,13 +160,18 @@ class _SeriesPageState extends State<SeriesPage> {
   void initState() {
     super.initState();
     _searchCtrl.addListener(() {
-      setState(() {
-        _query = _searchCtrl.text.trim().toLowerCase();
+      if (_suppressSearchListener) return;
+      _query = _searchCtrl.text.trim();
+      setState(() {});
+      _searchDebounce?.cancel();
+      _searchDebounce = Timer(const Duration(milliseconds: 450), () {
+        if (!mounted) return;
+        _loadSeriesFromFilters();
       });
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SeriesProvider>().fetchSeriesByMediaHouseId();
+      _loadSeriesFromFilters(force: true);
     });
   }
 
@@ -176,19 +184,10 @@ class _SeriesPageState extends State<SeriesPage> {
       body: Consumer<SeriesProvider>(
         builder: (context, provider, _) {
           final filteredSeries = provider.filteredContentList.where((series) {
-            final title = (series.title ?? '').toLowerCase();
-            final date = _parseDate(series.releaseDate);
-            final searchMatches = _query.isEmpty || title.contains(_query);
             final trendingMatches =
-                !_trendingOnly || (series.isFeatured == true);
-            return searchMatches && _isInDateRange(date) && trendingMatches;
+                !_trendingOnly || series.isFeatured == true;
+            return trendingMatches;
           }).toList();
-
-          filteredSeries.sort((a, b) {
-            final aDate = _parseDate(a.releaseDate) ?? DateTime(1970);
-            final bDate = _parseDate(b.releaseDate) ?? DateTime(1970);
-            return bDate.compareTo(aDate);
-          });
 
           final totalRevenue = filteredSeries.fold<num>(
             0,
@@ -204,7 +203,7 @@ class _SeriesPageState extends State<SeriesPage> {
           );
 
           return RefreshIndicator(
-            onRefresh: provider.fetchSeriesByMediaHouseId,
+            onRefresh: () => _loadSeriesFromFilters(force: true),
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
@@ -343,6 +342,7 @@ class _SeriesPageState extends State<SeriesPage> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
@@ -450,7 +450,7 @@ class _SeriesPageState extends State<SeriesPage> {
               const SizedBox(width: 8),
               IconButton(
                 tooltip: 'Refresh',
-                onPressed: provider.fetchSeriesByMediaHouseId,
+                onPressed: () => _loadSeriesFromFilters(force: true),
                 icon: const Icon(Icons.refresh_rounded),
               ),
             ],

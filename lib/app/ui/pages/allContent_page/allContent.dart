@@ -24,8 +24,8 @@ class _AllContentPageState extends State<AllContentPage> {
   String _searchQuery = "";
   bool _isInitialLoading = true;
   String? _errorMessage;
-  DateTime _startDate = DateTime(DateTime.now().year, 1, 1);
-  DateTime _endDate = DateTime.now();
+  DateTime? _startDate;
+  DateTime? _endDate;
 
   static const List<Map<String, String>> _statusOptions = [
     {"label": "All Uploaded", "value": "ALL"},
@@ -70,7 +70,7 @@ class _AllContentPageState extends State<AllContentPage> {
       final mediaHouse = await localPrefs.getMediaHouse();
       if (mediaHouse?.id == null) {
         setState(() {
-          _errorMessage = "Media house not found. Please login again.";
+          _errorMessage = "Production house not found. Please login again.";
         });
         return;
       }
@@ -83,8 +83,8 @@ class _AllContentPageState extends State<AllContentPage> {
         _selectedStatus,
         mediaHouse!.id!,
         type: _selectedType,
-        startDate: _formatDate(_startDate),
-        endDate: _formatDate(_endDate),
+        startDate: _startDate == null ? null : _formatDate(_startDate!),
+        endDate: _endDate == null ? null : _formatDate(_endDate!),
       );
     } catch (_) {
       setState(() {
@@ -129,7 +129,9 @@ class _AllContentPageState extends State<AllContentPage> {
   }
 
   Future<void> _pickDate({required bool isStart}) async {
-    final initialDate = isStart ? _startDate : _endDate;
+    final initialDate = isStart
+        ? (_startDate ?? DateTime.now())
+        : (_endDate ?? _startDate ?? DateTime.now());
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
@@ -141,10 +143,14 @@ class _AllContentPageState extends State<AllContentPage> {
     setState(() {
       if (isStart) {
         _startDate = picked;
-        if (_startDate.isAfter(_endDate)) _endDate = _startDate;
+        if (_endDate != null && _startDate!.isAfter(_endDate!)) {
+          _endDate = _startDate;
+        }
       } else {
         _endDate = picked;
-        if (_endDate.isBefore(_startDate)) _startDate = _endDate;
+        if (_startDate != null && _endDate!.isBefore(_startDate!)) {
+          _startDate = _endDate;
+        }
       }
     });
     await _fetchContent(showLoader: true);
@@ -275,12 +281,16 @@ class _AllContentPageState extends State<AllContentPage> {
                   children: [
                     _buildDateButton(
                       theme,
-                      "From ${_formatShortDate(_startDate)}",
+                      _startDate == null
+                          ? "Select From Date"
+                          : "From ${_formatShortDate(_startDate!)}",
                       true,
                     ),
                     _buildDateButton(
                       theme,
-                      "To ${_formatShortDate(_endDate)}",
+                      _endDate == null
+                          ? "Select To Date"
+                          : "To ${_formatShortDate(_endDate!)}",
                       false,
                     ),
                   ],
@@ -304,9 +314,18 @@ class _AllContentPageState extends State<AllContentPage> {
                 _buildTypeChip(theme, "SERIES", "Series"),
                 const Spacer(),
                 _buildDateButton(
-                    theme, "From ${_formatDate(_startDate)}", true),
+                    theme,
+                    _startDate == null
+                        ? "Select From Date"
+                        : "From ${_formatDate(_startDate!)}",
+                    true),
                 const SizedBox(width: 8),
-                _buildDateButton(theme, "To ${_formatDate(_endDate)}", false),
+                _buildDateButton(
+                    theme,
+                    _endDate == null
+                        ? "Select To Date"
+                        : "To ${_formatDate(_endDate!)}",
+                    false),
               ],
             ),
           const SizedBox(height: 10),

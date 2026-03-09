@@ -28,6 +28,8 @@ class Data {
   int? totalItems;
   int? totalPages;
   int? pageSize;
+  bool? hasPrevious;
+  bool? hasNext;
   List<ShortModel>? shorts;
   int? currentPage;
 
@@ -35,25 +37,64 @@ class Data {
     this.totalItems,
     this.totalPages,
     this.pageSize,
+    this.hasPrevious,
+    this.hasNext,
     this.shorts,
     this.currentPage,
   });
 
-  factory Data.fromJson(Map<String, dynamic> json) => Data(
-    totalItems: json["totalItems"],
-    totalPages: json["totalPages"],
-    pageSize: json["pageSize"],
-    shorts: json["shorts"] == null ? [] : List<ShortModel>.from(json["shorts"]!.map((x) => ShortModel.fromJson(x))),
-    currentPage: json["currentPage"],
-  );
+  factory Data.fromJson(Map<String, dynamic> json) {
+    final shortItems = _extractShortItems(json);
+    final normalizedShortItems = shortItems
+        .map((item) {
+          if (item is Map<String, dynamic>) return item;
+          if (item is Map) return Map<String, dynamic>.from(item);
+          return <String, dynamic>{};
+        })
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+
+    return Data(
+      totalItems: _asInt(json["totalItems"]) ??
+          _asInt(json["totalElements"]) ??
+          _asInt(json["numberOfElements"]) ??
+          normalizedShortItems.length,
+      totalPages: _asInt(json["totalPages"]) ?? 1,
+      pageSize:
+          _asInt(json["pageSize"]) ??
+              _asInt(json["size"]) ??
+              normalizedShortItems.length,
+      hasPrevious: json["hasPrevious"],
+      hasNext: json["hasNext"],
+      shorts: normalizedShortItems.map(ShortModel.fromJson).toList(),
+      currentPage: _asInt(json["currentPage"]) ??
+          _asInt(json["number"]) ??
+          _asInt(json["pageNumber"]) ??
+          0,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     "totalItems": totalItems,
     "totalPages": totalPages,
     "pageSize": pageSize,
+    "hasPrevious": hasPrevious,
+    "hasNext": hasNext,
     "shorts": shorts == null ? [] : List<ShortModel>.from(shorts!.map((x) => x.toJson())),
     "currentPage": currentPage,
   };
+
+  static List<dynamic> _extractShortItems(Map<String, dynamic> json) {
+    final rawList = json["shorts"] ?? json["content"];
+    if (rawList is List) return List<dynamic>.from(rawList);
+    return const <dynamic>[];
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
 }
 
 class ShortModel {

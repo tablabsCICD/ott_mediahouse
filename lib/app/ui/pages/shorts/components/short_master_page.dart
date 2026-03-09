@@ -148,7 +148,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                             child: Image.asset(ImageConstant.coin),
                           ),
                           Text(
-                            " ${1} / part",
+                            " ${short.data!.coinsPerPart ?? 0} / part",
                             style: TextStyle(
                               color: theme.canvasColor,
                               fontWeight: FontWeight.bold,

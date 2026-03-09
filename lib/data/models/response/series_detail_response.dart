@@ -8,12 +8,12 @@ class SeriesDetailsResponse {
   });
 
   factory SeriesDetailsResponse.fromJson(Map<String, dynamic> json) {
+    final payload = _asMap(json['data']) ?? json;
     return SeriesDetailsResponse(
-      seasons: ((json['seasons'] as List?) ?? const [])
-          .whereType<Map<String, dynamic>>()
+      seasons: _asMapList(payload['seasons'])
           .map((e) => SeasonBundle.fromJson(e))
           .toList(),
-      series: Series.fromJson((json['series'] as Map<String, dynamic>?) ?? {}),
+      series: Series.fromJson(_asMap(payload['series']) ?? const {}),
     );
   }
 }
@@ -29,9 +29,8 @@ class SeasonBundle {
 
   factory SeasonBundle.fromJson(Map<String, dynamic> json) {
     return SeasonBundle(
-      season: Season.fromJson((json['season'] as Map<String, dynamic>?) ?? {}),
-      episodes: ((json['episodes'] as List?) ?? const [])
-          .whereType<Map<String, dynamic>>()
+      season: Season.fromJson(_asMap(json['season']) ?? const {}),
+      episodes: _asMapList(json['episodes'])
           .map((e) => Episode.fromJson(e))
           .toList(),
     );
@@ -72,30 +71,20 @@ class Episode {
   });
 
   factory Episode.fromJson(Map<String, dynamic> json) => Episode(
-    id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}"),
-    episodeNumber: json["episodeNumber"] is int
-        ? json["episodeNumber"]
-        : int.tryParse("${json["episodeNumber"]}"),
-    title: json["title"],
-    description: json["description"],
-    videoUrl: json["videoUrl"],
-    posterUrl: json["posterUrl"],
-    runtime:
-        json["runtime"] is int ? json["runtime"] : int.tryParse("${json["runtime"]}"),
-    releaseDate: json["releaseDate"] is int
-        ? json["releaseDate"]
-        : int.tryParse("${json["releaseDate"]}"),
-    seasonId: json["seasonId"] is int
-        ? json["seasonId"]
-        : int.tryParse("${json["seasonId"]}"),
-    amount:
-        json["amount"] is int ? json["amount"] : int.tryParse("${json["amount"]}"),
-    viewCount: json["viewCount"] is int
-        ? json["viewCount"]
-        : int.tryParse("${json["viewCount"]}"),
-    partName: json["partName"],
-    free: json["free"],
-    active: json["active"],
+    id: _toInt(json["id"]),
+    episodeNumber: _toInt(json["episodeNumber"]),
+    title: _toStringOrNull(json["title"]),
+    description: _toStringOrNull(json["description"]),
+    videoUrl: _toStringOrNull(json["videoUrl"]),
+    posterUrl: _toStringOrNull(json["posterUrl"]),
+    runtime: _toInt(json["runtime"]),
+    releaseDate: _toInt(json["releaseDate"]),
+    seasonId: _toInt(json["seasonId"]),
+    amount: _toInt(json["amount"]),
+    viewCount: _toInt(json["viewCount"]),
+    partName: _toStringOrNull(json["partName"]),
+    free: _toBool(json["free"]),
+    active: _toBool(json["active"]),
   );
 
   Map<String, dynamic> toJson() => {
@@ -142,25 +131,16 @@ class Season {
   });
 
   factory Season.fromJson(Map<String, dynamic> json) => Season(
-    id: json["id"] is int ? json["id"] : int.tryParse("${json["id"]}"),
-    title: json["title"],
-    description: json["description"],
+    id: _toInt(json["id"]),
+    title: _toStringOrNull(json["title"]),
+    description: _toStringOrNull(json["description"]),
     posterUrl: json["posterUrl"],
-    seasonNumber: json["seasonNumber"] is int
-        ? json["seasonNumber"]
-        : int.tryParse("${json["seasonNumber"]}"),
-    amount:
-        json["amount"] is int ? json["amount"] : int.tryParse("${json["amount"]}"),
-    releaseDate: json["releaseDate"] is int
-        ? json["releaseDate"]
-        : int.tryParse("${json["releaseDate"]}"),
-    viewCount: json["viewCount"] is int
-        ? json["viewCount"]
-        : int.tryParse("${json["viewCount"]}"),
-    contentId: json["contentId"] is int
-        ? json["contentId"]
-        : int.tryParse("${json["contentId"]}"),
-    active: json["active"],
+    seasonNumber: _toInt(json["seasonNumber"]),
+    amount: _toInt(json["amount"]),
+    releaseDate: _toInt(json["releaseDate"]),
+    viewCount: _toInt(json["viewCount"]),
+    contentId: _toInt(json["contentId"]),
+    active: _toBool(json["active"]),
   );
 
   Map<String, dynamic> toJson() => {
@@ -215,25 +195,80 @@ class Series {
     final rawTrailer = json['trailerURL'] ?? json['trailerUrl'];
 
     return Series(
-      id: json['id'] is int ? json['id'] : int.tryParse("${json['id']}") ?? 0,
+      id: _toInt(json['id']) ?? 0,
       title: (json['title'] ?? '').toString(),
       description: (json['description'] ?? '').toString(),
       ratings: rawRatings is num
           ? rawRatings.toDouble()
           : double.tryParse("$rawRatings") ?? 0.0,
-      ratingCount: rawRatingCount is int
-          ? rawRatingCount
-          : int.tryParse("$rawRatingCount") ?? 0,
+      ratingCount: _toInt(rawRatingCount) ?? 0,
       price: rawPrice is num ? rawPrice : num.tryParse("$rawPrice") ?? 0,
-      genreList: List<String>.from((json['genreList'] ?? const []).map((x) => "$x")),
-      directorList:
-          List<String>.from((json['directorList'] ?? const []).map((x) => "$x")),
-      castList: List<String>.from((json['castList'] ?? const []).map((x) => "$x")),
-      posterUrlList:
-          List<String>.from((json['posterUrlList'] ?? const []).map((x) => "$x")),
+      genreList: _toStringList(json['genreList']),
+      directorList: _toStringList(json['directorList']),
+      castList: _toStringList(json['castList']),
+      posterUrlList: _toStringList(json['posterUrlList']),
       trailerURL: (rawTrailer ?? '').toString(),
       type: (json['type'] ?? '').toString(),
       ageRating: json['ageRating'],
     );
   }
+}
+
+Map<String, dynamic>? _asMap(dynamic value) {
+  if (value is Map<String, dynamic>) return value;
+  if (value is Map) return Map<String, dynamic>.from(value);
+  return null;
+}
+
+List<Map<String, dynamic>> _asMapList(dynamic value) {
+  if (value is! List) return const [];
+  return value
+      .whereType<Map>()
+      .map((e) => Map<String, dynamic>.from(e))
+      .toList();
+}
+
+int? _toInt(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value == null) return null;
+  return int.tryParse(value.toString());
+}
+
+bool? _toBool(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+      return true;
+    }
+    if (normalized == 'false' || normalized == '0' || normalized == 'no') {
+      return false;
+    }
+  }
+  return null;
+}
+
+String? _toStringOrNull(dynamic value) {
+  if (value == null) return null;
+  final out = value.toString().trim();
+  return out.isEmpty ? null : out;
+}
+
+List<String> _toStringList(dynamic value) {
+  if (value is List) {
+    return value
+        .map((e) => e?.toString().trim() ?? '')
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+  if (value is String) {
+    return value
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+  return const [];
 }

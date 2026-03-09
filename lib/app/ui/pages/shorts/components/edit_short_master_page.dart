@@ -13,6 +13,7 @@ import '../../../../../data/models/response/short_detail_response.dart';
 import '../../../../core/constant/api_constant.dart';
 import '../../../../core/utils/sharepreferences.dart';
 import '../../../../provider/shorts_provider.dart';
+import '../../../../widget/show_toast.dart';
 
 class EditShortMasterDialog extends StatefulWidget {
   final int shortId;
@@ -36,7 +37,6 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
   late TextEditingController coinsPerPartCtrl;
   late TextEditingController descriptionCtrl;
 
-
   bool isTrending = false;
   Uint8List? previewBytes;
   String? uploadedImageUrl;
@@ -48,20 +48,22 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
   late String _initialCoinsPerPart;
   late String _initialPosterUrl;
 
-
   @override
   void initState() {
     super.initState();
 
     titleCtrl = TextEditingController(text: widget.shortDetailModel.title);
-    totalPartsCtrl = TextEditingController(text: widget.shortDetailModel.totalParts.toString());
-    categoryCtrl = TextEditingController(text: widget.shortDetailModel.category);
-    creatorNameCtrl = TextEditingController(text: widget.shortDetailModel.creatorName ?? "");
+    totalPartsCtrl = TextEditingController(
+        text: widget.shortDetailModel.totalParts.toString());
+    categoryCtrl =
+        TextEditingController(text: widget.shortDetailModel.category);
+    creatorNameCtrl =
+        TextEditingController(text: widget.shortDetailModel.creatorName ?? "");
 
-    coinsPerPartCtrl = TextEditingController(text: widget.shortDetailModel.coinsPerPart.toString());
-    descriptionCtrl = TextEditingController(text: widget.shortDetailModel.description ?? "");
-
-
+    coinsPerPartCtrl = TextEditingController(
+        text: widget.shortDetailModel.coinsPerPart.toString());
+    descriptionCtrl =
+        TextEditingController(text: widget.shortDetailModel.description ?? "");
 
     isTrending = widget.shortDetailModel.isTrending ?? false;
     uploadedImageUrl = widget.shortDetailModel.poster;
@@ -69,26 +71,30 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
     _initialTitle = titleCtrl.text;
     _initialCategory = categoryCtrl.text;
     _initialCoinsPerPart = coinsPerPartCtrl.text;
-    _initialCreatorName = categoryCtrl.text;
+    _initialCreatorName = creatorNameCtrl.text;
     _initialDescription = descriptionCtrl.text;
     _initialTotalParts = totalPartsCtrl.text;
-    _initialPosterUrl = uploadedImageUrl!;
+    _initialPosterUrl = uploadedImageUrl ?? "";
 
-
-    titleCtrl.addListener(() => setState(() {}));
+    void watchChanges() => setState(() {});
+    titleCtrl.addListener(watchChanges);
+    totalPartsCtrl.addListener(watchChanges);
+    categoryCtrl.addListener(watchChanges);
+    creatorNameCtrl.addListener(watchChanges);
+    coinsPerPartCtrl.addListener(watchChanges);
+    descriptionCtrl.addListener(watchChanges);
   }
 
   bool get _hasChanges {
-    return titleCtrl.text.trim() != _initialTitle ||
+    return coinsPerPartCtrl.text.trim() != _initialCoinsPerPart ||
+        titleCtrl.text.trim() != _initialTitle ||
         totalPartsCtrl.text.trim() != _initialTotalParts ||
         categoryCtrl.text.trim() != _initialCategory ||
-        coinsPerPartCtrl.text.trim() != _initialCoinsPerPart ||
+        creatorNameCtrl.text.trim() != _initialCreatorName ||
         descriptionCtrl.text.trim() != _initialDescription ||
-        uploadedImageUrl != _initialPosterUrl ||
+        (uploadedImageUrl ?? "") != _initialPosterUrl ||
         isTrending != (widget.shortDetailModel.isTrending ?? false);
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -114,19 +120,11 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
                 child: Column(
                   children: [
                     _darkField("Title", titleCtrl),
-
                     _darkField("Category", categoryCtrl),
-
                     _darkField("Creator Name", creatorNameCtrl),
-
-                    _darkField("Total Parts", totalPartsCtrl),
-
-                    _darkField("Coins per Part", coinsPerPartCtrl),
-
+                    _darkField("Price per Part", coinsPerPartCtrl),
                     _darkField("Description", descriptionCtrl),
-
                     _thumbnailCard(),
-
                     SwitchListTile(
                       value: isTrending,
                       activeColor: Colors.orange,
@@ -136,7 +134,6 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
                       ),
                       onChanged: (v) => setState(() => isTrending = v),
                     ),
-
                   ],
                 ),
               ),
@@ -204,9 +201,6 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
     );
   }
 
-
-
-
   // ===============================================================
   // THUMBNAIL CARD (CREATE-LIKE)
   // ===============================================================
@@ -218,35 +212,35 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
       title: "Thumbnail",
       child: hasThumb
           ? Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              uploadedImageUrl!,
-              height: 120,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _actionRow(
-            onReplace: () async {
-              await pickImage(setState);
-            },
-            onRemove: () {
-              setState(() {
-                uploadedImageUrl = null;
-              });
-            },
-          ),
-        ],
-      )
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    uploadedImageUrl!,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _actionRow(
+                  onReplace: () async {
+                    await pickImage(setState);
+                  },
+                  onRemove: () {
+                    setState(() {
+                      uploadedImageUrl = null;
+                    });
+                  },
+                ),
+              ],
+            )
           : _uploadButton(
-        label: "Upload Thumbnail",
-        onTap: () async {
-          await pickImage(setState);
-        },
-      ),
+              label: "Upload Thumbnail",
+              onTap: () async {
+                await pickImage(setState);
+              },
+            ),
     );
   }
 
@@ -272,7 +266,6 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
     );
   }
 
-
   Widget _uploadButton({
     required String label,
     required VoidCallback onTap,
@@ -293,7 +286,6 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
       ),
     );
   }
-
 
   Widget _uploadCard({
     required String title,
@@ -384,7 +376,6 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
             backgroundColor: Colors.orange,
           ),
           onPressed: provider.isSubmitting || !_hasChanges ? null : _submit,
-
           child: provider.isSubmitting
               ? const CircularProgressIndicator(color: Colors.white)
               : const Text("Update Short Master"),
@@ -400,8 +391,7 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
   Future<void> _submit() async {
     final provider = context.read<ShortProvider>();
     final localSharePreferences = LocalSharePreferences();
-    final mediaHouse =
-    await localSharePreferences.getMediaHouse();
+    final mediaHouse = await localSharePreferences.getMediaHouse();
     final body = {
       "id": widget.shortId,
       "title": titleCtrl.text.trim(),
@@ -417,14 +407,19 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
       "mediaHouseId": mediaHouse!.id!,
     };
 
-
-    final success = await provider.updateShortMaster(body,widget.shortDetailModel.id.toString());
+    final success = await provider.updateShortMaster(
+        body, widget.shortDetailModel.id.toString());
 
     if (!mounted) return;
 
     if (success) {
+      CustomToast.show("Short updated successfully", isSuccess: true);
       Navigator.pop(context, true);
+      return;
     }
+
+    CustomToast.show("Failed to update short. Please try again.",
+        isSuccess: false);
   }
 
   io.File? imageFile;
@@ -437,8 +432,7 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
       final uri = Uri.parse(ApiConstant.uploadContentImg);
       uploadProgress = 0;
 
-      http.MultipartRequest request =
-      http.MultipartRequest('POST', uri);
+      http.MultipartRequest request = http.MultipartRequest('POST', uri);
 
       Uint8List bytes;
 
@@ -494,7 +488,6 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
       debugPrint("❌ Upload error: $e");
     }
   }
-
 
   Future<void> pickImage(StateSetter setState) async {
     if (kIsWeb) {

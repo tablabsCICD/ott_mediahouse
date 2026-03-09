@@ -131,7 +131,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                     CustomTextField(
                       controller: provider.mediaHouseNameController,
-                      label: 'Media House Name',
+                      label: 'Production House Name',
                       isName: true,
                       hintText: 'Enter a valid name',
                       isValidator: true,

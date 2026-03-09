@@ -16,11 +16,10 @@ const String Manage_Video = "Manage Video";
 const String Manage_Tags = "Manage Tags";
 const String Manage_Geners = "Manage Geners";
 const String Manage_User = "Manage User";
-const String Manage_Media_House = "Manage Media House";
+const String Manage_Media_House = "Manage Production House";
 const String Report = "Report";
 const String Transaction = "Transaction";
 const String Order = "Order";
 const String Manage_Manager = "Manage Manager";
 const String Support_Ticket = "Support Ticket";
 const String Top_Banners = "Top_Banners";
-

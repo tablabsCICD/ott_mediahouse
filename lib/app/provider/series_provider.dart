@@ -10,9 +10,8 @@ import 'package:media_house/app/core/constant/api_constant.dart';
 import 'package:media_house/data/models/shorts.dart';
 import 'package:universal_html/html.dart' as html;
 
-import '../../data/models/response/getAllVideoResponse.dart';
+import '../../data/models/response/allContentResponse.dart';
 import '../../data/models/response/series_detail_response.dart';
-import '../../data/models/response/series_response.dart';
 import '../../data/models/response/short_detail_response.dart';
 import '../../data/models/response/video_upload_response.dart';
 import '../../domain/entities/content.dart';
@@ -31,8 +30,26 @@ class SeriesProvider extends ChangeNotifier {
 
   List<Content> _contentList = [];
   List<Content> _filteredContentList = [];
-    List<Content> get contentList => _contentList;
+  List<Content> get contentList => _contentList;
   List<Content> get filteredContentList => _filteredContentList;
+  int _totalItems = 0;
+  int get totalItems => _totalItems;
+  static const int _itemsPerPage = 10;
+  bool _hasMoreItems = false;
+  bool get hasMoreItems => _hasMoreItems;
+  bool _isLoadingMore = false;
+  bool get isLoadingMore => _isLoadingMore;
+  int? _statusMediaHouseIdForPagination;
+  String _statusValueForPagination = "APPROVED";
+  String _statusTypeForPagination = "SERIES";
+  String _statusKeywordForPagination = "";
+  String? _statusStartDateForPagination;
+  String? _statusEndDateForPagination;
+  int _statusCurrentPage = 0;
+  int _statusTotalPages = 0;
+  bool _hasMoreStatusItems = false;
+  bool _isStatusLoadingMore = false;
+  bool get isStatusLoadingMore => _isStatusLoadingMore;
   final TextEditingController movieUrlController = TextEditingController();
 
   SeriesDetailsResponse? _data;
@@ -53,17 +70,19 @@ class SeriesProvider extends ChangeNotifier {
       ApiHelper apiHelper = ApiHelper();
       var response = await apiHelper.getApi(url);
 
-
       if (response.statusCode == 200) {
-        final Map<String, dynamic> jsonMap =
-        jsonDecode(utf8.decode(response.bodyBytes));
-
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        final Map<String, dynamic> jsonMap = decoded is Map<String, dynamic>
+            ? decoded
+            : decoded is Map
+                ? Map<String, dynamic>.from(decoded)
+                : {'data': decoded};
         _data = SeriesDetailsResponse.fromJson(jsonMap);
       } else {
         _error = "Failed to load series (${response.statusCode})";
       }
     } catch (e) {
-      _error = "Something went wrong while loading series";
+      _error = "Something went wrong while loading series: $e";
       debugPrint("SeriesProvider error: $e");
     } finally {
       _loading = false;
@@ -78,73 +97,201 @@ class SeriesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchSeriesByMediaHouseId() async {
-    isLoading = true;
-    _contentList.clear();
-    _filteredContentList.clear();
-    notifyListeners();
-
+  Future<void> fetchSeriesByMediaHouseId({
+    String status = "APPROVED",
+    String type = "SERIES",
+    String? searchKeyword,
+    String? startDate,
+    String? endDate,
+    int page = 0,
+    bool loadMore = false,
+  }) async {
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
     final mediaHouseId = mediaHouse?.id;
     if (mediaHouseId == null) {
+      if (!loadMore) {
+        _contentList.clear();
+        _filteredContentList.clear();
+        _totalItems = 0;
+      }
+      _hasMoreStatusItems = false;
+      _hasMoreItems = false;
       isLoading = false;
       notifyListeners();
       return;
     }
 
-    String apiUrl = ApiConstant.getSeriesByMediaHouse(mediaHouseId);
-    debugPrint("API => $apiUrl");
+    await fetchSeriesByStatusAndMediaHouseId(
+      status,
+      mediaHouseId,
+      type: type,
+      searchKeyword: searchKeyword,
+      startDate: startDate,
+      endDate: endDate,
+      page: page,
+      loadMore: loadMore,
+    );
+  }
 
-    ApiHelper apiHelper = ApiHelper();
+  Future<void> fetchSeriesByStatusAndMediaHouseId(
+    String status,
+    int mediaHouseId, {
+    String type = "SERIES",
+    String? searchKeyword,
+    String? startDate,
+    String? endDate,
+    int page = 0,
+    bool loadMore = false,
+  }) async {
+    final normalizedStatus = status.toUpperCase();
+    final normalizedKeyword = (searchKeyword ?? "").trim();
+    final normalizedType = type.toUpperCase();
+    final effectiveStartDate = startDate?.trim();
+    final effectiveEndDate = endDate?.trim();
 
+    if (!loadMore) {
+      isLoading = true;
+      _statusMediaHouseIdForPagination = mediaHouseId;
+      _statusValueForPagination = normalizedStatus;
+      _statusTypeForPagination = normalizedType;
+      _statusKeywordForPagination = normalizedKeyword;
+      _statusStartDateForPagination =
+          (effectiveStartDate?.isNotEmpty ?? false) ? effectiveStartDate : null;
+      _statusEndDateForPagination =
+          (effectiveEndDate?.isNotEmpty ?? false) ? effectiveEndDate : null;
+      _statusCurrentPage = 0;
+      _statusTotalPages = 0;
+      _hasMoreStatusItems = true;
+      _isStatusLoadingMore = false;
+      _isLoadingMore = false;
+      notifyListeners();
+    } else {
+      _isLoadingMore = true;
+      _isStatusLoadingMore = true;
+      notifyListeners();
+    }
+
+    final apiUrl = ApiConstant.filterAdvancedContent(
+      mediaHouseId: mediaHouseId,
+      type: normalizedType,
+      approvalStatus: normalizedStatus,
+      startDate: (effectiveStartDate?.isNotEmpty ?? false)
+          ? effectiveStartDate
+          : null,
+      endDate:
+          (effectiveEndDate?.isNotEmpty ?? false) ? effectiveEndDate : null,
+      searchKeyword: normalizedKeyword,
+      page: page,
+      size: _itemsPerPage,
+    );
+    debugPrint(apiUrl);
+
+    final apiHelper = ApiHelper();
     try {
       final response = await apiHelper.getApi(apiUrl);
-      debugPrint("SERIES RESPONSE => ${response.body}");
-
       if (response.statusCode == 200) {
-        final Map<String, dynamic> responseBody =
-        json.decode(response.body);
+        final responseBody = json.decode(response.body) as Map<String, dynamic>;
+        final allContentResponse = AllContentResponse.fromJson(responseBody);
+        final data = allContentResponse.data;
+        final fetchedContent = data?.contentList ?? [];
 
-        SeriesResponse getAllContentResponse =
-        SeriesResponse.fromJson(responseBody);
+        if (allContentResponse.success == true) {
+          _statusCurrentPage = data?.currentPage ?? page;
+          _statusTotalPages = data?.totalPages ?? 0;
+          _hasMoreStatusItems = _statusTotalPages > 0
+              ? (_statusCurrentPage + 1) < _statusTotalPages
+              : fetchedContent.length >= _itemsPerPage;
 
-        if (getAllContentResponse.success == true &&
-            getAllContentResponse.data?.contentList != null) {
-
-          final newList =
-          getAllContentResponse.data!.contentList!;
-
-          _contentList
-            ..clear()
-            ..addAll(newList);
-
-          // ✅ FIX IS HERE
-          _filteredContentList
-            ..clear()
-            ..addAll(_contentList);
-          debugPrint("Filtered size => ${_filteredContentList.length}");
-
+          _contentList = loadMore
+              ? _mergeContentWithoutDuplicates(_contentList, fetchedContent)
+              : List<Content>.from(fetchedContent);
+          _filteredContentList = List<Content>.from(_contentList);
+          _totalItems = data?.totalItems ?? _filteredContentList.length;
+          _hasMoreItems = _hasMoreStatusItems;
+          notifyListeners();
         } else {
-          _contentList.clear();
-          _filteredContentList.clear();
+          if (!loadMore) {
+            _contentList.clear();
+            _filteredContentList.clear();
+            _totalItems = 0;
+          }
+          _hasMoreStatusItems = false;
+          _hasMoreItems = false;
+          notifyListeners();
         }
-      } else {
-        debugPrint("HTTP ERROR => ${response.statusCode}");
+      } else if (response.statusCode == 404 && !loadMore) {
         _contentList.clear();
         _filteredContentList.clear();
+        _totalItems = 0;
+        _hasMoreStatusItems = false;
+        _hasMoreItems = false;
+        notifyListeners();
+      } else {
+        throw Exception(
+            'Failed to fetch series. Status code: ${response.statusCode}');
       }
-    } catch (e) {
-      debugPrint("FETCH SERIES ERROR => $e");
-      _contentList.clear();
-      _filteredContentList.clear();
+    } catch (error) {
+      _hasMoreStatusItems = false;
+      _hasMoreItems = false;
+      notifyListeners();
+      debugPrint("Error: $error");
+      throw Exception('An error occurred while fetching series.');
     } finally {
       isLoading = false;
+      _isLoadingMore = false;
+      _isStatusLoadingMore = false;
       notifyListeners();
     }
   }
 
+  Future<void> fetchNextSeriesByStatusPage() async {
+    if (_statusMediaHouseIdForPagination == null ||
+        _isStatusLoadingMore ||
+        !_hasMoreStatusItems) {
+      return;
+    }
+    _isLoadingMore = true;
+    _isStatusLoadingMore = true;
+    notifyListeners();
+    try {
+      await fetchSeriesByStatusAndMediaHouseId(
+        _statusValueForPagination,
+        _statusMediaHouseIdForPagination!,
+        type: _statusTypeForPagination,
+        searchKeyword: _statusKeywordForPagination,
+        startDate: _statusStartDateForPagination,
+        endDate: _statusEndDateForPagination,
+        page: _statusCurrentPage + 1,
+        loadMore: true,
+      );
+    } finally {
+      _isLoadingMore = false;
+      _isStatusLoadingMore = false;
+      notifyListeners();
+    }
+  }
 
+  List<Content> _mergeContentWithoutDuplicates(
+      List<Content> base, List<Content> incoming) {
+    final merged = <Content>[...base];
+    final seenIds = <int>{};
+    for (final item in merged) {
+      if (item.id != null) {
+        seenIds.add(item.id!);
+      }
+    }
+    for (final item in incoming) {
+      final id = item.id;
+      if (id == null || !seenIds.contains(id)) {
+        merged.add(item);
+        if (id != null) {
+          seenIds.add(id);
+        }
+      }
+    }
+    return merged;
+  }
 
   Future<void> uploadVideoWeb(bool isTrailer) async {
     html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
@@ -175,7 +322,8 @@ class SeriesProvider extends ChangeNotifier {
       xhr.onLoad.listen((_) {
         if (xhr.status == 200) {
           final response = json.decode(xhr.responseText!);
-          VideoUploadResponse contentImageUploadResponse = VideoUploadResponse.fromJson(response);
+          VideoUploadResponse contentImageUploadResponse =
+              VideoUploadResponse.fromJson(response);
           final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
 
           print(encryptedUrl);
@@ -189,7 +337,6 @@ class SeriesProvider extends ChangeNotifier {
       });
 
       xhr.onError.listen((_) {
-
         movieUploadProgress = 0.0;
         _isMovieUploading = false;
 
@@ -198,7 +345,6 @@ class SeriesProvider extends ChangeNotifier {
 
       xhr.open('POST', ApiConstant.uploadVideo);
       xhr.send(formData);
-
 
       _isMovieUploading = true;
 
@@ -234,36 +380,36 @@ class SeriesProvider extends ChangeNotifier {
 
           // Create a stream controller to track progress
           final StreamController<List<int>> streamController =
-          StreamController<List<int>>();
+              StreamController<List<int>>();
           int bytesSent = 0;
 
           // Create the progress tracking stream
           final progressStream = file.openRead().transform(
-            StreamTransformer.fromHandlers(
-              handleData: (List<int> data, EventSink<List<int>> sink) {
-                bytesSent += data.length;
-                final progress = bytesSent / totalBytes;
+                StreamTransformer.fromHandlers(
+                  handleData: (List<int> data, EventSink<List<int>> sink) {
+                    bytesSent += data.length;
+                    final progress = bytesSent / totalBytes;
 
-                // Update progress
+                    // Update progress
 
-                movieUploadProgress = progress;
+                    movieUploadProgress = progress;
 
-                print(
-                    "Upload progress: ${(progress * 100).toStringAsFixed(1)}%");
-                notifyListeners();
+                    print(
+                        "Upload progress: ${(progress * 100).toStringAsFixed(1)}%");
+                    notifyListeners();
 
-                sink.add(data);
-              },
-              handleError: (error, stackTrace, sink) {
-                print("Stream error: $error");
-                sink.addError(error, stackTrace);
-              },
-              handleDone: (sink) {
-                print("Stream done");
-                sink.close();
-              },
-            ),
-          );
+                    sink.add(data);
+                  },
+                  handleError: (error, stackTrace, sink) {
+                    print("Stream error: $error");
+                    sink.addError(error, stackTrace);
+                  },
+                  handleDone: (sink) {
+                    print("Stream done");
+                    sink.close();
+                  },
+                ),
+              );
 
           // Create the multipart request
           final request = http.MultipartRequest('POST', uploadUri);
@@ -282,9 +428,9 @@ class SeriesProvider extends ChangeNotifier {
           if (response.statusCode == 200) {
             final responseBody = await response.stream.bytesToString();
             final responseJson = json.decode(responseBody);
-            VideoUploadResponse contentImageUploadResponse = VideoUploadResponse.fromJson(responseJson);
+            VideoUploadResponse contentImageUploadResponse =
+                VideoUploadResponse.fromJson(responseJson);
             final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
-
 
             movieUrlController.text = encryptedUrl!;
             movieUploadProgress = 1.0;
@@ -296,7 +442,6 @@ class SeriesProvider extends ChangeNotifier {
             print("Error response: $responseBody");
 
             movieUploadProgress = 0.0;
-
           }
           _isMovieUploading = false;
 
@@ -319,206 +464,16 @@ class SeriesProvider extends ChangeNotifier {
     } finally {
       // ❌ DO NOTHING FOR WEB
       if (!kIsWeb) {
-
         _isMovieUploading = false;
         _isUploading = false;
         notifyListeners();
       }
     }
-
   }
-
-
-  Future<void> fetchShorts() async {
-    try {
-      isLoading = true;
-      notifyListeners();
-      final localSharePreferences = LocalSharePreferences();
-      final mediaHouse =
-      await localSharePreferences.getMediaHouse();
-      var url = ApiConstant.shortsMaster(mediaHouse!.id);
-      ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.getApi(url);
-      final data = jsonDecode(response.body);
-
-      shorts =
-          (data["data"] as List).map((e) => ShortModel.fromJson(e)).toList();
-    } catch (e) {
-      print("Shorts Fetch Error → $e");
-    }
-
-    isLoading = false;
-    notifyListeners();
-  }
-
-  Future<bool> addShortMaster(Map<String, dynamic> body) async {
-    try {
-      isLoading = true;
-      notifyListeners();
-
-      final url = ApiConstant.addShortMaster;
-      ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.postApiWithBody(url,body);
-
-
-      debugPrint("Request Body → ${jsonEncode(body)}");
-      debugPrint("Response Code → ${response.statusCode}");
-      debugPrint("Response Body → ${response.body}");
-
-      final Map<String, dynamic> data = jsonDecode(response.body);
-
-      /// ✅ SUCCESS CHECK (THIS IS THE KEY FIX)
-      if (data["success"] == true) {
-        if (data["data"] != null) {
-          ShortModel shortModel = ShortModel.fromJson(data["data"]);
-        }
-
-        /// Refresh list
-        await fetchShorts();
-
-        isLoading = false;
-        notifyListeners();
-        return true;
-      } else {
-        debugPrint("Add Short Failed → ${data["message"]}");
-      }
-    } catch (e, s) {
-      debugPrint("Add Short Exception → $e");
-      debugPrintStack(stackTrace: s);
-    }
-
-    isLoading = false;
-    notifyListeners();
-    return false;
-  }
-
-  Future<bool> deleteShortMaster({
-    required int shortId,
-    void Function(String message)? onMessage,
-  }) async {
-    try {
-      isLoading = true;
-      notifyListeners();
-
-      final url =
-        "${ApiConstant.deleteShortMaster}/$shortId";
-
-      debugPrint("DELETE SHORT → $url");
-      ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.deleteApi(url);
-
-      debugPrint("Delete Response Code → ${response.statusCode}");
-      debugPrint("Delete Response Body → ${response.body}");
-
-      final Map<String, dynamic> data = jsonDecode(response.body);
-
-      /// ✅ SUCCESS
-      if (data["success"] == true) {
-        onMessage?.call(data["message"] ?? "Short deleted successfully");
-
-        /// 🔄 Refresh list safely
-        await fetchShorts();
-
-        isLoading = false;
-        notifyListeners();
-        return true;
-      }
-
-      /// ❌ FAILURE (API responded but success=false)
-      onMessage?.call(
-        data["message"] ?? "Failed to delete short",
-      );
-    } catch (e, s) {
-      debugPrint("Delete Short Exception → $e");
-      debugPrintStack(stackTrace: s);
-
-      onMessage?.call("Something went wrong while deleting short");
-    }
-
-    isLoading = false;
-    notifyListeners();
-    return false;
-  }
-
-  /*Future<bool> updateShortMaster({
-    required int shortId,
-    required Map<String, dynamic> body,
-    void Function(String message)? onMessage,
-  }) async {
-    try {
-      isLoading = true;
-      notifyListeners();
-
-      final url = Uri.parse(
-        "${ApiConstant.updateShortMaster}/$shortId",
-      );
-
-      debugPrint("UPDATE SHORT → $url");
-      debugPrint("BODY → ${jsonEncode(body)}");
-
-      final response = await http.put(
-        url,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode(body),
-      );
-
-      debugPrint("Response Code → ${response.statusCode}");
-      debugPrint("Response Body → ${response.body}");
-
-      final Map<String, dynamic> data = jsonDecode(response.body);
-
-      /// ✅ SUCCESS
-      if (data["success"] == true) {
-        onMessage?.call(data["message"] ?? "Short updated successfully");
-
-        /// Update local model if backend returns updated short
-        if (data["data"] != null) {
-          shortDetail = ShortDetailResponse.fromJson(data["data"]);
-        }
-
-        /// 🔄 Refresh list
-        await fetchShorts();
-
-        isLoading = false;
-        notifyListeners();
-        return true;
-      }
-
-      /// ❌ API returned success=false
-      onMessage?.call(
-        data["message"] ?? "Failed to update short",
-      );
-    } catch (e, s) {
-      debugPrint("Update Short Exception → $e");
-      debugPrintStack(stackTrace: s);
-
-      onMessage?.call("Something went wrong while updating short");
-    }
-
-    isLoading = false;
-    notifyListeners();
-    return false;
-  }*/
-
-  /// Optimistic remove
-  void removeShortLocally(int shortId) {
-    shorts.removeWhere((s) => s.id == shortId);
-    notifyListeners();
-  }
-
-  /// Undo restore
-  void restoreShort(ShortModel short, int index) {
-    shorts.insert(index, short);
-    notifyListeners();
-  }
-
 
   bool isSubmitting = false;
 
-  Future<bool> createEpisodeApi(
-      Map<String, dynamic> body, int seasonId) async {
+  Future<bool> createEpisodeApi(Map<String, dynamic> body, int seasonId) async {
     try {
       isSubmitting = true;
       notifyListeners();
@@ -529,7 +484,7 @@ class SeriesProvider extends ChangeNotifier {
       debugPrint("URL => $apiUrl");
       debugPrint("BODY => ${jsonEncode(body)}");
       ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.postApiWithBody(apiUrl,body);
+      var response = await apiHelper.postApiWithBody(apiUrl, body);
 
       debugPrint("STATUS => ${response.statusCode}");
       debugPrint("RESPONSE => ${response.body}");
@@ -543,116 +498,5 @@ class SeriesProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-
-  bool isDetailLoading = false;
-  String? detailError;
-
-  Future<void> fetchShortDetail({
-    required int shortId,
-    required int userId,
-  }) async {
-    try {
-      isDetailLoading = true;
-      detailError = null;
-      notifyListeners();
-
-      var url = ApiConstant.shortsDetails(shortId, userId);
-      ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.getApi(url);
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        final res = ShortDetailResponse.fromJson(decoded);
-        shortDetail = res;
-      } else {
-        detailError = "Failed to load short details";
-      }
-    } catch (e) {
-      detailError = e.toString();
-    } finally {
-      isDetailLoading = false;
-      notifyListeners();
-    }
-  }
-
-  bool isPartDeleting = false;
-  Future<bool> deleteShortPart({
-    required String partId,
-  }) async {
-    try {
-      isPartDeleting = true;
-      notifyListeners();
-
-      final url =
-        "${ApiConstant.deletePart(partId)}";
-
-      print("${ApiConstant.deletePart(partId)}");
-      ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.deleteApi(url);
-      debugPrint(response.body);
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-
-        if (decoded['success'] == true) {
-          return true;
-        } else {
-          debugPrint("❌ Delete part failed: ${decoded['message']}");
-          return false;
-        }
-      } else {
-        debugPrint("❌ Delete part HTTP error: ${response.statusCode}");
-        return false;
-      }
-    } catch (e) {
-      debugPrint("❌ Delete part exception: $e");
-      return false;
-    } finally {
-      isPartDeleting = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> updateShortPart(Map<String, dynamic> body,String partId) async {
-    try {
-      isSubmitting = true;
-      notifyListeners();
-
-      String url = "${ApiConstant.baseUrl}api/short-parts/$partId";
-      ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.putApiWithBody(url,body);
-
-      debugPrint(jsonEncode(body));
-      debugPrint(response.body);
-
-      return response.statusCode == 200;
-    } catch (e) {
-      debugPrint("❌ Update part error: $e");
-      return false;
-    } finally {
-      isSubmitting = false;
-      notifyListeners();
-    }
-  }
-
-  Future<bool> updateShortMaster(Map<String, dynamic> body,String shortId) async {
-    try {
-      isSubmitting = true;
-      notifyListeners();
-
-      String url = "${ApiConstant.baseUrl}api/shortsMaster/$shortId";
-      ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.putApiWithBody(url,body);
-      debugPrint(jsonEncode(body));
-      debugPrint(response.body);
-
-      return response.statusCode == 200;
-    } catch (e) {
-      debugPrint("❌ Update part error: $e");
-      return false;
-    } finally {
-      isSubmitting = false;
-      notifyListeners();
-    }
-  }
 }
+

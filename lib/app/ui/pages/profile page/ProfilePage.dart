@@ -239,7 +239,7 @@ class _ProfilePageState extends State<ProfilePage> {
         title: 'Basic Details',
         accent: const Color(0xFF2A9D8F),
         fields: [
-          _field('Media House Name', media.mediaHouseName),
+          _field('Production House Name', media.mediaHouseName),
           _field('Firm Type', media.firmType),
           _field('Description', media.discription),
           _field('Email', media.email),

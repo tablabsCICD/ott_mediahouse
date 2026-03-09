@@ -260,11 +260,11 @@ class GraphProvider extends ChangeNotifier {
     try {
       _clearTopMoviesGraphState();
       notifyListeners();
-
+      debugPrint(apiUrl);
       final response = await apiHelper.getApi(apiUrl);
       final responseBody = json.decode(response.body) as Map<String, dynamic>;
       final topRevenueMovie = TopRevenueMovie.fromJson(responseBody);
-
+      debugPrint(response.body);
       if (topRevenueMovie.success == true) {
         final items = topRevenueMovie.data?.contentWithRevenue ?? [];
         chartData = List<ContentWithRevenue>.from(items);
@@ -362,11 +362,10 @@ class GraphProvider extends ChangeNotifier {
 
   void setDateRange(
       String label, int days, BuildContext context, bool isRevenue) {
-    activeButton = label;
-
     if (label == "Custom Dates") {
       pickDateRange(context, isRevenue);
     } else {
+      activeButton = label;
       endDate = today;
       startDate = endDate!.subtract(Duration(days: days));
       selectedDateRange = DateTimeRange(start: startDate!, end: endDate!);
@@ -398,7 +397,8 @@ class GraphProvider extends ChangeNotifier {
             child: DateRangePickerDialog(
               firstDate: DateTime(2020),
               lastDate: today,
-              initialDateRange: selectedDateRange,
+              initialDateRange:
+                  activeButton == 'Custom Dates' ? selectedDateRange : null,
               helpText: 'Select Custom Date Range',
               confirmText: 'Apply',
               cancelText: 'Cancel',

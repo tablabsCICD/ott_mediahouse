@@ -167,6 +167,7 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
               items: const ["ALL", "MOVIE", "SERIES", "SHORTS"],
               onChanged: (value) {
                 provider.setContentTypeFilter(value ?? "ALL");
+                _getData();
               },
             ),
           ),
@@ -285,24 +286,24 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
     await showDialog<void>(
       context: context,
       builder: (_) {
-        return Consumer<GraphProvider>(
-          builder: (context, graphProvider, __) {
-            final countryValue = graphProvider.countryFilter.trim().isEmpty
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final countryValue = provider.countryFilter.trim().isEmpty
                 ? null
-                : graphProvider.countryFilter;
-            final stateValue = graphProvider.stateFilter.trim().isEmpty
+                : provider.countryFilter;
+            final stateValue = provider.stateFilter.trim().isEmpty
                 ? null
-                : graphProvider.stateFilter;
+                : provider.stateFilter;
             return Dialog(
               backgroundColor: theme.cardColor,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
               child: SizedBox(
                 width: MediaQuery.of(context).size.width > 900
-                    ? 600 // desktop
+                    ? 600
                     : MediaQuery.of(context).size.width > 600
-                        ? 500 // tablet
-                        : MediaQuery.of(context).size.width * 0.9, //
+                        ? 500
+                        : MediaQuery.of(context).size.width * 0.9,
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -320,7 +321,7 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
                           ),
                           const Spacer(),
                           IconButton(
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () => Navigator.pop(dialogContext),
                             icon: Icon(
                               Icons.close,
                               color: theme.canvasColor,
@@ -334,18 +335,19 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
                         theme: theme,
                         label: "Country",
                         value: countryValue,
-                        isLoading: graphProvider.isLoadingCountries,
+                        isLoading: provider.isLoadingCountries,
                         onTap: () async {
                           final selectedCountry = await _showSearchPickerDialog(
                             context: context,
                             theme: theme,
                             title: "Search Country",
-                            options: graphProvider.countryOptions,
-                            initialValue: graphProvider.countryFilter,
+                            options: provider.countryOptions,
+                            initialValue: provider.countryFilter,
                           );
                           if (selectedCountry == null) return;
-                          await graphProvider
+                          await provider
                               .selectCountryAndLoadStates(selectedCountry);
+                          if (mounted) setDialogState(() {});
                         },
                       ),
                       const SizedBox(height: 8),
@@ -354,18 +356,19 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
                         theme: theme,
                         label: "State",
                         value: stateValue,
-                        isLoading: graphProvider.isLoadingStates,
-                        enabled: graphProvider.countryFilter.trim().isNotEmpty,
+                        isLoading: provider.isLoadingStates,
+                        enabled: provider.countryFilter.trim().isNotEmpty,
                         onTap: () async {
                           final selectedState = await _showSearchPickerDialog(
                             context: context,
                             theme: theme,
                             title: "Search State",
-                            options: graphProvider.stateOptions,
-                            initialValue: graphProvider.stateFilter,
+                            options: provider.stateOptions,
+                            initialValue: provider.stateFilter,
                           );
                           if (selectedState == null) return;
-                          graphProvider.setStateFilter(selectedState);
+                          provider.setStateFilter(selectedState);
+                          if (mounted) setDialogState(() {});
                         },
                       ),
                       const SizedBox(height: 8),
@@ -373,8 +376,8 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
                         theme,
                         "District",
                         districtCtrl,
-                        enabled: graphProvider.stateFilter.trim().isNotEmpty,
-                        onChanged: (_) => setState(() {}), // 🔥 ADD THIS
+                        enabled: provider.stateFilter.trim().isNotEmpty,
+                        onChanged: (_) => setDialogState(() {}),
                       ),
                       const SizedBox(height: 8),
                       _buildDialogTextField(
@@ -382,13 +385,13 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
                         "Taluka",
                         talukaCtrl,
                         enabled: districtCtrl.text.trim().isNotEmpty,
-                        onChanged: (_) => setState(() {}), // 🔥 ADD THIS
+                        onChanged: (_) => setDialogState(() {}),
                       ),
                       const SizedBox(height: 8),
                       _buildDialogTextField(
                         theme,
                         "City",
-                        _cityController,
+                        cityCtrl,
                         enabled: talukaCtrl.text.trim().isNotEmpty,
                       ),
                       const SizedBox(height: 12),
@@ -396,21 +399,19 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: () => Navigator.pop(dialogContext),
                               child: const Text("Cancel"),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () {
-                                if (graphProvider.countryFilter
-                                    .trim()
-                                    .isEmpty) {
+                              onPressed: () async {
+                                if (provider.countryFilter.trim().isEmpty) {
                                   _showError("Please select Country");
                                   return;
                                 }
-                                if (graphProvider.stateFilter.trim().isEmpty) {
+                                /* if (provider.stateFilter.trim().isEmpty) {
                                   _showError("Please select State");
                                   return;
                                 }
@@ -422,28 +423,29 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
                                   _showError("Please enter Taluka");
                                   return;
                                 }
-                                if (_cityController.text.trim().isEmpty) {
+                                if (cityCtrl.text.trim().isEmpty) {
                                   _showError("Please enter City");
                                   return;
-                                }
+                                } */
 
                                 _countryController.text =
-                                    graphProvider.countryFilter.trim();
+                                    provider.countryFilter.trim();
                                 _stateController.text =
-                                    graphProvider.stateFilter.trim();
+                                    provider.stateFilter.trim();
                                 _districtController.text =
                                     districtCtrl.text.trim();
                                 _talukaController.text = talukaCtrl.text.trim();
                                 _cityController.text = cityCtrl.text.trim();
 
-                                graphProvider.setDistrictFilter(
+                                provider.setDistrictFilter(
                                     _districtController.text);
-                                graphProvider
+                                provider
                                     .setTalukaFilter(_talukaController.text);
-                                graphProvider
-                                    .setCityFilter(_cityController.text);
+                                provider.setCityFilter(_cityController.text);
 
-                                Navigator.pop(context);
+                                await _getData();
+                                if (!dialogContext.mounted) return;
+                                Navigator.pop(dialogContext);
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: theme.primaryColor,
@@ -480,12 +482,12 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
     String label,
     TextEditingController controller, {
     bool enabled = true,
-    Function(String)? onChanged, // 👈 ADD
+    Function(String)? onChanged,
   }) {
     return TextField(
       controller: controller,
       enabled: enabled,
-      onChanged: onChanged, // 👈 ADD
+      onChanged: onChanged,
       style: TextStyle(
         color: enabled ? theme.canvasColor : Colors.grey,
       ),

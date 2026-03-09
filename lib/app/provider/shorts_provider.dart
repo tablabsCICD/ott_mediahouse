@@ -19,6 +19,11 @@ class ShortProvider extends ChangeNotifier {
   List<ShortModel> shorts = [];
   ShortDetailResponse? shortDetail;
   bool isLoading = false;
+  String? shortsError;
+  int shortsTotalItems = 0;
+  int shortsTotalPages = 0;
+  int shortsCurrentPage = 0;
+  int _shortsRequestSerial = 0;
   bool _isUploading = false;
   bool _isMovieUploading = false;
   double movieUploadProgress = 0.0;
@@ -48,7 +53,7 @@ class ShortProvider extends ChangeNotifier {
             e.total! > 0) {
           final progress = e.loaded! / e.total!;
 
-            movieUploadProgress = progress;
+          movieUploadProgress = progress;
           notifyListeners();
         }
       });
@@ -56,23 +61,23 @@ class ShortProvider extends ChangeNotifier {
       xhr.onLoad.listen((_) {
         if (xhr.status == 200) {
           final response = json.decode(xhr.responseText!);
-          VideoUploadResponse contentImageUploadResponse = VideoUploadResponse.fromJson(response);
+          VideoUploadResponse contentImageUploadResponse =
+              VideoUploadResponse.fromJson(response);
           final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
 
-            print(encryptedUrl);
+          print(encryptedUrl);
 
-            movieUrlController.text = encryptedUrl!;
+          movieUrlController.text = encryptedUrl!;
           //  movieFileName = file.name;
-            movieUploadProgress = 1.0;
-            _isMovieUploading = false;
+          movieUploadProgress = 1.0;
+          _isMovieUploading = false;
           notifyListeners();
         }
       });
 
       xhr.onError.listen((_) {
-
-          movieUploadProgress = 0.0;
-          _isMovieUploading = false;
+        movieUploadProgress = 0.0;
+        _isMovieUploading = false;
 
         notifyListeners();
       });
@@ -80,8 +85,7 @@ class ShortProvider extends ChangeNotifier {
       xhr.open('POST', ApiConstant.uploadVideo);
       xhr.send(formData);
 
-
-        _isMovieUploading = true;
+      _isMovieUploading = true;
 
       notifyListeners();
     });
@@ -92,8 +96,8 @@ class ShortProvider extends ChangeNotifier {
 
     // Reset progress at start and set uploading status
 
-      movieUploadProgress = 0.0;
-      _isMovieUploading = true;
+    movieUploadProgress = 0.0;
+    _isMovieUploading = true;
     _isUploading = true;
     notifyListeners();
 
@@ -115,36 +119,36 @@ class ShortProvider extends ChangeNotifier {
 
           // Create a stream controller to track progress
           final StreamController<List<int>> streamController =
-          StreamController<List<int>>();
+              StreamController<List<int>>();
           int bytesSent = 0;
 
           // Create the progress tracking stream
           final progressStream = file.openRead().transform(
-            StreamTransformer.fromHandlers(
-              handleData: (List<int> data, EventSink<List<int>> sink) {
-                bytesSent += data.length;
-                final progress = bytesSent / totalBytes;
+                StreamTransformer.fromHandlers(
+                  handleData: (List<int> data, EventSink<List<int>> sink) {
+                    bytesSent += data.length;
+                    final progress = bytesSent / totalBytes;
 
-                // Update progress
+                    // Update progress
 
-                  movieUploadProgress = progress;
+                    movieUploadProgress = progress;
 
-                print(
-                    "Upload progress: ${(progress * 100).toStringAsFixed(1)}%");
-                notifyListeners();
+                    print(
+                        "Upload progress: ${(progress * 100).toStringAsFixed(1)}%");
+                    notifyListeners();
 
-                sink.add(data);
-              },
-              handleError: (error, stackTrace, sink) {
-                print("Stream error: $error");
-                sink.addError(error, stackTrace);
-              },
-              handleDone: (sink) {
-                print("Stream done");
-                sink.close();
-              },
-            ),
-          );
+                    sink.add(data);
+                  },
+                  handleError: (error, stackTrace, sink) {
+                    print("Stream error: $error");
+                    sink.addError(error, stackTrace);
+                  },
+                  handleDone: (sink) {
+                    print("Stream done");
+                    sink.close();
+                  },
+                ),
+              );
 
           // Create the multipart request
           final request = http.MultipartRequest('POST', uploadUri);
@@ -163,9 +167,9 @@ class ShortProvider extends ChangeNotifier {
           if (response.statusCode == 200) {
             final responseBody = await response.stream.bytesToString();
             final responseJson = json.decode(responseBody);
-            VideoUploadResponse contentImageUploadResponse = VideoUploadResponse.fromJson(responseJson);
+            VideoUploadResponse contentImageUploadResponse =
+                VideoUploadResponse.fromJson(responseJson);
             final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
-
 
             movieUrlController.text = encryptedUrl!;
             movieUploadProgress = 1.0;
@@ -177,7 +181,6 @@ class ShortProvider extends ChangeNotifier {
             print("Error response: $responseBody");
 
             movieUploadProgress = 0.0;
-
           }
           _isMovieUploading = false;
 
@@ -200,37 +203,121 @@ class ShortProvider extends ChangeNotifier {
     } finally {
       // ❌ DO NOTHING FOR WEB
       if (!kIsWeb) {
-
-          _isMovieUploading = false;
+        _isMovieUploading = false;
         _isUploading = false;
         notifyListeners();
       }
     }
-
   }
 
-
-  Future<void> fetchShorts() async {
-    try {
-      isLoading = true;
-      shorts.clear();
+  Future<void> fetchShorts({
+    String keyword = '',
+    int page = 0,
+    int size = 10,
+  }) async {
+    final localSharePreferences = LocalSharePreferences();
+    final mediaHouse = await localSharePreferences.getMediaHouse();
+    final mediaHouseId = mediaHouse?.id;
+    if (mediaHouseId == null) {
+      shorts = [];
+      shortsError = "Production house ID not found.";
+      shortsTotalItems = 0;
+      shortsTotalPages = 0;
+      shortsCurrentPage = 0;
       notifyListeners();
-      final localSharePreferences = LocalSharePreferences();
-      final mediaHouse =
-      await localSharePreferences.getMediaHouse();
-      var url = ApiConstant.shortsMaster(mediaHouse!.id);
-      ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.getApi(url);
-      final data = jsonDecode(response.body);
-      ShortMasterResponse shortMasterResponse = ShortMasterResponse.fromJson(data);
-      shorts = shortMasterResponse.data?.shorts ?? [];
-    } catch (e) {
-      shorts.clear();
-      print("Shorts Fetch Error → $e");
+      return;
     }
 
-    isLoading = false;
-    notifyListeners();
+    final url = ApiConstant.shortsMaster(
+      mediaHouseId,
+      keyword: keyword,
+      page: page,
+      size: size,
+    );
+    await _fetchShortsFromUrl(url);
+  }
+
+  Future<void> fetchTrendingShorts({
+    String? lang,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final url = ApiConstant.shortsTrending(
+      lang: lang,
+      page: page,
+      size: size,
+    );
+    await _fetchShortsFromUrl(url);
+  }
+
+  Future<void> fetchShortsByDateRange({
+    required DateTime startDate,
+    required DateTime endDate,
+    int page = 0,
+    int size = 10,
+  }) async {
+    final localSharePreferences = LocalSharePreferences();
+    final mediaHouse = await localSharePreferences.getMediaHouse();
+    final mediaHouseId = mediaHouse?.id;
+    if (mediaHouseId == null) {
+      shorts = [];
+      shortsError = "Production house ID not found.";
+      shortsTotalItems = 0;
+      shortsTotalPages = 0;
+      shortsCurrentPage = 0;
+      notifyListeners();
+      return;
+    }
+
+    final url = ApiConstant.filterShorts(
+      mediaHouseId: mediaHouseId,
+      startDate: _formatDate(startDate),
+      endDate: _formatDate(endDate),
+      page: page,
+      size: size,
+    );
+    await _fetchShortsFromUrl(url);
+  }
+
+  String _formatDate(DateTime date) {
+    final dd = date.day.toString().padLeft(2, '0');
+    final mm = date.month.toString().padLeft(2, '0');
+    final yyyy = date.year.toString();
+    return "$dd/$mm/$yyyy";
+  }
+
+  Future<void> _fetchShortsFromUrl(String url) async {
+    final requestId = ++_shortsRequestSerial;
+    try {
+      isLoading = true;
+      shortsError = null;
+      notifyListeners();
+
+      final apiHelper = ApiHelper();
+      final response = await apiHelper.getApi(url);
+      final data = jsonDecode(response.body);
+      final shortMasterResponse = ShortMasterResponse.fromJson(data);
+
+      if (requestId != _shortsRequestSerial) return;
+
+      shorts = shortMasterResponse.data?.shorts ?? [];
+      shortsTotalItems = shortMasterResponse.data?.totalItems ?? shorts.length;
+      shortsTotalPages = shortMasterResponse.data?.totalPages ?? 1;
+      shortsCurrentPage = shortMasterResponse.data?.currentPage ?? 0;
+    } catch (e) {
+      if (requestId != _shortsRequestSerial) return;
+      shorts.clear();
+      shortsTotalItems = 0;
+      shortsTotalPages = 0;
+      shortsCurrentPage = 0;
+      shortsError = "Failed to fetch shorts.";
+      print("Shorts Fetch Error -> $e");
+    } finally {
+      if (requestId == _shortsRequestSerial) {
+        isLoading = false;
+        notifyListeners();
+      }
+    }
   }
 
   Future<bool> addShortMaster(Map<String, dynamic> body) async {
@@ -241,8 +328,7 @@ class ShortProvider extends ChangeNotifier {
       final url = ApiConstant.addShortMaster;
 
       ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.postApiWithBody(url,body);
-
+      var response = await apiHelper.postApiWithBody(url, body);
 
       debugPrint("Request Body → ${jsonEncode(body)}");
       debugPrint("Response Code → ${response.statusCode}");
@@ -253,7 +339,7 @@ class ShortProvider extends ChangeNotifier {
       /// ✅ SUCCESS CHECK (THIS IS THE KEY FIX)
       if (data["success"] == true) {
         if (data["data"] != null) {
-         ShortModel shortModel = ShortModel.fromJson(data["data"]);
+          ShortModel shortModel = ShortModel.fromJson(data["data"]);
         }
 
         /// Refresh list
@@ -283,14 +369,12 @@ class ShortProvider extends ChangeNotifier {
       isLoading = true;
       notifyListeners();
 
-      final url =
-        "${ApiConstant.deleteShortMaster}/$shortId";
+      final url = "${ApiConstant.deleteShortMaster}/$shortId";
 
       debugPrint("DELETE SHORT → $url");
 
       ApiHelper apiHelper = ApiHelper();
       var response = await apiHelper.deleteApi(url);
-
 
       debugPrint("Delete Response Code → ${response.statusCode}");
       debugPrint("Delete Response Body → ${response.body}");
@@ -399,7 +483,6 @@ class ShortProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-
   bool isSubmitting = false;
 
   Future<bool> createShortPart(Map<String, dynamic> body) async {
@@ -407,10 +490,10 @@ class ShortProvider extends ChangeNotifier {
       isSubmitting = true;
       notifyListeners();
 
-      String apiUrl =  ApiConstant.createShortPart;
+      String apiUrl = ApiConstant.createShortPart;
       print(apiUrl);
       ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.postApiWithBody(apiUrl,body);
+      var response = await apiHelper.postApiWithBody(apiUrl, body);
       print(response.body);
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
@@ -461,8 +544,7 @@ class ShortProvider extends ChangeNotifier {
       isPartDeleting = true;
       notifyListeners();
 
-      final url =
-        "${ApiConstant.deletePart(partId)}";
+      final url = "${ApiConstant.deletePart(partId)}";
       ApiHelper apiHelper = ApiHelper();
       var response = await apiHelper.deleteApi(url);
       debugPrint(response.body);
@@ -488,14 +570,14 @@ class ShortProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateShortPart(Map<String, dynamic> body,String partId) async {
+  Future<bool> updateShortPart(Map<String, dynamic> body, String partId) async {
     try {
       isSubmitting = true;
       notifyListeners();
 
       String url = "${ApiConstant.baseUrl}api/short-parts/$partId";
       ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.postApiWithBody(url,body);
+      var response = await apiHelper.putApiWithBody(url, body);
       debugPrint(jsonEncode(body));
       debugPrint(response.body);
 
@@ -509,13 +591,14 @@ class ShortProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateShortMaster(Map<String, dynamic> body,String shortId) async {
+  Future<bool> updateShortMaster(
+      Map<String, dynamic> body, String shortId) async {
     try {
       isSubmitting = true;
       notifyListeners();
       String url = "${ApiConstant.baseUrl}api/shortsMaster/$shortId";
       ApiHelper apiHelper = ApiHelper();
-      var response = await apiHelper.postApiWithBody(url,body);
+      var response = await apiHelper.putApiWithBody(url, body);
       debugPrint(jsonEncode(body));
       debugPrint(response.body);
 
