@@ -77,6 +77,7 @@ class _MovieRevenueGraphState extends State<MovieRevenueGraph> {
   int _currentRangeIndex() {
     if (activeButton == 'Month') return 1;
     if (activeButton == 'Year') return 2;
+    if (activeButton == 'Custom Dates') return 3;
     return 0;
   }
 
@@ -181,6 +182,15 @@ class _MovieRevenueGraphState extends State<MovieRevenueGraph> {
     return total;
   }
 
+  int _xLabelStep(int count) {
+    if (count <= 12) return 1;
+    if (count <= 24) return 2;
+    if (count <= 45) return 3;
+    if (count <= 75) return 5;
+    if (count <= 120) return 7;
+    return 10;
+  }
+
   Future<void> _pickDateRange() async {
     final DateTimeRange? picked = await showDialog<DateTimeRange>(
       context: context,
@@ -212,7 +222,7 @@ class _MovieRevenueGraphState extends State<MovieRevenueGraph> {
       startDate = picked.start;
       endDate = picked.end;
     });
-    await _fetchGraphData(0, picked.start, picked.end);
+    await _fetchGraphData(3, picked.start, picked.end);
   }
 
   Future<void> _setDateRange(String label, int days) async {
@@ -441,6 +451,10 @@ class _MovieRevenueGraphState extends State<MovieRevenueGraph> {
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context, listen: true).getTheme;
+    final hasDates = startDate != null && endDate != null;
+    final rangeText = hasDates
+        ? '${DateFormat.yMMMd().format(startDate!)} - ${DateFormat.yMMMd().format(endDate!)}'
+        : 'Select Date Range';
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
@@ -471,13 +485,10 @@ class _MovieRevenueGraphState extends State<MovieRevenueGraph> {
           Align(
             alignment: Alignment.centerRight,
             child: Text(
-              selectedDateRange == null
-                  ? 'Select Date Range'
-                  : '${DateFormat.yMMMd().format(selectedDateRange!.start)} - ${DateFormat.yMMMd().format(selectedDateRange!.end)}',
+              rangeText,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
-          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -542,19 +553,27 @@ class _MovieRevenueGraphState extends State<MovieRevenueGraph> {
               builder: (context, provider, child) {
                 final indexedPoints =
                     provider.chartData.asMap().entries.toList();
+                final labelStep = _xLabelStep(indexedPoints.length);
+                final lastIndex =
+                    indexedPoints.isEmpty ? 0 : indexedPoints.length - 1;
                 return SfCartesianChart(
                   primaryXAxis: NumericAxis(
-                    title: const AxisTitle(
+                    title: AxisTitle(
                       text: '<-------------- Time -------------->',
-                      textStyle: TextStyle(fontSize: 12),
+                      textStyle: const TextStyle(fontSize: 12),
                     ),
                     interval: 1,
                     decimalPlaces: 0,
                     axisLabelFormatter: (details) {
                       final index = details.value.round();
-                      final label = (index >= 0 && index < indexedPoints.length)
-                          ? (indexedPoints[index].value.label ?? '')
-                          : '';
+                      if (index < 0 || index >= indexedPoints.length) {
+                        return ChartAxisLabel('', details.textStyle);
+                      }
+                      final shouldShow = index == 0 ||
+                          index == lastIndex ||
+                          (index % labelStep == 0);
+                      final label =
+                          shouldShow ? (indexedPoints[index].value.label ?? '') : '';
                       return ChartAxisLabel(label, details.textStyle);
                     },
                   ),

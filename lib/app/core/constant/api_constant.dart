@@ -34,6 +34,11 @@ class ApiConstant {
   static String saveCast = '${baseUrl}api/saveCast';
   static String getCastByContentId(int contentId) =>
       "${baseUrl}api/Cast/getByContentId?contentId=$contentId";
+  static String getCastByContentIdAndSeasonId({
+    required int contentId,
+    required int seasonId,
+  }) =>
+      "${baseUrl}api/Cast/getByContentIdAndSeasonId?contentId=$contentId&seasonId=$seasonId";
   static String editVideoById(id) => "${baseUrl}api/contentList/update/$id";
   static String getAllVideo = "${baseUrl}api/ContentList/getAll";
   static String getVideoById(id) => "${baseUrl}api/ContentList/getById?id=$id";

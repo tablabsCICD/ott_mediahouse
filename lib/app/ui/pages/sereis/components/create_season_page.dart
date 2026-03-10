@@ -1,6 +1,5 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:async';
 import 'dart:io' as io;
 import 'dart:typed_data';
 
@@ -15,6 +14,7 @@ import 'package:universal_html/html.dart' as html;
 
 import '../../../../../data/models/response/content_image_upload_response.dart';
 import '../../../../core/constant/api_constant.dart';
+import '../../../../provider/series_provider.dart';
 import '../../../../provider/themeProvider.dart';
 
 class AddSeasonDialog extends StatefulWidget {
@@ -34,27 +34,47 @@ class AddSeasonDialog extends StatefulWidget {
 class _AddSeasonDialogState extends State<AddSeasonDialog> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController titleCtrl = TextEditingController();
-  final TextEditingController descCtrl = TextEditingController();
-  final TextEditingController seasonNoCtrl = TextEditingController();
+  final titleCtrl = TextEditingController();
+  final descCtrl = TextEditingController();
+  final seasonNoCtrl = TextEditingController();
   final amountCtrl = TextEditingController();
   DateTime selectedDate = DateTime.now();
-
-  XFile? pickedImage;
-  Uint8List? webImageBytes;
-  String uploadedPosterUrl = '';
-
-  bool isLoading = false;
-  bool isUploading = false;
-  bool isSubmitting = false;
 
   io.File? imageFile;
   html.File? webFile;
   Uint8List? previewBytes;
   String? uploadedImageUrl;
   double uploadProgress = 0;
+  bool isLoading = false;
 
-  // ---------- GLOBAL SNACK ----------
+  final castNameCtrl = TextEditingController();
+  final castRoleCtrl = TextEditingController();
+  String castImageUrl = '';
+  Uint8List? castPreview;
+  bool isCastUploading = false;
+
+  final crewNameCtrl = TextEditingController();
+  final crewRoleCtrl = TextEditingController();
+  String crewImageUrl = '';
+  Uint8List? crewPreview;
+  bool isCrewUploading = false;
+
+  final List<_CastCrewDraft> _castMembers = [];
+  final List<_CastCrewDraft> _crewMembers = [];
+
+  @override
+  void dispose() {
+    titleCtrl.dispose();
+    descCtrl.dispose();
+    seasonNoCtrl.dispose();
+    amountCtrl.dispose();
+    castNameCtrl.dispose();
+    castRoleCtrl.dispose();
+    crewNameCtrl.dispose();
+    crewRoleCtrl.dispose();
+    super.dispose();
+  }
+
   void showGlobalSnack(String message) {
     final messenger = globalMessengerKey.currentState;
     if (messenger == null) return;
@@ -70,7 +90,6 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
       );
   }
 
-  // ---------- UPLOAD IMAGE ----------
   Future<void> uploadImage(StateSetter setState) async {
     final uri = Uri.parse(ApiConstant.uploadContentImg);
     uploadProgress = 0;
@@ -80,8 +99,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         final reader = html.FileReader();
         reader.readAsArrayBuffer(webFile!);
         await reader.onLoad.first;
-
-        final bytes = Uint8List.fromList(reader.result as List<int>);
+        final bytes = Uint8List.fromList((reader.result as List).cast<int>());
         previewBytes = bytes;
 
         final request = http.MultipartRequest('POST', uri)
@@ -104,7 +122,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         final stream = http.ByteStream(
           imageFile!.openRead().transform(
             StreamTransformer.fromHandlers(
-              handleData: (data, sink) {
+              handleData: (List<int> data, EventSink<List<int>> sink) {
                 sent += data.length;
                 setState(() => uploadProgress = sent / total);
                 sink.add(data);
@@ -125,7 +143,8 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
 
         final response = await request.send();
         final body = await response.stream.bytesToString();
-        uploadedImageUrl = jsonDecode(body)['data'];
+        final parsed = ContentImageUploadResponse.fromJson(jsonDecode(body));
+        uploadedImageUrl = parsed.data?.thumbnailUrl;
       }
     } catch (_) {
       showGlobalSnack("Image upload failed");
@@ -134,7 +153,6 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
     setState(() => uploadProgress = 1);
   }
 
-  // ---------- PICK IMAGE ----------
   Future<void> pickImage(StateSetter setState) async {
     try {
       if (kIsWeb) {
@@ -160,16 +178,171 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
     }
   }
 
-  // ------------------ Submit ------------------
+  Future<void> _pickMemberImage({required bool isCrew}) async {
+    if (isCrew ? isCrewUploading : isCastUploading) return;
+
+    try {
+      Uint8List bytes;
+      String fileName = 'member.jpg';
+
+      if (kIsWeb) {
+        final input = html.FileUploadInputElement()..accept = 'image/*';
+        input.click();
+        await input.onChange.first;
+        if (input.files == null || input.files!.isEmpty) return;
+        final file = input.files!.first;
+        final reader = html.FileReader();
+        reader.readAsArrayBuffer(file);
+        await reader.onLoad.first;
+        bytes = Uint8List.fromList((reader.result as List).cast<int>());
+        fileName = file.name;
+      } else {
+        final picker = ImagePicker();
+        final picked = await picker.pickImage(source: ImageSource.gallery);
+        if (picked == null) return;
+        bytes = await io.File(picked.path).readAsBytes();
+        fileName = picked.name;
+      }
+
+      setState(() {
+        if (isCrew) {
+          isCrewUploading = true;
+          crewPreview = bytes;
+        } else {
+          isCastUploading = true;
+          castPreview = bytes;
+        }
+      });
+
+      final url = await _uploadMemberImage(bytes, fileName);
+      if (url.trim().isNotEmpty) {
+        setState(() {
+          if (isCrew) {
+            crewImageUrl = url;
+          } else {
+            castImageUrl = url;
+          }
+        });
+      } else {
+        showGlobalSnack("Failed to upload image");
+      }
+    } catch (_) {
+      showGlobalSnack("Failed to pick image");
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (isCrew) {
+            isCrewUploading = false;
+          } else {
+            isCastUploading = false;
+          }
+        });
+      }
+    }
+  }
+
+  Future<String> _uploadMemberImage(Uint8List bytes, String filename) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(ApiConstant.uploadContentImg),
+      );
+      request.files.add(
+        http.MultipartFile.fromBytes('thumbnail', bytes, filename: filename),
+      );
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      final parsed = ContentImageUploadResponse.fromJson(jsonDecode(body));
+      return parsed.data?.thumbnailUrl?.trim() ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  void _addCastMember() {
+    final name = castNameCtrl.text.trim();
+    final role = castRoleCtrl.text.trim();
+    if (name.isEmpty || role.isEmpty || castImageUrl.trim().isEmpty) {
+      showGlobalSnack("Cast name, role and image are required");
+      return;
+    }
+    setState(() {
+      _castMembers.add(
+        _CastCrewDraft(
+          name: name,
+          role: role,
+          description: '',
+          image: castImageUrl.trim(),
+          isCrew: false,
+        ),
+      );
+      castNameCtrl.clear();
+      castRoleCtrl.clear();
+      castImageUrl = '';
+      castPreview = null;
+    });
+  }
+
+  void _addCrewMember() {
+    final name = crewNameCtrl.text.trim();
+    final role = crewRoleCtrl.text.trim();
+    if (name.isEmpty || role.isEmpty || crewImageUrl.trim().isEmpty) {
+      showGlobalSnack("Crew name, role and image are required");
+      return;
+    }
+    setState(() {
+      _crewMembers.add(
+        _CastCrewDraft(
+          name: name,
+          role: role,
+          description: '',
+          image: crewImageUrl.trim(),
+          isCrew: true,
+        ),
+      );
+      crewNameCtrl.clear();
+      crewRoleCtrl.clear();
+      crewImageUrl = '';
+      crewPreview = null;
+    });
+  }
+
+  int _extractSeasonId(dynamic jsonData) {
+    if (jsonData is Map<String, dynamic>) {
+      final directId = jsonData['id'];
+      if (directId is int) return directId;
+      if (directId is num) return directId.toInt();
+      final data = jsonData['data'];
+      if (data is Map<String, dynamic>) {
+        final dataId = data['id'];
+        if (dataId is int) return dataId;
+        if (dataId is num) return dataId.toInt();
+        final season = data['season'];
+        if (season is Map<String, dynamic>) {
+          final seasonId = season['id'];
+          if (seasonId is int) return seasonId;
+          if (seasonId is num) return seasonId.toInt();
+        }
+      }
+    }
+    return 0;
+  }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_isDateBeforeToday(selectedDate)) {
+      showGlobalSnack("Release date cannot be before today");
+      return;
+    }
+    if ((uploadedImageUrl ?? '').trim().isEmpty) {
+      showGlobalSnack("Please upload season poster");
+      return;
+    }
 
     setState(() => isLoading = true);
 
     try {
       final url = '${ApiConstant.baseUrl}series/${widget.seriesId}/season/add';
-      debugPrint(url);
       final body = {
         "amount": amountCtrl.text.trim(),
         "title": titleCtrl.text.trim(),
@@ -178,7 +351,6 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         "releaseDate": selectedDate.toIso8601String(),
         "seasonNumber": int.parse(seasonNoCtrl.text.trim()),
       };
-      debugPrint(jsonEncode(body));
       final response = await http.post(
         Uri.parse(url),
         headers: {'Content-Type': 'application/json'},
@@ -186,25 +358,44 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final parsed = jsonDecode(response.body);
+        final seasonId = _extractSeasonId(parsed);
+
+        if (seasonId > 0 &&
+            (_castMembers.isNotEmpty || _crewMembers.isNotEmpty)) {
+          final members = [..._castMembers, ..._crewMembers];
+          if (!mounted) return;
+          final provider = Provider.of<SeriesProvider>(context, listen: false);
+          final castSaved = await provider.saveSeasonCastCrewMembers(
+            contentId: widget.seriesId,
+            seasonId: seasonId,
+            members: members
+                .map((m) => {
+                      "name": m.name,
+                      "role": m.role,
+                      "description": "",
+                      "image": m.image,
+                      "isCrew": m.isCrew,
+                    })
+                .toList(growable: false),
+          );
+          if (!castSaved) {
+            showGlobalSnack("Season created, but cast/crew save failed");
+          }
+        }
+
         widget.onSuccess();
         if (mounted) Navigator.of(context).pop();
-
-        Future.microtask(() {
-          debugPrint("Season added successfully");
-        });
       } else {
         throw Exception(response.body);
       }
     } catch (e) {
       debugPrint("Failed: $e");
+      showGlobalSnack("Failed to create season");
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
-
-  // ------------------ Snackbar Safe Handler ------------------
-
-  // ------------------ UI ------------------
 
   @override
   Widget build(BuildContext context) {
@@ -221,31 +412,36 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         ),
       ),
       content: SizedBox(
-        width: 420,
+        width: 650,
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                GestureDetector(
-                  onTap: isSubmitting ? null : () => pickImage(setState),
-                  child: Container(
-                    height: 180,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.canvasColor),
-                      image: previewBytes != null
-                          ? DecorationImage(
-                              image: MemoryImage(previewBytes!),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
-                    ),
-                    child: previewBytes == null
-                        ? const Center(child: Text("Upload Poster"))
-                        : null,
-                  ),
+                StatefulBuilder(
+                  builder: (_, setState) {
+                    return GestureDetector(
+                      onTap: isLoading ? null : () => pickImage(setState),
+                      child: Container(
+                        height: 180,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: theme.canvasColor),
+                          image: previewBytes != null
+                              ? DecorationImage(
+                                  image: MemoryImage(previewBytes!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                        ),
+                        child: previewBytes == null
+                            ? const Center(child: Text("Upload Poster"))
+                            : null,
+                      ),
+                    );
+                  },
                 ),
                 if (uploadProgress > 0 && uploadProgress < 1)
                   Padding(
@@ -255,7 +451,8 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
                 const SizedBox(height: 15),
                 _field(titleCtrl, "Season Title"),
                 _field(descCtrl, "Description", maxLines: 3),
-                _field(amountCtrl, "Season Price", maxLines: 3),
+                _field(amountCtrl, "Season Price",
+                    keyboard: TextInputType.number),
                 _field(
                   seasonNoCtrl,
                   "Season Number",
@@ -263,6 +460,43 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
                 ),
                 const SizedBox(height: 12),
                 _datePicker(theme),
+                const SizedBox(height: 16),
+                Text(
+                  "Cast & Crew Members",
+                  style: TextStyle(
+                    color: theme.primaryColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _memberFormCard(
+                  theme: theme,
+                  title: "Cast",
+                  nameCtrl: castNameCtrl,
+                  roleCtrl: castRoleCtrl,
+                  preview: castPreview,
+                  imageUrl: castImageUrl,
+                  uploading: isCastUploading,
+                  onPickImage: () => _pickMemberImage(isCrew: false),
+                  onAdd: _addCastMember,
+                ),
+                const SizedBox(height: 10),
+                _memberList(theme, _castMembers),
+                const SizedBox(height: 14),
+                _memberFormCard(
+                  theme: theme,
+                  title: "Crew",
+                  nameCtrl: crewNameCtrl,
+                  roleCtrl: crewRoleCtrl,
+                  preview: crewPreview,
+                  imageUrl: crewImageUrl,
+                  uploading: isCrewUploading,
+                  onPickImage: () => _pickMemberImage(isCrew: true),
+                  onAdd: _addCrewMember,
+                ),
+                const SizedBox(height: 10),
+                _memberList(theme, _crewMembers),
               ],
             ),
           ),
@@ -287,57 +521,181 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
     );
   }
 
-  Widget _imagePicker(ThemeData theme) {
-    return GestureDetector(
-      onTap: () {
-        isUploading ? null : pickImage(setState);
-      },
-      child: Container(
-        height: 170,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.white24),
-          borderRadius: BorderRadius.circular(12),
-          color: theme.scaffoldBackgroundColor.withOpacity(0.4),
-        ),
-        child: isUploading
-            ? Center(
-                child: CircularProgressIndicator(
-                color: theme.primaryColor,
-              ))
-            : uploadedPosterUrl.isNotEmpty
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      uploadedPosterUrl,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : const Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.cloud_upload, size: 40),
-                      SizedBox(height: 8),
-                      Text("Upload Season Poster"),
-                    ],
-                  ),
+  Widget _memberFormCard({
+    required ThemeData theme,
+    required String title,
+    required TextEditingController nameCtrl,
+    required TextEditingController roleCtrl,
+    required Uint8List? preview,
+    required String imageUrl,
+    required bool uploading,
+    required VoidCallback onPickImage,
+    required VoidCallback onAdd,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: theme.primaryColor,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _field(nameCtrl, "$title Name", requiredField: true),
+          _field(roleCtrl, "$title Role", requiredField: true),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: uploading ? null : onPickImage,
+                  icon: const Icon(Icons.upload),
+                  label: Text(uploading
+                      ? "Uploading..."
+                      : (imageUrl.trim().isNotEmpty
+                          ? "Image Uploaded"
+                          : "Upload $title Image")),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: onAdd,
+                child: Text("Add $title"),
+              )
+            ],
+          ),
+          if (preview != null) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(
+                preview,
+                height: 80,
+                width: 120,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
+  Widget _memberList(ThemeData theme, List<_CastCrewDraft> members) {
+    if (members.isEmpty) {
+      return Text(
+        "No members added",
+        style: TextStyle(color: theme.canvasColor.withValues(alpha: 0.6)),
+      );
+    }
+    return Column(
+      children: members.asMap().entries.map((entry) {
+        final i = entry.key;
+        final m = entry.value;
+        return Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: theme.dividerColor),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  height: 46,
+                  width: 46,
+                  color: theme.dividerColor.withValues(alpha: 0.2),
+                  child: m.image.trim().isNotEmpty
+                      ? Image.network(
+                          m.image,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.person, size: 18),
+                        )
+                      : const Icon(Icons.person, size: 18),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  "${m.name} (${m.role})",
+                  style: TextStyle(color: theme.canvasColor),
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    members.removeAt(i);
+                  });
+                },
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+              )
+            ],
+          ),
+        );
+      }).toList(growable: false),
+    );
+  }
+
   Widget _datePicker(ThemeData theme) {
-    return Row(
+    final isInvalid = _isDateBeforeToday(selectedDate);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            "Release Date: ${DateFormat('dd MMM yyyy').format(selectedDate)}",
-            style: TextStyle(color: theme.primaryColor),
+        InkWell(
+          onTap: _pickDate,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isInvalid ? Colors.red : theme.dividerColor,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_today, size: 18, color: theme.primaryColor),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Release Date: ${DateFormat('dd MMM yyyy').format(selectedDate)}",
+                    style: TextStyle(
+                      color: theme.canvasColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Text(
+                  "Change",
+                  style: TextStyle(
+                    color: theme.primaryColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        IconButton(
-          icon: const Icon(Icons.date_range),
-          onPressed: _pickDate,
-        ),
+        if (isInvalid)
+          const Padding(
+            padding: EdgeInsets.only(top: 6, left: 4),
+            child: Text(
+              "Release date cannot be before today",
+              style: TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
       ],
     );
   }
@@ -347,6 +705,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
     String label, {
     int maxLines = 1,
     TextInputType keyboard = TextInputType.text,
+    bool requiredField = true,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -354,7 +713,9 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         controller: controller,
         maxLines: maxLines,
         keyboardType: keyboard,
-        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+        validator: requiredField
+            ? (v) => v == null || v.trim().isEmpty ? 'Required' : null
+            : null,
         decoration: InputDecoration(
           labelText: label,
           border: OutlineInputBorder(
@@ -366,10 +727,13 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
   }
 
   Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final initialDate = _isDateBeforeToday(selectedDate) ? today : selectedDate;
     final picked = await showDatePicker(
       context: context,
-      initialDate: selectedDate,
-      firstDate: DateTime(2000),
+      initialDate: initialDate,
+      firstDate: today,
       lastDate: DateTime(2100),
     );
 
@@ -377,4 +741,27 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
       setState(() => selectedDate = picked);
     }
   }
+
+  bool _isDateBeforeToday(DateTime value) {
+    final v = DateTime(value.year, value.month, value.day);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return v.isBefore(today);
+  }
+}
+
+class _CastCrewDraft {
+  final String name;
+  final String role;
+  final String description;
+  final String image;
+  final bool isCrew;
+
+  _CastCrewDraft({
+    required this.name,
+    required this.role,
+    required this.description,
+    required this.image,
+    required this.isCrew,
+  });
 }

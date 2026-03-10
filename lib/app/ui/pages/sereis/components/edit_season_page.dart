@@ -13,21 +13,21 @@ import '../../../../../data/models/response/short_detail_response.dart';
 import '../../../../core/constant/api_constant.dart';
 import '../../../../provider/shorts_provider.dart';
 
-class EditShortPartDialog extends StatefulWidget {
+class EditSeasonDialog extends StatefulWidget {
   final int shortId;
   final ShortPartModel part;
 
-  const EditShortPartDialog({
+  const EditSeasonDialog({
     super.key,
     required this.shortId,
     required this.part,
   });
 
   @override
-  State<EditShortPartDialog> createState() => _EditShortPartDialogState();
+  State<EditSeasonDialog> createState() => _EditSeasonDialogState();
 }
 
-class _EditShortPartDialogState extends State<EditShortPartDialog> {
+class _EditSeasonDialogState extends State<EditSeasonDialog> {
   late TextEditingController titleCtrl;
   late TextEditingController videoUrlCtrl;
 
@@ -38,7 +38,6 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
   late String _initialVideoUrl;
   late String? _initialThumbnail;
   late bool _initialFreePreview;
-
 
   @override
   void initState() {
@@ -78,7 +77,6 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
         uploadedImageUrl != _initialThumbnail ||
         isFreePreview != _initialFreePreview;
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -212,17 +210,15 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
 
           /// ⬆️ UPLOAD BUTTON
           else ...[
-              _uploadButton(
-                label: "Upload Video",
-                onTap: () => provider.uploadVideo(false),
-              ),
-            ],
+            _uploadButton(
+              label: "Upload Video",
+              onTap: () => provider.uploadVideo(false),
+            ),
+          ],
         ],
       ),
     );
   }
-
-
 
   // ===============================================================
   // THUMBNAIL CARD (CREATE-LIKE)
@@ -235,35 +231,35 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
       title: "Thumbnail",
       child: hasThumb
           ? Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              uploadedImageUrl!,
-              height: 120,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _actionRow(
-            onReplace: () async {
-              await pickImage(setState);
-            },
-            onRemove: () {
-              setState(() {
-                uploadedImageUrl = null;
-              });
-            },
-          ),
-        ],
-      )
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    uploadedImageUrl!,
+                    height: 120,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _actionRow(
+                  onReplace: () async {
+                    await pickImage(setState);
+                  },
+                  onRemove: () {
+                    setState(() {
+                      uploadedImageUrl = null;
+                    });
+                  },
+                ),
+              ],
+            )
           : _uploadButton(
-        label: "Upload Thumbnail",
-        onTap: () async {
-         await pickImage(setState);
-        },
-      ),
+              label: "Upload Thumbnail",
+              onTap: () async {
+                await pickImage(setState);
+              },
+            ),
     );
   }
 
@@ -289,7 +285,6 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
     );
   }
 
-
   Widget _uploadButton({
     required String label,
     required VoidCallback onTap,
@@ -310,7 +305,6 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
       ),
     );
   }
-
 
   Widget _uploadCard({
     required String title,
@@ -401,7 +395,6 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
             backgroundColor: Colors.orange,
           ),
           onPressed: provider.isSubmitting || !_hasChanges ? null : _submit,
-
           child: provider.isSubmitting
               ? const CircularProgressIndicator(color: Colors.white)
               : const Text("Update Part"),
@@ -430,7 +423,7 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
       "videoUrl": videoUrlCtrl.text.trim(),
     };
 
-    final success = await provider.updateShortPart(body,widget.part.partId!);
+    final success = await provider.updateShortPart(body, widget.part.partId!);
 
     if (!mounted) return;
 
@@ -449,8 +442,7 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
       final uri = Uri.parse(ApiConstant.uploadContentImg);
       uploadProgress = 0;
 
-      http.MultipartRequest request =
-      http.MultipartRequest('POST', uri);
+      http.MultipartRequest request = http.MultipartRequest('POST', uri);
 
       Uint8List bytes;
 
@@ -506,7 +498,6 @@ class _EditShortPartDialogState extends State<EditShortPartDialog> {
       debugPrint("❌ Upload error: $e");
     }
   }
-
 
   Future<void> pickImage(StateSetter setState) async {
     if (kIsWeb) {

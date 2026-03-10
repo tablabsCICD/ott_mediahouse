@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:media_house/app/core/constant/api_constant.dart';
 import 'package:media_house/data/models/shorts.dart';
+import 'package:media_house/domain/entities/cast_crew_model.dart';
 import 'package:universal_html/html.dart' as html;
 
 import '../../data/models/response/allContentResponse.dart';
@@ -55,10 +56,26 @@ class SeriesProvider extends ChangeNotifier {
   SeriesDetailsResponse? _data;
   bool _loading = false;
   String? _error;
+  bool _isLoadingCastCrew = false;
+  String? _castCrewError;
+  int? _activeCastCrewContentId;
+  int? _activeCastCrewSeasonId;
+  List<CastCrewItem> _activeCastCrewList = [];
+  final Map<String, List<CastCrewItem>> _castCrewCache = {};
 
   SeriesDetailsResponse? get data => _data;
   bool get loading => _loading;
   String? get error => _error;
+  bool get isLoadingCastCrew => _isLoadingCastCrew;
+  String? get castCrewError => _castCrewError;
+  int? get activeCastCrewContentId => _activeCastCrewContentId;
+  int? get activeCastCrewSeasonId => _activeCastCrewSeasonId;
+  List<CastCrewItem> get activeCastCrewList =>
+      List.unmodifiable(_activeCastCrewList);
+  List<CastCrewItem> get activeCastList =>
+      _activeCastCrewList.where((e) => !e.isCrew).toList(growable: false);
+  List<CastCrewItem> get activeCrewList =>
+      _activeCastCrewList.where((e) => e.isCrew).toList(growable: false);
 
   Future<void> loadSeries(int seriesId) async {
     _loading = true;
@@ -94,7 +111,187 @@ class SeriesProvider extends ChangeNotifier {
     _data = null;
     _error = null;
     _loading = false;
+    _castCrewError = null;
+    _activeCastCrewList = [];
+    _activeCastCrewContentId = null;
+    _activeCastCrewSeasonId = null;
+    _castCrewCache.clear();
     notifyListeners();
+  }
+
+  String _castCrewKey(int contentId, int seasonId) => '$contentId-$seasonId';
+  String _castCrewContentOnlyKey(int contentId) => '$contentId-content';
+
+  List<CastCrewItem> _parseCastCrewListFromBody(dynamic body) {
+    final jsonMap = body is Map<String, dynamic>
+        ? body
+        : body is Map
+            ? Map<String, dynamic>.from(body)
+            : <String, dynamic>{};
+    final castRaw = jsonMap['data']?['cast'];
+    return castRaw is List
+        ? castRaw
+            .whereType<Map>()
+            .map((e) => CastCrewItem.fromJson(
+                Map<String, dynamic>.from(e as Map<dynamic, dynamic>)))
+            .toList(growable: false)
+        : <CastCrewItem>[];
+  }
+
+  Future<void> ensureCastCrewLoaded({
+    required int contentId,
+    required int seasonId,
+  }) async {
+    if (_isLoadingCastCrew &&
+        _activeCastCrewContentId == contentId &&
+        _activeCastCrewSeasonId == seasonId) {
+      return;
+    }
+
+    if (_activeCastCrewContentId == contentId &&
+        _activeCastCrewSeasonId == seasonId &&
+        _activeCastCrewList.isNotEmpty) {
+      return;
+    }
+
+    final key = _castCrewKey(contentId, seasonId);
+    if (_castCrewCache.containsKey(key)) {
+      final cached = _castCrewCache[key]!;
+      if (cached.isNotEmpty) {
+        _activeCastCrewContentId = contentId;
+        _activeCastCrewSeasonId = seasonId;
+        _activeCastCrewList = cached;
+        notifyListeners();
+        return;
+      }
+    }
+
+    await fetchCastCrewByContentAndSeason(
+      contentId: contentId,
+      seasonId: seasonId,
+    );
+  }
+
+  Future<void> ensureCastCrewLoadedByContent({
+    required int contentId,
+  }) async {
+    if (contentId <= 0) return;
+
+    if (_isLoadingCastCrew &&
+        _activeCastCrewContentId == contentId &&
+        _activeCastCrewSeasonId == null) {
+      return;
+    }
+
+    if (_activeCastCrewContentId == contentId &&
+        _activeCastCrewSeasonId == null &&
+        _activeCastCrewList.isNotEmpty) {
+      return;
+    }
+
+    final key = _castCrewContentOnlyKey(contentId);
+    if (_castCrewCache.containsKey(key)) {
+      final cached = _castCrewCache[key]!;
+      if (cached.isNotEmpty) {
+        _activeCastCrewContentId = contentId;
+        _activeCastCrewSeasonId = null;
+        _activeCastCrewList = cached;
+        notifyListeners();
+        return;
+      }
+    }
+
+    await fetchCastCrewByContentId(contentId: contentId);
+  }
+
+  Future<void> fetchCastCrewByContentAndSeason({
+    required int contentId,
+    required int seasonId,
+  }) async {
+    if (contentId <= 0 || seasonId <= 0) return;
+
+    _isLoadingCastCrew = true;
+    _castCrewError = null;
+    _activeCastCrewContentId = contentId;
+    _activeCastCrewSeasonId = seasonId;
+    notifyListeners();
+
+    try {
+      final apiHelper = ApiHelper();
+      final url = ApiConstant.getCastByContentIdAndSeasonId(
+        contentId: contentId,
+        seasonId: seasonId,
+      );
+      final response = await apiHelper.getApi(url);
+      final body = jsonDecode(response.body);
+      var castList = _parseCastCrewListFromBody(body);
+
+      // Fallback: some backends return empty for season endpoint.
+      if (castList.isEmpty) {
+        final fallbackResponse =
+            await apiHelper.getApi(ApiConstant.getCastByContentId(contentId));
+        final fallbackBody = jsonDecode(fallbackResponse.body);
+        final allCast = _parseCastCrewListFromBody(fallbackBody);
+        castList = allCast
+            .where((item) =>
+                item.seasonId == null || item.seasonId == 0 || item.seasonId == seasonId)
+            .toList(growable: false);
+      }
+
+      _activeCastCrewList = castList;
+      _castCrewCache[_castCrewKey(contentId, seasonId)] = castList;
+    } catch (e) {
+      try {
+        final apiHelper = ApiHelper();
+        final fallbackResponse =
+            await apiHelper.getApi(ApiConstant.getCastByContentId(contentId));
+        final fallbackBody = jsonDecode(fallbackResponse.body);
+        final allCast = _parseCastCrewListFromBody(fallbackBody);
+        final castList = allCast
+            .where((item) =>
+                item.seasonId == null || item.seasonId == 0 || item.seasonId == seasonId)
+            .toList(growable: false);
+        _activeCastCrewList = castList;
+        _castCrewCache[_castCrewKey(contentId, seasonId)] = castList;
+      } catch (_) {
+        _castCrewError = 'Failed to load cast and crew';
+        _activeCastCrewList = [];
+      }
+      debugPrint("Cast/Crew load error: $e");
+    } finally {
+      _isLoadingCastCrew = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchCastCrewByContentId({
+    required int contentId,
+  }) async {
+    if (contentId <= 0) return;
+
+    _isLoadingCastCrew = true;
+    _castCrewError = null;
+    _activeCastCrewContentId = contentId;
+    _activeCastCrewSeasonId = null;
+    notifyListeners();
+
+    try {
+      final apiHelper = ApiHelper();
+      final url = ApiConstant.getCastByContentId(contentId);
+      final response = await apiHelper.getApi(url);
+      final body = jsonDecode(response.body);
+      final castList = _parseCastCrewListFromBody(body);
+
+      _activeCastCrewList = castList;
+      _castCrewCache[_castCrewContentOnlyKey(contentId)] = castList;
+    } catch (e) {
+      _castCrewError = 'Failed to load cast list';
+      _activeCastCrewList = [];
+      debugPrint("Cast load by contentId error: $e");
+    } finally {
+      _isLoadingCastCrew = false;
+      notifyListeners();
+    }
   }
 
   Future<void> fetchSeriesByMediaHouseId({
@@ -176,9 +373,8 @@ class SeriesProvider extends ChangeNotifier {
       mediaHouseId: mediaHouseId,
       type: normalizedType,
       approvalStatus: normalizedStatus,
-      startDate: (effectiveStartDate?.isNotEmpty ?? false)
-          ? effectiveStartDate
-          : null,
+      startDate:
+          (effectiveStartDate?.isNotEmpty ?? false) ? effectiveStartDate : null,
       endDate:
           (effectiveEndDate?.isNotEmpty ?? false) ? effectiveEndDate : null,
       searchKeyword: normalizedKeyword,
@@ -498,5 +694,141 @@ class SeriesProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
-}
 
+  bool _isSuccessStatus(int code) =>
+      code == 200 || code == 201 || code == 202 || code == 204;
+
+  Future<bool> updateEpisodeApi(
+    Map<String, dynamic> body,
+    int seasonId,
+    int episodeId, {
+    int? seriesId,
+  }) async {
+    try {
+      isSubmitting = true;
+      notifyListeners();
+
+      final apiHelper = ApiHelper();
+      final url = '${ApiConstant.baseUrl}series/episode/$episodeId/update';
+      final response = await apiHelper.putApiWithBody(url, body);
+      debugPrint('Update Episode URL => $url');
+      debugPrint('Update Episode STATUS => ${response.statusCode}');
+      return _isSuccessStatus(response.statusCode);
+    } catch (e) {
+      debugPrint("Update Episode Error: $e");
+      return false;
+    } finally {
+      isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteEpisodeApi(
+    int seasonId,
+    int episodeId, {
+    int? seriesId,
+  }) async {
+    try {
+      isSubmitting = true;
+      notifyListeners();
+
+      final apiHelper = ApiHelper();
+      final url = '${ApiConstant.baseUrl}series/episode/$episodeId/delete';
+      final response = await apiHelper.deleteApi(url);
+      debugPrint('Delete Episode URL => $url');
+      debugPrint('Delete Episode STATUS => ${response.statusCode}');
+      return _isSuccessStatus(response.statusCode);
+    } catch (e) {
+      debugPrint("Delete Episode Error: $e");
+      return false;
+    } finally {
+      isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateSeasonApi(
+    Map<String, dynamic> body,
+    int seasonId, {
+    int? seriesId,
+  }) async {
+    try {
+      isSubmitting = true;
+      notifyListeners();
+
+      final apiHelper = ApiHelper();
+      final url = '${ApiConstant.baseUrl}series/season/$seasonId/update';
+      final response = await apiHelper.putApiWithBody(url, body);
+      debugPrint('Update Season URL => $url');
+      debugPrint('Update Season STATUS => ${response.statusCode}');
+      return _isSuccessStatus(response.statusCode);
+    } catch (e) {
+      debugPrint("Update Season Error: $e");
+      return false;
+    } finally {
+      isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteSeasonApi(int seasonId) async {
+    try {
+      isSubmitting = true;
+      notifyListeners();
+
+      final apiHelper = ApiHelper();
+      final url = '${ApiConstant.baseUrl}series/season/$seasonId/delete';
+      final response = await apiHelper.deleteApi(url);
+      debugPrint('Delete Season URL => $url');
+      debugPrint('Delete Season STATUS => ${response.statusCode}');
+      return _isSuccessStatus(response.statusCode);
+    } catch (e) {
+      debugPrint("Delete Season Error: $e");
+      return false;
+    } finally {
+      isSubmitting = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> saveSeasonCastCrewMembers({
+    required int contentId,
+    required int seasonId,
+    required List<Map<String, dynamic>> members,
+  }) async {
+    if (contentId <= 0 || seasonId <= 0) return false;
+    if (members.isEmpty) return true;
+
+    try {
+      isSubmitting = true;
+      notifyListeners();
+      final apiHelper = ApiHelper();
+
+      for (final member in members) {
+        final payload = {
+          "castId": 0,
+          "contentId": contentId,
+          "seasonId": seasonId,
+          "name": (member["name"] ?? "").toString().trim(),
+          "role": (member["role"] ?? "").toString().trim(),
+          "description": (member["description"] ?? "").toString().trim(),
+          "image": (member["image"] ?? "").toString().trim(),
+        };
+
+        final response =
+            await apiHelper.postApiWithBody(ApiConstant.saveCast, payload);
+        if (!_isSuccessStatus(response.statusCode)) {
+          debugPrint("Save cast/crew failed: ${response.body}");
+          return false;
+        }
+      }
+      return true;
+    } catch (e) {
+      debugPrint("Save season cast/crew error: $e");
+      return false;
+    } finally {
+      isSubmitting = false;
+      notifyListeners();
+    }
+  }
+}

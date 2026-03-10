@@ -42,6 +42,22 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
   String activeButton = '1W';
   bool _isFilterRangeLoading = false;
 
+  int _currentRangeIndex() {
+    if (activeButton == '1M') return 1;
+    if (activeButton == '1Y') return 2;
+    if (activeButton == 'Custom Dates') return 3;
+    return 0;
+  }
+
+  int _xLabelStep(int count) {
+    if (count <= 12) return 1;
+    if (count <= 24) return 2;
+    if (count <= 45) return 3;
+    if (count <= 75) return 5;
+    if (count <= 120) return 7;
+    return 10;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -96,7 +112,7 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
         startDate = picked.start;
         endDate = picked.end;
       });
-      await _fetchGraphData(0, startDate!, endDate!);
+      await _fetchGraphData(3, startDate!, endDate!);
       if (!mounted) return;
       setState(() {
         _isFilterRangeLoading = false;
@@ -179,13 +195,7 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
 
   Future<void> _applyCurrentFilters() async {
     if (startDate == null || endDate == null) return;
-    int selectedTimeRange = 0;
-    if (activeButton == '1M') {
-      selectedTimeRange = 1;
-    } else if (activeButton == '1Y') {
-      selectedTimeRange = 2;
-    }
-    await _fetchGraphData(selectedTimeRange, startDate!, endDate!);
+    await _fetchGraphData(_currentRangeIndex(), startDate!, endDate!);
   }
 
   @override
@@ -248,13 +258,15 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
   }
 
   Widget _buildDateSelection() {
+    final hasDates = startDate != null && endDate != null;
+    final rangeText = hasDates
+        ? "${DateFormat.yMMMd().format(startDate!)} - ${DateFormat.yMMMd().format(endDate!)}"
+        : "Select Date Range";
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Text(
-          selectedDateRange == null
-              ? "Select Date Range"
-              : "${DateFormat.yMMMd().format(selectedDateRange!.start)} - ${DateFormat.yMMMd().format(selectedDateRange!.end)}",
+          rangeText,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ],
@@ -265,19 +277,29 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
     return Consumer<MediaHouseProvider>(
       builder: (context, provider, child) {
         final indexedPoints = provider.graphData.asMap().entries.toList();
+        final labelStep = _xLabelStep(indexedPoints.length);
+        final lastIndex = indexedPoints.isEmpty ? 0 : indexedPoints.length - 1;
         return SfCartesianChart(
           primaryXAxis: NumericAxis(
-            title: const AxisTitle(
-              text: '<-------------- Time -------------->',
-              textStyle: TextStyle(fontSize: 12),
+            title: AxisTitle(
+              text: activeButton == 'Custom Dates' &&
+                      startDate != null &&
+                      endDate != null
+                  ? 'From ${DateFormat('dd MMM yyyy').format(startDate!)}  To ${DateFormat('dd MMM yyyy').format(endDate!)}'
+                  : '<-------------- Time -------------->',
+              textStyle: const TextStyle(fontSize: 12),
             ),
             interval: 1,
             decimalPlaces: 0,
             axisLabelFormatter: (AxisLabelRenderDetails details) {
               final index = details.value.round();
-              final label = (index >= 0 && index < indexedPoints.length)
-                  ? indexedPoints[index].value.label
-                  : '';
+              if (index < 0 || index >= indexedPoints.length) {
+                return ChartAxisLabel('', details.textStyle);
+              }
+              final shouldShow =
+                  index == 0 || index == lastIndex || (index % labelStep == 0);
+              final label =
+                  shouldShow ? indexedPoints[index].value.label : '';
               return ChartAxisLabel(label, details.textStyle);
             },
           ),

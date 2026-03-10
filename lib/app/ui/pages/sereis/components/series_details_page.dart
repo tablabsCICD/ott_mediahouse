@@ -11,8 +11,10 @@ import '../../../../provider/series_provider.dart';
 import '../../../../provider/themeProvider.dart';
 import '../../../../provider/videoProvider.dart';
 import '../../editMovie.dart';
+import '../../movie details page/component/movieRevenueGraph.dart';
 import '../../movie details page/component/actionButtonWidget.dart';
 import 'create_season_page.dart';
+import 'edit_episode_dialog.dart';
 
 class SeriesDetailsPage extends StatefulWidget {
   final int seriesId;
@@ -92,17 +94,37 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
           seasons.isEmpty ? 0 : seasons.length - 1,
         );
         final currentSeason = seasons.isEmpty ? null : seasons[safeIndex];
+        final contentId = widget.content.id;
+        final currentSeasonId = currentSeason?.season.id;
+        if (contentId != null && contentId > 0 && currentSeasonId != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            Provider.of<SeriesProvider>(context, listen: false)
+                .ensureCastCrewLoaded(
+              contentId: contentId,
+              seasonId: currentSeasonId,
+            );
+          });
+        } else if (contentId != null && contentId > 0 && seasons.isEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            Provider.of<SeriesProvider>(context, listen: false)
+                .ensureCastCrewLoadedByContent(
+              contentId: contentId,
+            );
+          });
+        }
 
         return Scaffold(
           backgroundColor: theme.scaffoldBackgroundColor,
           appBar: AppBar(
-            backgroundColor: Colors.transparent,
+            backgroundColor: theme.primaryColor,
             elevation: 0,
             centerTitle: true,
             title: Text(
               series.title,
               style: TextStyle(
-                color: theme.canvasColor,
+                color: Colors.white,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -134,13 +156,14 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 280),
                           child: isDesktop
-                              ? _topDesktopLayout(
-                                  theme, series, seasons, currentSeason)
+                              ? _topDesktopLayout(theme, series, seasons,
+                                  currentSeason, provider)
                               : _topMobileLayout(
                                   theme,
                                   series,
                                   seasons,
                                   currentSeason,
+                                  provider,
                                 ),
                         ),
                         const SizedBox(height: 18),
@@ -164,6 +187,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
     Series series,
     List<SeasonBundle> seasons,
     SeasonBundle? currentSeason,
+    SeriesProvider provider,
   ) {
     return _surfaceCard(
       theme,
@@ -181,16 +205,9 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
             flex: 6,
             child: Column(
               children: [
-                _rightInfoPanel(theme, series),
+                _rightInfoPanel(theme, series, provider),
                 const SizedBox(height: 14),
                 _analyticsSection(theme, series, seasons),
-                if (currentSeason != null) ...[
-                  const SizedBox(height: 14),
-                  _surfaceCard(
-                    theme,
-                    child: buildSeasonAnalyticsDashboard(theme, currentSeason),
-                  ),
-                ]
               ],
             ),
           ),
@@ -204,21 +221,15 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
     Series series,
     List<SeasonBundle> seasons,
     SeasonBundle? currentSeason,
+    SeriesProvider provider,
   ) {
     return Column(
       children: [
         _leftPosterPanel(theme, series),
         const SizedBox(height: 14),
-        _rightInfoPanel(theme, series),
+        _rightInfoPanel(theme, series, provider),
         const SizedBox(height: 14),
         _analyticsSection(theme, series, seasons),
-        if (currentSeason != null) ...[
-          const SizedBox(height: 14),
-          _surfaceCard(
-            theme,
-            child: buildSeasonAnalyticsDashboard(theme, currentSeason),
-          ),
-        ]
       ],
     );
   }
@@ -326,7 +337,22 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
     );
   }
 
-  Widget _rightInfoPanel(ThemeData theme, Series series) {
+  Widget _rightInfoPanel(
+    ThemeData theme,
+    Series series,
+    SeriesProvider provider,
+  ) {
+    final fetchedCastCrew = provider.activeCastCrewList
+        .where((e) => e.name.trim().isNotEmpty)
+        .toList(growable: false);
+    final castToShow = fetchedCastCrew.isNotEmpty
+        ? fetchedCastCrew
+            .map((e) => _CastAvatarItem(name: e.name, image: e.image))
+            .toList(growable: false)
+        : series.castList
+            .where((e) => e.trim().isNotEmpty)
+            .map((e) => _CastAvatarItem(name: e, image: ''))
+            .toList(growable: false);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -340,17 +366,19 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
           ),
         ),
         const SizedBox(height: 10),
+        _sectionLabel(theme, "Directors"),
+        const SizedBox(height: 8),
         Text(
-          "Directors: ${_joinOrNA(series.directorList)}",
+          "${_joinOrNA(series.directorList)}",
           style: TextStyle(
             color: theme.canvasColor.withValues(alpha: 0.8),
             fontWeight: FontWeight.w500,
           ),
         ),
         const SizedBox(height: 10),
-        _sectionLabel(theme, "Cast"),
+        _sectionLabel(theme, "Cast And Crew"),
         const SizedBox(height: 8),
-        _castRow(theme, series.castList),
+        _castRow(theme, castToShow),
         const SizedBox(height: 12),
         _sectionLabel(theme, "Genres"),
         const SizedBox(height: 8),
@@ -423,17 +451,56 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
           _analyticsCard(
               theme, Icons.sell_outlined, "Price / Rent", "Rs ${series.price}"),
         ];
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: cards
-              .map((card) => SizedBox(
-                    width: (constraints.maxWidth - (12 * (cross - 1))) / cross,
-                    child: card,
-                  ))
-              .toList(),
+        final cardWidgets = cards
+            .map((card) => SizedBox(
+                  width: (constraints.maxWidth - (12 * (cross - 1))) / cross,
+                  child: card,
+                ))
+            .toList(growable: false);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: cardWidgets,
+            ),
+            const SizedBox(height: 14),
+            _seriesAnalyticsGraph(theme),
+          ],
         );
       },
+    );
+  }
+
+  Widget _seriesAnalyticsGraph(ThemeData theme) {
+    final contentId = widget.content.id;
+    if (contentId == null || contentId <= 0) {
+      return _surfaceCard(
+        theme,
+        child: Text(
+          "Graph analytics unavailable for this series.",
+          style: TextStyle(
+            color: theme.canvasColor.withValues(alpha: 0.7),
+            fontSize: 13,
+          ),
+        ),
+      );
+    }
+
+    return _surfaceCard(
+      theme,
+      child: SizedBox(
+        height: 460,
+        child: MovieRevenueGraph(
+          title: 'SeriesDetailsGraph',
+          yAxisLabel: 'sales',
+          graphNumber: 0,
+          contentId: widget.content,
+          metrics: const ['revenue'],
+        ),
+      ),
     );
   }
 
@@ -933,6 +1000,8 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
               theme,
               Icons.circle,
               isPublished ? "Published" : "Draft",
+              textColor: isPublished ? Colors.green : Colors.redAccent,
+              iconColor: isPublished ? Colors.green : Colors.redAccent,
             ),
           ],
         ),
@@ -948,12 +1017,12 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
         IconButton(
           tooltip: "Edit Episode",
           icon: Icon(Icons.edit_outlined, color: theme.canvasColor),
-          onPressed: () {},
+          onPressed: () => _editEpisode(ep),
         ),
         IconButton(
           tooltip: "Delete Episode",
           icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-          onPressed: () {},
+          onPressed: () => _deleteEpisode(ep),
         ),
         IconButton(
           tooltip: "View Episode",
@@ -971,7 +1040,95 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
     );
   }
 
-  Widget _castRow(ThemeData theme, List<String> cast) {
+  Future<void> _deleteEpisode(Episode ep) async {
+    final episodeId = ep.id;
+    final seasonId = _resolveSeasonId(ep);
+    if (episodeId == null || seasonId == null) return;
+
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Delete Episode"),
+            content:
+                const Text("Are you sure you want to delete this episode?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text("Delete"),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+
+    final provider = Provider.of<SeriesProvider>(context, listen: false);
+    final success = await provider.deleteEpisodeApi(
+      seasonId,
+      episodeId,
+      seriesId: widget.seriesId,
+    );
+    await provider.loadSeries(widget.seriesId);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? "Episode deleted successfully" : "Failed to delete episode",
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editEpisode(Episode ep) async {
+    final episodeId = ep.id;
+    final seasonId = _resolveSeasonId(ep);
+    if (episodeId == null || seasonId == null) return;
+
+    final body = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => EditEpisodeDialog(episode: ep),
+    );
+    if (body == null) return;
+
+    final provider = Provider.of<SeriesProvider>(context, listen: false);
+    final success = await provider.updateEpisodeApi(
+      body,
+      seasonId,
+      episodeId,
+      seriesId: widget.seriesId,
+    );
+    await provider.loadSeries(widget.seriesId);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? "Episode updated successfully"
+                : "Failed to update episode",
+          ),
+        ),
+      );
+    }
+  }
+
+  int? _resolveSeasonId(Episode ep) {
+    if (ep.seasonId != null) return ep.seasonId;
+    final data = Provider.of<SeriesProvider>(context, listen: false).data;
+    if (data == null || ep.id == null) return null;
+    for (final bundle in data.seasons) {
+      final hasEpisode = bundle.episodes.any((e) => e.id == ep.id);
+      if (hasEpisode) return bundle.season.id;
+    }
+    return null;
+  }
+
+  Widget _castRow(ThemeData theme, List<_CastAvatarItem> cast) {
     if (cast.isEmpty) {
       return Text(
         "NA",
@@ -986,19 +1143,26 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
         itemCount: cast.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (_, index) {
-          final name = cast[index];
+          final item = cast[index];
+          final name = item.name;
+          final imageUrl = item.image.trim();
           return Column(
             children: [
               CircleAvatar(
                 radius: 24,
                 backgroundColor: _avatarColor(index),
-                child: Text(
-                  _initials(name),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                backgroundImage:
+                    imageUrl.isNotEmpty ? NetworkImage(imageUrl) : null,
+                child: imageUrl.isEmpty
+                    ? Text(
+                        _initials(name),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      )
+                    : null,
+                onBackgroundImageError: imageUrl.isNotEmpty ? (_, __) {} : null,
               ),
               const SizedBox(height: 6),
               SizedBox(
@@ -1083,16 +1247,26 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
     );
   }
 
-  Widget _metaChip(ThemeData theme, IconData icon, String text) {
+  Widget _metaChip(
+    ThemeData theme,
+    IconData icon,
+    String text, {
+    Color? textColor,
+    Color? iconColor,
+  }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: theme.canvasColor.withValues(alpha: 0.72)),
+        Icon(
+          icon,
+          size: 14,
+          color: iconColor ?? theme.canvasColor.withValues(alpha: 0.72),
+        ),
         const SizedBox(width: 4),
         Text(
           text,
           style: TextStyle(
-            color: theme.canvasColor.withValues(alpha: 0.75),
+            color: textColor ?? theme.canvasColor.withValues(alpha: 0.75),
             fontWeight: FontWeight.w600,
             fontSize: 12,
           ),
@@ -1311,6 +1485,16 @@ class _HoverButton extends StatefulWidget {
 
   @override
   State<_HoverButton> createState() => _HoverButtonState();
+}
+
+class _CastAvatarItem {
+  final String name;
+  final String image;
+
+  const _CastAvatarItem({
+    required this.name,
+    required this.image,
+  });
 }
 
 class _HoverButtonState extends State<_HoverButton> {

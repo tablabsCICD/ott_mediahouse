@@ -94,7 +94,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: theme.scaffoldBackgroundColor,
+        backgroundColor: theme.primaryColor,
         title: Text(
           short.data!.title ?? "",
           style: TextStyle(color: theme.canvasColor),

@@ -167,19 +167,18 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
               backgroundColor: selectedThemeData.scaffoldBackgroundColor,
               appBar: AppBar(
                 elevation: 0,
-                backgroundColor: Colors.transparent,
-                iconTheme: IconThemeData(color: colorScheme.onSurface),
+                backgroundColor: selectedThemeData.primaryColor,
+                iconTheme: IconThemeData(color: Colors.white),
                 title: Text(
                   movie.title ?? 'Movie Details',
                   style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onSurface),
+                      fontWeight: FontWeight.w700, color: Colors.white),
                 ),
+                centerTitle: true,
                 actions: [
                   IconButton(
                     tooltip: 'Delete Content',
-                    icon: Icon(Icons.delete_outline,
-                        color: colorScheme.onSurface),
+                    icon: Icon(Icons.delete_outline, color: Colors.white),
                     onPressed: () => _confirmDelete(movie),
                   ),
                 ],
@@ -869,7 +868,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Cast',
+          'Cast And Crew',
           style: TextStyle(
             color: selectedThemeData.primaryColor,
             fontWeight: FontWeight.w700,
@@ -1363,13 +1362,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
           end: Alignment.bottomRight,
           colors: [selectedThemeData.cardColor, selectedThemeData.cardColor],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: selectedThemeData.shadowColor,
-            blurRadius: 18,
-            offset: Offset(0, 9),
-          ),
-        ],
       ),
       child: child,
     );

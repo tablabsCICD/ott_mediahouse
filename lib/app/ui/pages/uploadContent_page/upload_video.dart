@@ -542,8 +542,6 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             theme,
           ),
           const SizedBox(height: 8),
-          _castImageSection(theme, provider),
-          const SizedBox(height: 8),
           _audioSubtitleAndSettings(theme, provider),
         ],
       ),
