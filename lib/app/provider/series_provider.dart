@@ -128,14 +128,20 @@ class SeriesProvider extends ChangeNotifier {
         : body is Map
             ? Map<String, dynamic>.from(body)
             : <String, dynamic>{};
-    final castRaw = jsonMap['data']?['cast'];
-    return castRaw is List
-        ? castRaw
-            .whereType<Map>()
-            .map((e) => CastCrewItem.fromJson(
-                Map<String, dynamic>.from(e as Map<dynamic, dynamic>)))
-            .toList(growable: false)
-        : <CastCrewItem>[];
+
+    dynamic castRaw = jsonMap['data']?['cast'];
+    castRaw ??= jsonMap['data']?['castList'];
+    castRaw ??= jsonMap['cast'];
+    castRaw ??= jsonMap['castList'];
+    castRaw ??= jsonMap['data'];
+
+    if (castRaw is! List) return <CastCrewItem>[];
+
+    return castRaw
+        .whereType<Map>()
+        .map((e) => CastCrewItem.fromJson(
+            Map<String, dynamic>.from(e as Map<dynamic, dynamic>)))
+        .toList(growable: false);
   }
 
   Future<void> ensureCastCrewLoaded({
@@ -167,6 +173,40 @@ class SeriesProvider extends ChangeNotifier {
     }
 
     await fetchCastCrewByContentAndSeason(
+      contentId: contentId,
+      seasonId: seasonId,
+    );
+  }
+
+  Future<void> ensureCastCrewLoadedForSeasonOnly({
+    required int contentId,
+    required int seasonId,
+  }) async {
+    if (_isLoadingCastCrew &&
+        _activeCastCrewContentId == contentId &&
+        _activeCastCrewSeasonId == seasonId) {
+      return;
+    }
+
+    if (_activeCastCrewContentId == contentId &&
+        _activeCastCrewSeasonId == seasonId &&
+        _activeCastCrewList.isNotEmpty) {
+      return;
+    }
+
+    final key = _castCrewKey(contentId, seasonId);
+    if (_castCrewCache.containsKey(key)) {
+      final cached = _castCrewCache[key]!;
+      if (cached.isNotEmpty) {
+        _activeCastCrewContentId = contentId;
+        _activeCastCrewSeasonId = seasonId;
+        _activeCastCrewList = cached;
+        notifyListeners();
+        return;
+      }
+    }
+
+    await fetchCastCrewByContentAndSeasonStrict(
       contentId: contentId,
       seasonId: seasonId,
     );
@@ -261,6 +301,107 @@ class SeriesProvider extends ChangeNotifier {
     } finally {
       _isLoadingCastCrew = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> fetchCastCrewByContentAndSeasonStrict({
+    required int contentId,
+    required int seasonId,
+  }) async {
+    if (contentId <= 0 || seasonId <= 0) return;
+
+    _isLoadingCastCrew = true;
+    _castCrewError = null;
+    _activeCastCrewContentId = contentId;
+    _activeCastCrewSeasonId = seasonId;
+    notifyListeners();
+
+    try {
+      final apiHelper = ApiHelper();
+      final url = ApiConstant.getCastByContentIdAndSeasonId(
+        contentId: contentId,
+        seasonId: seasonId,
+      );
+      final response = await apiHelper.getApi(url);
+      final body = jsonDecode(response.body);
+      var castList = _parseCastCrewListFromBody(body);
+
+      // Primary call is season-wise API. If backend returns empty for this endpoint,
+      // use content-wise list and keep only matching season/unassigned records.
+      if (castList.isEmpty) {
+        final fallback =
+            await apiHelper.getApi(ApiConstant.getCastByContentId(contentId));
+        final fallbackBody = jsonDecode(fallback.body);
+        final allCast = _parseCastCrewListFromBody(fallbackBody);
+        castList = allCast
+            .where((item) =>
+                item.seasonId == seasonId ||
+                item.seasonId == null ||
+                item.seasonId == 0)
+            .toList(growable: false);
+      }
+
+      _activeCastCrewList = castList;
+      _castCrewCache[_castCrewKey(contentId, seasonId)] = castList;
+    } catch (e) {
+      try {
+        final apiHelper = ApiHelper();
+        final fallback =
+            await apiHelper.getApi(ApiConstant.getCastByContentId(contentId));
+        final fallbackBody = jsonDecode(fallback.body);
+        final allCast = _parseCastCrewListFromBody(fallbackBody);
+        final castList = allCast
+            .where((item) =>
+                item.seasonId == seasonId ||
+                item.seasonId == null ||
+                item.seasonId == 0)
+            .toList(growable: false);
+        _activeCastCrewList = castList;
+        _castCrewCache[_castCrewKey(contentId, seasonId)] = castList;
+      } catch (_) {
+        _castCrewError = 'Failed to load cast and crew';
+        _activeCastCrewList = [];
+      }
+      debugPrint("Cast/Crew strict load error: $e");
+    } finally {
+      _isLoadingCastCrew = false;
+      notifyListeners();
+    }
+  }
+
+  Future<List<CastCrewItem>> fetchCastCrewListForSeason({
+    required int contentId,
+    required int seasonId,
+  }) async {
+    if (contentId <= 0 || seasonId <= 0) return <CastCrewItem>[];
+
+    final apiHelper = ApiHelper();
+    try {
+      final response = await apiHelper.getApi(
+        ApiConstant.getCastByContentIdAndSeasonId(
+          contentId: contentId,
+          seasonId: seasonId,
+        ),
+      );
+      final body = jsonDecode(response.body);
+      var castList = _parseCastCrewListFromBody(body);
+
+      if (castList.isEmpty) {
+        final fallback =
+            await apiHelper.getApi(ApiConstant.getCastByContentId(contentId));
+        final fallbackBody = jsonDecode(fallback.body);
+        final allCast = _parseCastCrewListFromBody(fallbackBody);
+        castList = allCast
+            .where((item) =>
+                item.seasonId == seasonId ||
+                item.seasonId == null ||
+                item.seasonId == 0)
+            .toList(growable: false);
+      }
+
+      return castList;
+    } catch (_) {
+      return <CastCrewItem>[];
     }
   }
 

@@ -26,29 +26,21 @@ class SeasonDetailPage extends StatefulWidget {
 
 class _SeasonDetailPageState extends State<SeasonDetailPage> {
   late List<Episode> _episodes;
+  bool _isCastCrewLoading = false;
+  List<CastCrewItem> _castCrewMembers = [];
 
   @override
   void initState() {
     super.initState();
     _episodes = List<Episode>.from(widget.seasonBundle.episodes);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCastCrewForSeason();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Provider.of<ThemeProvider>(context).getTheme;
-    final provider = Provider.of<SeriesProvider>(context);
-    final contentId = widget.seasonBundle.season.contentId;
-    final seasonId = widget.seasonBundle.season.id;
-    if (contentId != null && contentId > 0 && seasonId != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        Provider.of<SeriesProvider>(context, listen: false)
-            .fetchCastCrewByContentAndSeason(
-          contentId: contentId,
-          seasonId: seasonId,
-        );
-      });
-    }
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -65,7 +57,7 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _seasonHeader(context, theme, provider),
+            _seasonHeader(context, theme),
             const SizedBox(height: 18),
             _episodeHeader(context, theme),
             const SizedBox(height: 10),
@@ -79,7 +71,6 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
   Widget _seasonHeader(
     BuildContext context,
     ThemeData theme,
-    SeriesProvider provider,
   ) {
     final season = widget.seasonBundle.season;
     final totalEpisodes = _episodes.length;
@@ -90,14 +81,9 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
       (sum, e) => sum + ((e.amount ?? 0) * (e.viewCount ?? 0)),
     );
     final posterUrl = "${season.posterUrl ?? ''}";
-    final isCurrentSeasonCastContext =
-        provider.activeCastCrewContentId == season.contentId &&
-            provider.activeCastCrewSeasonId == season.id;
-    final castCrewMembers = isCurrentSeasonCastContext
-        ? provider.activeCastCrewList
-            .where((e) => e.name.trim().isNotEmpty)
-            .toList(growable: false)
-        : <CastCrewItem>[];
+    final castCrewMembers = _castCrewMembers
+        .where((e) => e.name.trim().isNotEmpty)
+        .toList(growable: false);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -165,7 +151,16 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    _castCrewList(theme, castCrewMembers),
+                    _isCastCrewLoading
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 6),
+                            child: SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : _castCrewList(theme, castCrewMembers),
                   ],
                 ),
               );
@@ -918,5 +913,28 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
     if (value is num) return value.toInt();
     if (value == null) return null;
     return int.tryParse(value.toString());
+  }
+
+  Future<void> _loadCastCrewForSeason() async {
+    final seasonId = widget.seasonBundle.season.id;
+    final contentId = widget.seasonBundle.season.contentId ?? widget.seriesId;
+    if (seasonId == null || contentId <= 0) return;
+
+    if (mounted) {
+      setState(() => _isCastCrewLoading = true);
+    }
+
+    final provider = Provider.of<SeriesProvider>(context, listen: false);
+    final members = await provider.fetchCastCrewListForSeason(
+      contentId: contentId,
+      seasonId: seasonId,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _castCrewMembers =
+          members.where((e) => e.name.trim().isNotEmpty).toList(growable: false);
+      _isCastCrewLoading = false;
+    });
   }
 }
