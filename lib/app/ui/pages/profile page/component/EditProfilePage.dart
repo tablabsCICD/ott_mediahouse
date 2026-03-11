@@ -132,6 +132,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     CustomTextField(
                       controller: provider.mediaHouseNameController,
                       label: 'Production House Name',
+                      showRequiredAsterisk: true,
                       isName: true,
                       hintText: 'Enter a valid name',
                       isValidator: true,
@@ -143,6 +144,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     CustomTextField(
                       controller: provider.emailController,
                       label: 'Email',
+                      showRequiredAsterisk: true,
                       isEmail: true,
                       isValidator: true,
                       hintText: 'Enter a valid Email',
@@ -151,6 +153,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     CustomTextField(
                       controller: provider.mobileController,
                       label: 'Contact Number',
+                      showRequiredAsterisk: true,
                       isPhoneNumber: true,
                       isValidator: true,
                       hintText: 'Enter a valid Mobile Number',
@@ -159,6 +162,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     CustomTextField(
                       controller: provider.descriptionController,
                       label: 'Description',
+                      showRequiredAsterisk: true,
                       isName: true,
                       hintText: 'Enter a valid name',
                       isValidator: true,

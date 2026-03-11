@@ -29,6 +29,7 @@ class _SignUpPageState extends State<SignUpPage> {
     GlobalKey<FormState>(),
     GlobalKey<FormState>(),
   ];
+  final List<bool> _showStepValidation = [false, false, false];
 
   final Map<String, String> _labels = {
     'mediaHouseName': 'Production House Name',
@@ -55,9 +56,9 @@ class _SignUpPageState extends State<SignUpPage> {
     'ceoName': 'CEO Name',
     'ceoEmail': 'CEO Email',
     'ceoMobile': 'CEO Mobile',
-    'directorName': 'Director Name',
-    'directorEmail': 'Director Email',
-    'directorMobile': 'Director Mobile',
+    'directorName': 'Firm Director Name',
+    'directorEmail': 'Firm Director Email',
+    'directorMobile': 'Firm Director Mobile',
     'accountHolderName': 'Account Holder Name',
     'bankName': 'Bank Name',
     'bankAccountNumber': 'Bank Account Number',
@@ -113,6 +114,7 @@ class _SignUpPageState extends State<SignUpPage> {
     'bankProof',
     'gstCertificates',
     'shopAct',
+    'registrationCertificate',
   };
   final Set<String> _requiredUploadFields = {
     'registrationCertificate',
@@ -120,6 +122,7 @@ class _SignUpPageState extends State<SignUpPage> {
     'panCard',
     'bankProof',
     'gstCertificates',
+    'addressProof',
   };
 
   final List<String> _stepOneFields = [
@@ -346,18 +349,22 @@ class _SignUpPageState extends State<SignUpPage> {
         validator = (value) => _validateEmail(value, key, isRequired);
       } else if (isPhone) {
         validator = (value) => _validatePhone(value, key, isRequired);
+      } else {
+        validator =
+            (value) => _validateTextField(value, key, isRequired, isDigitsOnly);
       }
 
       return CustomTextField(
         controller: provider.controller(key),
         hintText: 'Enter ${_labels[key] ?? key}',
         label: _labels[key] ?? key,
+        showRequiredAsterisk: isRequired,
         textInputType: (isPhone || isDigitsOnly)
             ? TextInputType.phone
             : TextInputType.text,
         capitalization:
             isEmail ? TextCapitalization.none : TextCapitalization.words,
-        isValidator: isRequired,
+        isValidator: false,
         isEmail: isEmail,
         isDigits: isDigitsOnly,
         isPhoneNumber: isPhone,
@@ -366,7 +373,13 @@ class _SignUpPageState extends State<SignUpPage> {
     }).toList(growable: false);
   }
 
-  String? _validateEmail(String? value, String key, bool isRequired) {
+  String? _validateEmail(
+    String? value,
+    String key,
+    bool isRequired, {
+    bool force = false,
+  }) {
+    if (!force && !_shouldValidateCurrentStep) return null;
     final text = (value ?? '').trim();
     final label = _labels[key] ?? key;
     if (text.isEmpty) {
@@ -379,7 +392,13 @@ class _SignUpPageState extends State<SignUpPage> {
     return null;
   }
 
-  String? _validatePhone(String? value, String key, bool isRequired) {
+  String? _validatePhone(
+    String? value,
+    String key,
+    bool isRequired, {
+    bool force = false,
+  }) {
+    if (!force && !_shouldValidateCurrentStep) return null;
     final text = (value ?? '').trim();
     final label = _labels[key] ?? key;
     if (text.isEmpty) {
@@ -393,6 +412,30 @@ class _SignUpPageState extends State<SignUpPage> {
     }
     return null;
   }
+
+  String? _validateTextField(
+    String? value,
+    String key,
+    bool isRequired,
+    bool isDigitsOnly, {
+    bool force = false,
+  }) {
+    if (!force && !_shouldValidateCurrentStep) return null;
+    final text = (value ?? '').trim();
+    final label = _labels[key] ?? key;
+
+    if (text.isEmpty) {
+      return isRequired ? '$label is required' : null;
+    }
+
+    if (isDigitsOnly && !RegExp(r'^\d+$').hasMatch(text)) {
+      return '$label must contain digits only';
+    }
+
+    return null;
+  }
+
+  bool get _shouldValidateCurrentStep => _showStepValidation[_currentStep];
 
   List<String> get _currentStepFields {
     if (_currentStep == 0) return _stepOneFields;
@@ -571,12 +614,21 @@ class _SignUpPageState extends State<SignUpPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          isRequired ? '$label *' : label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: themeData.canvasColor,
+        RichText(
+          text: TextSpan(
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: themeData.canvasColor,
+            ),
+            children: [
+              TextSpan(text: label),
+              if (isRequired)
+                const TextSpan(
+                  text: ' *',
+                  style: TextStyle(color: Colors.red),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
@@ -698,11 +750,6 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Future<void> _onContinue(SignUpProvider signUpProvider) async {
-    final isValid = _stepKeys[_currentStep].currentState?.validate() ?? false;
-    if (!isValid) {
-      return;
-    }
-
     if (_currentStep < 2) {
       setState(() {
         _currentStep += 1;
@@ -710,14 +757,26 @@ class _SignUpPageState extends State<SignUpPage> {
       return;
     }
 
-    for (final uploadKey in _requiredUploadFields) {
-      if (signUpProvider.controller(uploadKey).text.trim().isEmpty) {
+    final invalidKey = _findFirstInvalidField(signUpProvider);
+    if (invalidKey != null) {
+      final invalidStep = _stepIndexForField(invalidKey) ?? 2;
+      setState(() {
+        _showStepValidation[invalidStep] = true;
+        _currentStep = invalidStep;
+      });
+
+      if (_requiredUploadFields.contains(invalidKey)) {
         CustomToast.show(
-          '${_labels[uploadKey] ?? uploadKey} is required',
+          '${_labels[invalidKey] ?? invalidKey} is required',
           isSuccess: false,
         );
-        return;
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _stepKeys[_currentStep].currentState?.validate();
+        });
       }
+      return;
     }
 
     final result = await signUpProvider.submitSignUp();
@@ -757,6 +816,55 @@ class _SignUpPageState extends State<SignUpPage> {
     _navigateToSignIn();
   }
 
+  String? _findFirstInvalidField(SignUpProvider provider) {
+    for (final key in _stepOneFields) {
+      if (_validateFieldByKey(key, provider) != null) return key;
+    }
+    for (final key in _stepTwoFields) {
+      if (_validateFieldByKey(key, provider) != null) return key;
+    }
+    for (final key in _stepThreeFields) {
+      if (_validateFieldByKey(key, provider) != null) return key;
+    }
+    return null;
+  }
+
+  int? _stepIndexForField(String key) {
+    if (_stepOneFields.contains(key)) return 0;
+    if (_stepTwoFields.contains(key)) return 1;
+    if (_stepThreeFields.contains(key)) return 2;
+    return null;
+  }
+
+  String? _validateFieldByKey(String key, SignUpProvider provider) {
+    final value = provider.controller(key).text.trim();
+
+    if (_requiredUploadFields.contains(key)) {
+      return value.isEmpty ? '${_labels[key] ?? key} is required' : null;
+    }
+
+    if (key == 'firmType' || key == 'country' || key == 'state') {
+      return value.isEmpty ? '${_labels[key] ?? key} is required' : null;
+    }
+
+    final isRequired = _requiredFields.contains(key);
+    if (_emailFields.contains(key)) {
+      return _validateEmail(value, key, isRequired, force: true);
+    }
+    if (_contactPhoneFields.contains(key)) {
+      return _validatePhone(value, key, isRequired, force: true);
+    }
+
+    final isDigitsOnly = key == 'pincode' || key == 'bankAccountNumber';
+    return _validateTextField(
+      value,
+      key,
+      isRequired,
+      isDigitsOnly,
+      force: true,
+    );
+  }
+
   Widget _buildFirmTypeField(SignUpProvider provider, ThemeData themeData) {
     final controller = provider.controller('firmType');
     final selectedValue = controller.text.trim();
@@ -766,13 +874,22 @@ class _SignUpPageState extends State<SignUpPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(bottom: 8),
-            child: Text(
-              'Firm Type',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: themeData.canvasColor,
+                ),
+                children: const [
+                  TextSpan(text: 'Firm Type'),
+                  TextSpan(
+                    text: ' *',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ],
               ),
             ),
           ),
@@ -790,6 +907,7 @@ class _SignUpPageState extends State<SignUpPage> {
               controller.text = value ?? '';
             },
             validator: (value) {
+              if (!_shouldValidateCurrentStep) return null;
               if ((value ?? '').trim().isEmpty) {
                 return 'Firm Type is required';
               }
@@ -850,6 +968,7 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget _buildCountryField(SignUpProvider provider, ThemeData themeData) {
     return FormField<String>(
       validator: (selected) {
+        if (!_shouldValidateCurrentStep) return null;
         if ((selected ?? '').trim().isEmpty) {
           return 'Country is required';
         }
@@ -888,6 +1007,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
     return FormField<String>(
       validator: (selected) {
+        if (!_shouldValidateCurrentStep) return null;
         if ((selected ?? '').trim().isEmpty) {
           return 'State is required';
         }
@@ -941,11 +1061,21 @@ class _SignUpPageState extends State<SignUpPage> {
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: themeData.canvasColor,
+                ),
+                children: [
+                  TextSpan(text: label),
+                  if (label == 'Country' || label == 'State')
+                    const TextSpan(
+                      text: ' *',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                ],
               ),
             ),
           ),

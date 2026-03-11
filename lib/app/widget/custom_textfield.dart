@@ -92,6 +92,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
             obscureText: widget.isPassword ? _isObscure : false,
             keyboardType: widget.textInputType,
             textCapitalization: widget.capitalization,
+            autovalidateMode: AutovalidateMode.disabled,
             readOnly: widget.readOnly ?? false,
             maxLines: widget.maxLine,
             cursorColor: theme.primaryColor,
