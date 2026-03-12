@@ -6,10 +6,12 @@ import '../../../../provider/themeProvider.dart';
 
 class EditEpisodeDialog extends StatefulWidget {
   final Episode episode;
+  final int seasonPrice;
 
   const EditEpisodeDialog({
     super.key,
     required this.episode,
+    required this.seasonPrice,
   });
 
   @override
@@ -21,7 +23,6 @@ class _EditEpisodeDialogState extends State<EditEpisodeDialog> {
 
   late final TextEditingController _titleCtrl;
   late final TextEditingController _descCtrl;
-  late final TextEditingController _amountCtrl;
   late final TextEditingController _episodeNoCtrl;
   late final TextEditingController _runtimeCtrl;
   late final TextEditingController _posterUrlCtrl;
@@ -34,7 +35,6 @@ class _EditEpisodeDialogState extends State<EditEpisodeDialog> {
     final ep = widget.episode;
     _titleCtrl = TextEditingController(text: ep.title ?? '');
     _descCtrl = TextEditingController(text: ep.description ?? '');
-    _amountCtrl = TextEditingController(text: '${ep.amount ?? 0}');
     _episodeNoCtrl = TextEditingController(text: '${ep.episodeNumber ?? 1}');
     _runtimeCtrl = TextEditingController(text: '${ep.runtime ?? 0}');
     _posterUrlCtrl = TextEditingController(text: ep.posterUrl ?? '');
@@ -46,7 +46,6 @@ class _EditEpisodeDialogState extends State<EditEpisodeDialog> {
   void dispose() {
     _titleCtrl.dispose();
     _descCtrl.dispose();
-    _amountCtrl.dispose();
     _episodeNoCtrl.dispose();
     _runtimeCtrl.dispose();
     _posterUrlCtrl.dispose();
@@ -128,16 +127,23 @@ class _EditEpisodeDialogState extends State<EditEpisodeDialog> {
                   ]),
                   const SizedBox(height: 10),
                   _section(theme, 'Pricing & Runtime', [
-                    _field(
-                      _amountCtrl,
-                      'Episode Amount',
-                      keyboardType: TextInputType.number,
-                      validator: (v) {
-                        final n = num.tryParse((v ?? '').trim());
-                        if (n == null) return 'Enter valid amount';
-                        if (n < 0) return 'Amount cannot be negative';
-                        return null;
-                      },
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.cardColor.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: theme.dividerColor.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        'Episode price follows season price: Rs ${widget.seasonPrice}',
+                        style: TextStyle(
+                          color: theme.canvasColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                     /*    _field(
                       _episodeNoCtrl,
@@ -289,7 +295,7 @@ class _EditEpisodeDialogState extends State<EditEpisodeDialog> {
 
     final title = _titleCtrl.text.trim();
     final body = <String, dynamic>{
-      "amount": _amountCtrl.text.trim(),
+      "amount": widget.seasonPrice,
       "title": title,
       "description": _descCtrl.text.trim(),
       "episodeNumber": int.parse(_episodeNoCtrl.text.trim()),

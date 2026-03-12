@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
-import 'package:media_house/app/ui/pages/movie%20details%20page/pendingMovieDetailsPage.dart';
 import 'package:media_house/app/widget/show_toast.dart';
 import 'package:provider/provider.dart';
 
@@ -18,39 +17,25 @@ class MovieCardHorizontal extends StatelessWidget {
   }) : super(key: key);
 
   @override
-  @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: true);
-    final theme = themeProvider.getTheme;
+    final theme = Provider.of<ThemeProvider>(context, listen: true).getTheme;
+    final isRejected = (movie.approvalStatus ?? '').toLowerCase() == 'rejected';
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () {
-        movie.type == "MOVIE"
-            ? Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MovieDetailsPage(movieId: movie.id!),
-                ),
-              )
-            : Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SeriesDetailsPage(
-                    seriesId: movie.id!,
-                    content: movie,
-                  ),
-                ),
-              );
-      },
+      onTap: () => _openDetails(context),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         padding: const EdgeInsets.all(12),
-        // height: 175, // 👈 HARD FIX HEIGHT
         decoration: BoxDecoration(
           color: theme.cardColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade300, width: 0.6),
+          border: Border.all(
+            color: isRejected
+                ? const Color(0xFFD14343).withValues(alpha: 0.55)
+                : Colors.grey.shade300,
+            width: isRejected ? 1.0 : 0.6,
+          ),
         ),
         child: Column(
           children: [
@@ -60,15 +45,41 @@ class MovieCardHorizontal extends StatelessWidget {
                 children: [
                   _poster(),
                   const SizedBox(width: 14),
-                  Expanded(child: _details(context, theme)),
+                  Expanded(child: _details(theme)),
                 ],
               ),
             ),
+            if (isRejected) ...[
+              const SizedBox(height: 8),
+              _rejectionReasonBox(theme),
+            ],
             const SizedBox(height: 6),
             _ratingBar(),
             const SizedBox(height: 6),
             _metaRow(),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _openDetails(BuildContext context) {
+    if (movie.type == "MOVIE") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MovieDetailsPage(movieId: movie.id!),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SeriesDetailsPage(
+          seriesId: movie.id!,
+          content: movie,
         ),
       ),
     );
@@ -94,9 +105,7 @@ class MovieCardHorizontal extends StatelessWidget {
                     ),
                   );
                 },
-                errorBuilder: (context, error, stackTrace) {
-                  return _errorPoster();
-                },
+                errorBuilder: (context, error, stackTrace) => _errorPoster(),
               )
             : _errorPoster(),
       ),
@@ -115,7 +124,7 @@ class MovieCardHorizontal extends StatelessWidget {
     );
   }
 
-  Widget _details(BuildContext context, ThemeData theme) {
+  Widget _details(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -137,7 +146,6 @@ class MovieCardHorizontal extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Expanded(
-          // 👈 THIS IS THE MAGIC FIX
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -145,7 +153,9 @@ class MovieCardHorizontal extends StatelessWidget {
               _keyValue("Cast", _join(movie.castList)),
               _keyValue("Price", movie.price?.toString() ?? "N/A"),
               _keyValue(
-                  "Total Revenue", movie.totalRevenue?.toString() ?? "N/A"),
+                "Total Revenue",
+                movie.totalRevenue?.toString() ?? "N/A",
+              ),
             ],
           ),
         ),
@@ -157,15 +167,15 @@ class MovieCardHorizontal extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: movie.type == "MOVIE" ? theme.primaryColor : theme.primaryColor,
+        color: theme.primaryColor,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         movie.type ?? "",
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
-          color: movie.type == "MOVIE" ? Colors.white : Colors.white,
+          color: Colors.white,
         ),
       ),
     );
@@ -223,22 +233,35 @@ class MovieCardHorizontal extends StatelessWidget {
   }
 
   Widget _statusChip() {
-    final isApproved = movie.approvalStatus?.toLowerCase() == "approved";
+    final normalized = (movie.approvalStatus ?? '').toLowerCase();
+    final isApproved = normalized == "approved";
+    final isRejected = normalized == "rejected";
+    final statusColor = isApproved
+        ? Colors.green
+        : isRejected
+            ? const Color(0xFFD14343)
+            : Colors.orange;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: isApproved
             ? Colors.green.withOpacity(.12)
-            : Colors.orange.withOpacity(.15),
+            : isRejected
+                ? const Color(0xFFD14343).withOpacity(.12)
+                : Colors.orange.withOpacity(.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
           Icon(
-            isApproved ? Icons.verified : Icons.pending,
+            isApproved
+                ? Icons.verified
+                : isRejected
+                    ? Icons.cancel_outlined
+                    : Icons.pending,
             size: 14,
-            color: isApproved ? Colors.green : Colors.orange,
+            color: statusColor,
           ),
           const SizedBox(width: 4),
           Text(
@@ -246,7 +269,61 @@ class MovieCardHorizontal extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: isApproved ? Colors.green : Colors.orange,
+              color: statusColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _rejectionReasonBox(ThemeData theme) {
+    final reason = (movie.reason ?? '').trim();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFD14343).withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFD14343).withValues(alpha: 0.28),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 1),
+            child: Icon(
+              Icons.report_gmailerrorred_rounded,
+              size: 18,
+              color: Color(0xFFD14343),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: 12.5,
+                  color: theme.canvasColor.withValues(alpha: 0.86),
+                  height: 1.3,
+                ),
+                children: [
+                  const TextSpan(
+                    text: 'Rejection Reason: ',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFD14343),
+                    ),
+                  ),
+                  TextSpan(
+                    text: reason.isEmpty ? 'No reason provided by admin.' : reason,
+                  ),
+                ],
+              ),
             ),
           ),
         ],

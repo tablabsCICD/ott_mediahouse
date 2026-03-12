@@ -274,7 +274,9 @@ class SeriesProvider extends ChangeNotifier {
         final allCast = _parseCastCrewListFromBody(fallbackBody);
         castList = allCast
             .where((item) =>
-                item.seasonId == null || item.seasonId == 0 || item.seasonId == seasonId)
+                item.seasonId == null ||
+                item.seasonId == 0 ||
+                item.seasonId == seasonId)
             .toList(growable: false);
       }
 
@@ -289,7 +291,9 @@ class SeriesProvider extends ChangeNotifier {
         final allCast = _parseCastCrewListFromBody(fallbackBody);
         final castList = allCast
             .where((item) =>
-                item.seasonId == null || item.seasonId == 0 || item.seasonId == seasonId)
+                item.seasonId == null ||
+                item.seasonId == 0 ||
+                item.seasonId == seasonId)
             .toList(growable: false);
         _activeCastCrewList = castList;
         _castCrewCache[_castCrewKey(contentId, seasonId)] = castList;
@@ -912,20 +916,36 @@ class SeriesProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> deleteSeasonApi(int seasonId) async {
+  Future<String?> deleteSeasonApi(int seasonId, {int? seriesId}) async {
     try {
       isSubmitting = true;
       notifyListeners();
 
       final apiHelper = ApiHelper();
-      final url = '${ApiConstant.baseUrl}series/season/$seasonId/delete';
-      final response = await apiHelper.deleteApi(url);
-      debugPrint('Delete Season URL => $url');
-      debugPrint('Delete Season STATUS => ${response.statusCode}');
-      return _isSuccessStatus(response.statusCode);
+      final candidateUrls = <String>[
+        if (seriesId != null)
+          '${ApiConstant.baseUrl}series/$seriesId/season/$seasonId/delete',
+        '${ApiConstant.baseUrl}series/season/$seasonId/delete',
+      ];
+
+      for (final url in candidateUrls) {
+        final response = await apiHelper.deleteApi(url);
+        debugPrint('Delete Season URL => $url');
+        debugPrint('Delete Season STATUS => ${response.statusCode}');
+        if (_isSuccessStatus(response.statusCode)) {
+          try {
+            final body = jsonDecode(response.body);
+            if (body is Map && body['message'] != null) {
+              return body['message'].toString();
+            }
+          } catch (_) {}
+          return 'Season deactivated successfully';
+        }
+      }
+      return null;
     } catch (e) {
       debugPrint("Delete Season Error: $e");
-      return false;
+      return null;
     } finally {
       isSubmitting = false;
       notifyListeners();

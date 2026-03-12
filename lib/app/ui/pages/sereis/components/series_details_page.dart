@@ -1010,6 +1010,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
   }
 
   Widget _episodeActions(ThemeData theme, Episode ep) {
+    final isPublished = ep.active == true;
     return Wrap(
       spacing: 2,
       runSpacing: 2,
@@ -1017,13 +1018,13 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
         IconButton(
           tooltip: "Edit Episode",
           icon: Icon(Icons.edit_outlined, color: theme.canvasColor),
-          onPressed: () => _editEpisode(ep),
+          onPressed: isPublished ? null : () => _editEpisode(ep),
         ),
-        IconButton(
-          tooltip: "Delete Episode",
-          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-          onPressed: () => _deleteEpisode(ep),
-        ),
+        // IconButton(
+        //   tooltip: "Delete Episode",
+        //   icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+        //   onPressed: isPublished ? null : () => _deleteEpisode(ep),
+        // ),
         IconButton(
           tooltip: "View Episode",
           icon: Icon(Icons.visibility_outlined, color: theme.primaryColor),
@@ -1091,7 +1092,10 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
 
     final body = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => EditEpisodeDialog(episode: ep),
+      builder: (_) => EditEpisodeDialog(
+        episode: ep,
+        seasonPrice: _resolveSeasonAmount(ep),
+      ),
     );
     if (body == null) return;
 
@@ -1126,6 +1130,16 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
       if (hasEpisode) return bundle.season.id;
     }
     return null;
+  }
+
+  int _resolveSeasonAmount(Episode ep) {
+    final data = Provider.of<SeriesProvider>(context, listen: false).data;
+    if (data == null || ep.id == null) return ep.amount ?? 0;
+    for (final bundle in data.seasons) {
+      final hasEpisode = bundle.episodes.any((e) => e.id == ep.id);
+      if (hasEpisode) return bundle.season.amount ?? ep.amount ?? 0;
+    }
+    return ep.amount ?? 0;
   }
 
   Widget _castRow(ThemeData theme, List<_CastAvatarItem> cast) {

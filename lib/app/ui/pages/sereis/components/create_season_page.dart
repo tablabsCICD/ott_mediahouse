@@ -38,7 +38,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
   final descCtrl = TextEditingController();
   final seasonNoCtrl = TextEditingController();
   final amountCtrl = TextEditingController();
-  DateTime selectedDate = DateTime.now();
+  DateTime? selectedDate;
 
   io.File? imageFile;
   html.File? webFile;
@@ -330,7 +330,11 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_isDateBeforeToday(selectedDate)) {
+    if (selectedDate == null) {
+      showGlobalSnack("Please select a release date");
+      return;
+    }
+    if (_isDateBeforeToday(selectedDate!)) {
       showGlobalSnack("Release date cannot be before today");
       return;
     }
@@ -348,7 +352,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         "title": titleCtrl.text.trim(),
         "description": descCtrl.text.trim(),
         "posterUrl": uploadedImageUrl,
-        "releaseDate": selectedDate.toIso8601String(),
+        "releaseDate": selectedDate!.toIso8601String(),
         "seasonNumber": int.parse(seasonNoCtrl.text.trim()),
       };
       final response = await http.post(
@@ -549,8 +553,8 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
             ),
           ),
           const SizedBox(height: 8),
-          _field(nameCtrl, "$title Name", requiredField: true),
-          _field(roleCtrl, "$title Role", requiredField: true),
+          _field(nameCtrl, "$title Name", requiredField: false),
+          _field(roleCtrl, "$title Role", requiredField: false),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -648,7 +652,8 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
   }
 
   Widget _datePicker(ThemeData theme) {
-    final isInvalid = _isDateBeforeToday(selectedDate);
+    final isInvalid =
+        selectedDate != null && _isDateBeforeToday(selectedDate!);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -670,7 +675,9 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    "Release Date: ${DateFormat('dd MMM yyyy').format(selectedDate)}",
+                    selectedDate == null
+                        ? "Select Release Date (Friday only)"
+                        : "Release Date: ${DateFormat('dd MMM yyyy').format(selectedDate!)}",
                     style: TextStyle(
                       color: theme.canvasColor,
                       fontWeight: FontWeight.w500,
@@ -729,12 +736,17 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final initialDate = _isDateBeforeToday(selectedDate) ? today : selectedDate;
+    final baseDate = selectedDate == null || _isDateBeforeToday(selectedDate!)
+        ? today
+        : selectedDate!;
+    final daysUntilFriday = (DateTime.friday - baseDate.weekday + 7) % 7;
+    final initialDate = baseDate.add(Duration(days: daysUntilFriday));
     final picked = await showDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: today,
       lastDate: DateTime(2100),
+      selectableDayPredicate: (day) => day.weekday == DateTime.friday,
     );
 
     if (picked != null) {

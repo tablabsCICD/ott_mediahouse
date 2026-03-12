@@ -59,7 +59,7 @@ class AddShortMaster {
       if (titleCtrl.text.trim().length < 3) return "Title too short";
       if (descCtrl.text.trim().length < 10) return "Description too short";
       if (int.tryParse(partsCtrl.text) == null) return "Invalid parts";
-      if (int.tryParse(coinsCtrl.text) == null) return "Invalid coins";
+      if (int.tryParse(coinsCtrl.text) == null) return "Invalid price";
       return null;
     }
 
@@ -259,7 +259,7 @@ class AddShortMaster {
                           Expanded(
                               child: CustomTextField(
                                   controller: coinsCtrl,
-                                  hintText: "Coins",
+                                  hintText: "Price",
                                   textInputType: TextInputType.text)),
                         ],
                       ),

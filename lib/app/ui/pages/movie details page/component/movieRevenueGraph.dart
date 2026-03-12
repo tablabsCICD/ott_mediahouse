@@ -123,50 +123,25 @@ class _MovieRevenueGraphState extends State<MovieRevenueGraph> {
         city: city,
       );
 
-      final totals = await Future.wait([
-        videoProvider.fetchContentMetricGraphData(
-          selectedTimeRange,
-          widget.contentId.id!,
-          startDateString,
-          endDateString,
-          contentType: widget.contentId.type,
-          country: country,
-          state: state,
-          district: district,
-          taluka: taluka,
-          city: city,
-        ),
-        videoProvider.fetchContentMetricGraphData(
-          selectedTimeRange,
-          widget.contentId.id!,
-          startDateString,
-          endDateString,
-          contentType: widget.contentId.type,
-          country: country,
-          state: state,
-          district: district,
-          taluka: taluka,
-          city: city,
-        ),
-        videoProvider.fetchContentMetricGraphData(
-          selectedTimeRange,
-          widget.contentId.id!,
-          startDateString,
-          endDateString,
-          contentType: widget.contentId.type,
-          country: country,
-          state: state,
-          district: district,
-          taluka: taluka,
-          city: city,
-        ),
-      ]);
+      final totals = await videoProvider.fetchContentMetricGraphData(
+        selectedTimeRange,
+        widget.contentId.id!,
+        startDateString,
+        endDateString,
+        contentType: widget.contentId.type,
+        country: country,
+        state: state,
+        district: district,
+        taluka: taluka,
+        city: city,
+      );
+      final totalValue = _sumValues(totals);
 
       if (mounted) {
         setState(() {
-          _revenueTotal = _sumValues(totals[0]);
-          _viewsTotal = _sumValues(totals[1]);
-          _likesTotal = _sumValues(totals[2]);
+          _revenueTotal = totalValue;
+          _viewsTotal = totalValue;
+          _likesTotal = totalValue;
         });
       }
     } finally {

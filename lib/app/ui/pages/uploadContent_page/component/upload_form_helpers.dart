@@ -6,6 +6,12 @@ import '../../../../provider/videoProvider.dart';
 import 'multiselect_dialog.dart';
 
 class UploadFormHelpers {
+  static DateTime _nextFriday(DateTime date) {
+    final normalized = DateTime(date.year, date.month, date.day);
+    final daysUntilFriday = (DateTime.friday - normalized.weekday + 7) % 7;
+    return normalized.add(Duration(days: daysUntilFriday));
+  }
+
   static Widget buildSectionCard(
       String title, List<Widget> children, ThemeData themeData) {
     return Container(
@@ -51,11 +57,21 @@ class UploadFormHelpers {
         controller: provider.releaseDateController,
         readOnly: true,
         onTap: () async {
+          final firstDate = DateTime(1900);
+          final lastDate = DateTime(9900);
+          final selectedDate =
+              DateTime.tryParse(provider.releaseDateController.text.trim());
+          final initialDate = selectedDate != null &&
+                  selectedDate.weekday == DateTime.friday
+              ? selectedDate
+              : _nextFriday(DateTime.now());
+
           DateTime? pickedDate = await showDatePicker(
             context: context, // Use the passed context
-            initialDate: DateTime.now(),
-            firstDate: DateTime(1900),
-            lastDate: DateTime(9900),
+            initialDate: initialDate.isAfter(lastDate) ? lastDate : initialDate,
+            firstDate: firstDate,
+            lastDate: lastDate,
+            selectableDayPredicate: (day) => day.weekday == DateTime.friday,
           );
           if (pickedDate != null) {
             onDateSelected(pickedDate);

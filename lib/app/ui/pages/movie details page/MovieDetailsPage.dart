@@ -12,11 +12,17 @@ import '../../../provider/videoProvider.dart';
 import '../DisplayTrailer.dart';
 import '../editMovie.dart';
 import 'component/movieRevenueGraph.dart';
+import 'component/pending_agreement_tab.dart';
 
 class MovieDetailsPage extends StatefulWidget {
   final int movieId;
+  final int initialTab;
 
-  const MovieDetailsPage({super.key, required this.movieId});
+  const MovieDetailsPage({
+    super.key,
+    required this.movieId,
+    this.initialTab = 0,
+  });
 
   @override
   State<MovieDetailsPage> createState() => _MovieDetailsPageState();
@@ -27,6 +33,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
   static const int _overviewTab = 0;
   static const int _trailersTab = 1;
   static const int _reviewsTab = 2;
+  static const int _agreementTab = 3;
 
   bool isLoading = true;
   int _selectedTab = _overviewTab;
@@ -44,6 +51,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
   @override
   void initState() {
     super.initState();
+    _selectedTab = widget.initialTab;
     _initAnimations();
     _fetchData();
     Future.delayed(const Duration(seconds: 1), () {
@@ -119,11 +127,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
     await provider.getContentById(widget.movieId);
     await provider.fetchCastByContentId(widget.movieId);
     await provider.fetchRatingReviewByContentId(widget.movieId);
-
-    final status = (provider.content?.approvalStatus ?? '').toLowerCase();
-    if (status != 'pending') {
-      await provider.contentRevenueGraph(1, widget.movieId, '', '');
-    }
   }
 
   @override
@@ -447,10 +450,15 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
 
   Widget _tabSelector() {
     final selectedThemeData = Provider.of<ThemeProvider>(context).getTheme;
-    final tabs = const [
+    final movie = Provider.of<VideoProvider>(context, listen: false).content;
+    final normalizedStatus = (movie?.approvalStatus ?? '').toLowerCase();
+    final showAgreementTab = normalizedStatus == 'agreement_pending' ||
+        normalizedStatus == 'pending';
+    final tabs = [
       ('Overview', _overviewTab),
       ('Trailers & More', _trailersTab),
       ('User Reviews', _reviewsTab),
+      if (showAgreementTab) ('Pending Agreement', _agreementTab),
     ];
 
     return _surfaceCard(
@@ -503,6 +511,16 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
 
     if (_selectedTab == _reviewsTab) {
       return _reviewsTabContent(key, movie, provider);
+    }
+
+    if (_selectedTab == _agreementTab) {
+      return KeyedSubtree(
+        key: key,
+        child: PendingAgreementTab(
+          movie: movie,
+          theme: selectedThemeData,
+        ),
+      );
     }
 
     return _overviewTabContent(
@@ -576,7 +594,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
                 const Text(
                   'Trailers & Streams',
                   style: TextStyle(
-                    color: Colors.white,
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
                   ),
@@ -604,8 +621,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
             const Text(
               'User Reviews & Engagement',
               style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
             ),
@@ -640,7 +656,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
                   : reviews.isEmpty
                       ? const Text(
                           'No reviews available for this content.',
-                          style: TextStyle(color: Colors.white70, height: 1.4),
+                          style: TextStyle(height: 1.4),
                         )
                       : Column(
                           children: reviews
@@ -697,7 +713,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
                     Text(
                       username,
                       style: const TextStyle(
-                        color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
@@ -706,7 +721,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
                       Text(
                         dateLabel,
                         style: const TextStyle(
-                          color: Colors.white60,
                           fontSize: 11,
                         ),
                       ),
@@ -748,7 +762,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
           Text(
             title,
             style: const TextStyle(
-              color: Colors.white,
               fontWeight: FontWeight.w700,
               fontSize: 13,
             ),
@@ -757,7 +770,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
           Text(
             comment,
             style: const TextStyle(
-              color: Colors.white70,
               height: 1.35,
               fontSize: 12,
             ),
@@ -820,6 +832,8 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
 
   Widget _pendingStatusContainer(Content movie, ThemeData selectedThemeData) {
     final reason = (movie.reason ?? '').trim();
+    final normalizedStatus = (movie.approvalStatus ?? '').toLowerCase();
+    final isAgreementPending = normalizedStatus == 'agreement_pending';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -835,13 +849,15 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: const Color(0xFFF5A524),
+            color: isAgreementPending
+                ? const Color(0xFF7C3AED)
+                : const Color(0xFFF5A524),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Text(
-            'PENDING',
+          child: Text(
+            isAgreementPending ? 'APPROVED' : 'PENDING',
             style: TextStyle(
-              color: Colors.black,
+              color: isAgreementPending ? Colors.white : Colors.black,
               fontWeight: FontWeight.w800,
               fontSize: 12,
             ),
@@ -850,7 +866,9 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
         const SizedBox(height: 10),
         Text(
           reason.isEmpty
-              ? 'This content is pending for approval.'
+              ? (isAgreementPending
+                  ? 'This content is waiting for signed agreement submission and onboarding charges before admin approval.'
+                  : 'This content is pending for approval.')
               : 'Review Note: $reason',
           style: const TextStyle(
             color: Colors.white70,
@@ -1220,7 +1238,6 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF18243F),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -1534,7 +1551,8 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
   }
 
   bool _isPending(Content movie, ThemeData selectedThemeData) =>
-      (movie.approvalStatus ?? '').toLowerCase() == 'pending';
+      (movie.approvalStatus ?? '').toLowerCase() == 'pending' ||
+      (movie.approvalStatus ?? '').toLowerCase() == 'agreement_pending';
 
   String _moviePoster(Content movie) {
     final list = movie.posterUrlList ?? const [];

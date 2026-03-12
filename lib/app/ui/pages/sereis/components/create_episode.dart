@@ -16,12 +16,14 @@ import '../../DisplayTrailer.dart';
 class AddEpisodeDialog extends StatefulWidget {
   final int seriesId;
   final int seasonId;
+  final int seasonPrice;
   final VoidCallback onSuccess;
 
   const AddEpisodeDialog({
     super.key,
     required this.seriesId,
     required this.seasonId,
+    required this.seasonPrice,
     required this.onSuccess,
   });
 
@@ -34,7 +36,6 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
 
   final titleCtrl = TextEditingController();
   final descCtrl = TextEditingController();
-  final amountCtrl = TextEditingController();
   final episodeNoCtrl = TextEditingController();
 
   bool isLoading = false;
@@ -153,7 +154,22 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
               children: [
                 _field(titleCtrl, "Title"),
                 _field(descCtrl, "Description", maxLines: 3),
-                _field(amountCtrl, "Episode Amount"),
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.withOpacity(0.35)),
+                  ),
+                  child: Text(
+                    "Episode price follows season price: Rs ${widget.seasonPrice}",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
                 _field(
                   episodeNoCtrl,
                   "Episode Number",
@@ -206,7 +222,7 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
 
     /// ✅ EXACT BODY AS SWAGGER
     final body = {
-      "amount": amountCtrl.text.trim(),
+      "amount": widget.seasonPrice,
       "title": titleCtrl.text.trim(),
       "description": descCtrl.text.trim(),
       "episodeNumber": int.parse(episodeNoCtrl.text.trim()),

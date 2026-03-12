@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:media_house/app/core/utils/agreement_download_helper.dart';
+import 'package:media_house/app/core/utils/agreement_template.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/core/utils/sharepreferences.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/component/upload_form_helpers.dart';
@@ -38,6 +41,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
 
   Razorpay? _razorpay;
   int _currentPage = 0;
+  bool _isDownloadingAgreement = false;
 
   bool get _isMovie => widget.uploadType == UploadContentType.movie;
   bool get _isMobile => ResponsiveWidget.isMobile(context);
@@ -89,7 +93,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
         double.tryParse(provider.registrationAmountPaidController.text.trim());
     if (enteredAmount == null || enteredAmount <= 0) {
       CustomToast.show(
-        "Please enter a valid registration fee amount before payment.",
+        "Please enter a valid Onboarding fee amount before payment.",
         isSuccess: false,
       );
       return;
@@ -105,7 +109,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       'key': _razorpayKeyId,
       'amount': amountInPaise,
       'name': 'OTT Production House',
-      'description': 'Registration Fee',
+      'description': 'Onboarding Fee',
       'prefill': {
         'contact': user?.mobileNumber ?? '',
         'email': user?.emailId ?? '',
@@ -119,7 +123,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
         keyId: _razorpayKeyId,
         amountInPaise: amountInPaise,
         merchantName: 'OTT Production House',
-        description: 'Registration Fee',
+        description: 'Onboarding Fee',
         prefillContact: user?.mobileNumber ?? '',
         prefillEmail: user?.emailId ?? '',
         prefillName: userName,
@@ -157,6 +161,58 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   void _handleExternalWallet(ExternalWalletResponse response) {
     final wallet = response.walletName ?? "external wallet";
     CustomToast.show("Payment switched to $wallet.", isWarning: true);
+  }
+
+  Content _buildAgreementDraft(VideoProvider provider, String mediaHouseName) {
+    return Content(
+      title: provider.titleController.text.trim(),
+      description: provider.descriptionController.text.trim(),
+      runtime: int.tryParse(provider.runTimeController.text.trim()) ?? 0,
+      releaseDate: provider.releaseDateController.text.trim(),
+      price: double.tryParse(provider.priceController.text.trim()) ?? 0.0,
+      languageList: provider.selectedLanguages,
+      castList: provider.castList,
+      genreList: provider.selectedGeners,
+      directorList: provider.directorList,
+      ageRating: provider.ageRatingController.text.trim(),
+      type: _isMovie ? "MOVIE" : "SERIES",
+      sensorCertificate: provider.censorCertificateController.text.trim(),
+      mediaHouseName: mediaHouseName,
+    );
+  }
+
+  Future<void> _downloadAgreementTemplate(VideoProvider provider) async {
+    setState(() {
+      _isDownloadingAgreement = true;
+    });
+
+    try {
+      final localPrefs = LocalSharePreferences();
+      final mediaHouse = await localPrefs.getMediaHouse();
+      final movie = _buildAgreementDraft(
+        provider,
+        mediaHouse?.mediaHouseName ?? 'Content',
+      );
+      final pdfBytes =
+          await buildAgreementPdf(movie: movie, mediaHouse: mediaHouse);
+      final safeTitle =
+          (movie.title?.trim().isNotEmpty == true ? movie.title! : 'content')
+              .replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_')
+              .replaceAll(RegExp(r'_+'), '_');
+      await saveAgreementFile(pdfBytes, '${safeTitle}_agreement.pdf');
+      if (!mounted) return;
+      CustomToast.show('Agreement template downloaded.', isSuccess: true);
+    } catch (error) {
+      if (!mounted) return;
+      CustomToast.show('Unable to download agreement: $error',
+          isSuccess: false);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDownloadingAgreement = false;
+        });
+      }
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -199,7 +255,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       markPaid: true,
     );
 
-    CustomToast.show("Registration fee payment successful.", isSuccess: true);
+    CustomToast.show("Onboarding fee payment successful.", isSuccess: true);
   }
 
   void _nextPage() {
@@ -800,8 +856,205 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
               theme,
             ),
             const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.dividerColor.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.file_present_rounded,
+                      color: theme.primaryColor,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Signed Agreement Upload',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: theme.canvasColor,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          provider.hasUploadedAgreement
+                              ? 'Signed document uploaded successfully.'
+                              : 'Download the template, sign the hard copy, and upload it before Onboarding charges.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.canvasColor.withValues(alpha: 0.65),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: (provider.hasUploadedAgreement
+                              ? const Color(0xFF0F9D58)
+                              : const Color(0xFFD97706))
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: (provider.hasUploadedAgreement
+                                ? const Color(0xFF0F9D58)
+                                : const Color(0xFFD97706))
+                            .withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Text(
+                      provider.hasUploadedAgreement ? 'Uploaded' : 'Pending',
+                      style: TextStyle(
+                        color: provider.hasUploadedAgreement
+                            ? const Color(0xFF0F9D58)
+                            : const Color(0xFFD97706),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.dividerColor.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Text(
+                provider.agreementFileName ??
+                    (provider.hasUploadedAgreement
+                        ? 'Agreement uploaded'
+                        : 'No signed agreement uploaded yet'),
+                style: TextStyle(
+                  color: theme.canvasColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (provider.isAgreementUploading) ...[
+              const SizedBox(height: 12),
+              LinearProgressIndicator(
+                value: provider.agreementUploadProgress == 0
+                    ? null
+                    : provider.agreementUploadProgress,
+                color: theme.primaryColor,
+              ),
+            ],
+            const SizedBox(height: 14),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: ElevatedButton.icon(
+                onPressed: _isDownloadingAgreement
+                    ? null
+                    : () => _downloadAgreementTemplate(provider),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.primaryColor,
+                  foregroundColor: Colors.white,
+                ),
+                icon: _isDownloadingAgreement
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.download_rounded),
+                label: Text(
+                  _isDownloadingAgreement
+                      ? 'Preparing PDF...'
+                      : 'Download Template',
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: provider.isAgreementUploading
+                    ? null
+                    : () async {
+                        final uploaded =
+                            await provider.pickAndUploadAgreementDocument();
+                        if (!mounted) return;
+                        CustomToast.show(
+                          uploaded
+                              ? 'Signed agreement uploaded successfully.'
+                              : 'Agreement upload cancelled.',
+                          isSuccess: uploaded,
+                        );
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.upload_file_rounded),
+                label: Text(
+                  provider.hasUploadedAgreement
+                      ? 'Replace Signed Agreement'
+                      : 'Upload Signed Agreement',
+                ),
+              ),
+            ),
+            if (provider.hasUploadedAgreement) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: provider.agreementDocumentUrl),
+                    );
+                    if (!mounted) return;
+                    CustomToast.show(
+                      'Agreement URL copied.',
+                      isSuccess: true,
+                    );
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 16),
+                  label: const Text('Copy Uploaded URL'),
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
             UploadFormHelpers.buildModernToggleRow(
-              'Registration Fee Paid',
+              'Onboarding Fee Paid',
               'Y = Paid (upload allowed), N = Not paid (upload blocked)',
               provider.isRegistrationFeePaid,
               (value) {
@@ -817,8 +1070,8 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             if (!provider.isRegistrationFeePaid)
               CustomTextField(
                 controller: provider.registrationAmountPaidController,
-                hintText: "Enter registration fee amount",
-                label: "Registration Fee Amount",
+                hintText: "Enter Onboarding fee amount",
+                label: "Onboarding Fee Amount",
                 textInputType: TextInputType.number,
               ),
             if (!provider.isRegistrationFeePaid) const SizedBox(height: 12),
@@ -836,7 +1089,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                     ),
                   ),
                   icon: const Icon(Icons.payments_outlined),
-                  label: const Text("Pay Registration Fee"),
+                  label: const Text("Pay Onboarding Fee"),
                 ),
               ),
             if (!provider.isRegistrationFeePaid) const SizedBox(height: 16),
@@ -889,7 +1142,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                   ),
                 ),
                 child: Text(
-                  "Set Registration Fee Paid = Y to fill payment details and enable upload.",
+                  "Set Onboarding Fee Paid = Y to fill payment details and enable upload.",
                   style: TextStyle(
                     color: theme.canvasColor,
                     fontSize: 13,
@@ -1128,7 +1381,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   bool _validatePageThree(VideoProvider provider) {
     /*  if (!provider.isRegistrationFeePaid) {
       CustomToast.show(
-        "Registration fee is not paid (N). Upload is blocked.",
+        "Onboarding fee is not paid (N). Upload is blocked.",
         isSuccess: false,
       );
       return false;
@@ -1141,7 +1394,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
         provider.registrationValidityController.text.trim().isEmpty ||
         provider.registrationPaymentMethodController.text.trim().isEmpty) {
       CustomToast.show(
-        "Please fill all registration fee detail fields.",
+        "Please fill all Onboarding fee detail fields.",
         isSuccess: false,
       );
       return false;
@@ -1275,9 +1528,9 @@ const List<String> ageRatings = [
 const List<String> rentalDurations = [
   "One Time",
   "One Day",
-  "Two Day",
-  "Three Day",
-  "One Week",
+  "Two Days",
+  "Three Days",
+  "Seven Days",
   "Two Week",
   "One Month"
 ];

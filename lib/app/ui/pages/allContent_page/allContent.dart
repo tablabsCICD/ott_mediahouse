@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/provider/videoProvider.dart';
+import 'package:media_house/app/widget/agreementMovieCard.dart';
 import 'package:media_house/app/widget/movieCardHorizontal.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:provider/provider.dart';
@@ -29,6 +30,7 @@ class _AllContentPageState extends State<AllContentPage> {
 
   static const List<Map<String, String>> _statusOptions = [
     {"label": "All Uploaded", "value": "ALL"},
+    {"label": "Pending Agreement", "value": "PENDING"},
     {"label": "Pending", "value": "PENDING"},
     {"label": "Approved", "value": "APPROVED"},
     {"label": "Rejected", "value": "REJECTED"},
@@ -436,7 +438,12 @@ class _AllContentPageState extends State<AllContentPage> {
         if (index >= items.length) {
           return _buildLoadMore(theme);
         }
-        return MovieCardHorizontal(movie: items[index]);
+        final item = items[index];
+        final isAgreementPending =
+            (item.approvalStatus ?? '').toLowerCase() == 'pending';
+        return isAgreementPending
+            ? AgreementMovieCard(movie: item, theme: theme)
+            : MovieCardHorizontal(movie: item);
       },
     );
   }

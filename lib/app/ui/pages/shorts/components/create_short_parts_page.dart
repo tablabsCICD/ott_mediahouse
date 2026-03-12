@@ -1,604 +1,678 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
+import 'package:media_house/app/core/constant/api_constant.dart';
+import 'package:media_house/app/provider/shorts_provider.dart';
+import 'package:media_house/app/widget/show_toast.dart';
 import 'package:provider/provider.dart';
-import 'package:universal_html/html.dart' as html;
 
 import '../../../../../data/models/response/content_image_upload_response.dart';
-import '../../../../../main.dart';
-import '../../../../core/constant/api_constant.dart';
-import '../../../../provider/shorts_provider.dart';
-import '../../../../provider/themeProvider.dart';
-import '../../DisplayTrailer.dart';
+import '../../../../../data/models/response/video_upload_response.dart';
 
 class CreateShortPartsDialog extends StatefulWidget {
   final int shortId;
   final int totalParts;
+  final int existingPartCount;
+  final int defaultCoins;
+  final String masterTitle;
+  final String masterDescription;
 
   const CreateShortPartsDialog({
     super.key,
     required this.shortId,
     required this.totalParts,
+    required this.existingPartCount,
+    required this.defaultCoins,
+    required this.masterTitle,
+    required this.masterDescription,
   });
 
   @override
-  State<CreateShortPartsDialog> createState() =>
-      _CreateShortPartsDialogState();
+  State<CreateShortPartsDialog> createState() => _CreateShortPartsDialogState();
 }
 
 class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
-  int currentPart = 1;
+  final _formKey = GlobalKey<FormState>();
+  late final List<_ShortPartDraft> _partDrafts;
+  bool _isSubmitting = false;
 
-  final titleCtrl = TextEditingController();
-  final coinsCtrl = TextEditingController();
-  final videoUrlCtrl = TextEditingController();
-  String? uploadedImageUrl;
-  bool isFreePreview = false;
-
-  /// THUMBNAIL
-  io.File? imageFile;
-  html.File? webFile;
-  Uint8List? previewBytes;
-  double uploadProgress = 0;
-  String? uploadedVideoName;
-  String? videoDuration;
-  String? videoSize;
-
-
-  // ===============================================================
-  // GLOBAL SNACK
-  // ===============================================================
-
-  void showGlobalSnack(String message) {
-    globalMessengerKey.currentState
-        ?.showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  String _getFileNameFromUrl(String url) {
-    return Uri.parse(url).pathSegments.last;
-  }
-
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return "$bytes B";
-    if (bytes < 1024 * 1024) return "${(bytes / 1024).toStringAsFixed(1)} KB";
-    return "${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB";
-  }
-
+  int get _remainingParts => widget.totalParts - widget.existingPartCount;
 
   @override
   void initState() {
     super.initState();
+    _partDrafts = List<_ShortPartDraft>.generate(
+      _remainingParts > 0 ? _remainingParts : 0,
+      (index) => _ShortPartDraft(
+        partNumber: widget.existingPartCount + index + 1,
+        title: widget.masterTitle,
+        description: widget.masterDescription,
+        coins: widget.defaultCoins.toString(),
+      ),
+    );
+  }
 
-    final provider = context.read<ShortProvider>();
+  @override
+  void dispose() {
+    for (final draft in _partDrafts) {
+      draft.dispose();
+    }
+    super.dispose();
+  }
 
-    provider.movieUrlController.addListener(() {
-      final url = provider.movieUrlController.text;
-      if (url.isNotEmpty) {
-        setState(() {
-          videoUrlCtrl.text = url;
-          uploadedVideoName = _getFileNameFromUrl(url);
-          videoDuration = "Auto"; // backend / ffmpeg later
-          videoSize = "Uploaded";
-        });
+  Future<Uint8List?> _resolveFileBytes(PlatformFile file) async {
+    if (file.bytes != null) return file.bytes;
+    if (file.path == null || file.path!.isEmpty) return null;
+    return io.File(file.path!).readAsBytes();
+  }
+
+  Future<String?> _uploadVideoFile(PlatformFile file) async {
+    try {
+      final bytes = await _resolveFileBytes(file);
+      if (bytes == null) return null;
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(ApiConstant.uploadVideo),
+      );
+      request.files.add(
+        http.MultipartFile.fromBytes('video', bytes, filename: file.name),
+      );
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      if (response.statusCode != 200) return null;
+      final parsed = VideoUploadResponse.fromJson(jsonDecode(body));
+      return parsed.data?.videoUrl?.trim();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<_ImageUploadResult?> _uploadImageFile(PlatformFile file) async {
+    try {
+      final bytes = await _resolveFileBytes(file);
+      if (bytes == null) return null;
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(ApiConstant.uploadContentImg),
+      );
+      request.files.add(
+        http.MultipartFile.fromBytes('thumbnail', bytes, filename: file.name),
+      );
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      if (response.statusCode != 200) return null;
+      final parsed = ContentImageUploadResponse.fromJson(jsonDecode(body));
+      final url = parsed.data?.thumbnailUrl?.trim();
+      if (url == null || url.isEmpty) return null;
+      return _ImageUploadResult(url: url, preview: bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _pickVideo(_ShortPartDraft draft) async {
+    if (_isSubmitting || draft.isUploadingVideo) return;
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.video,
+      withData: kIsWeb,
+    );
+    final file = result?.files.single;
+    if (file == null) return;
+    setState(() {
+      draft.isUploadingVideo = true;
+      draft.videoFileName = file.name;
+    });
+    final url = await _uploadVideoFile(file);
+    if (!mounted) return;
+    setState(() {
+      draft.isUploadingVideo = false;
+      draft.videoUrl = url;
+    });
+    if (url == null) {
+      CustomToast.show('Failed to upload ${file.name}', isSuccess: false);
+    }
+  }
+
+  Future<void> _pickThumbnail(_ShortPartDraft draft) async {
+    if (_isSubmitting || draft.isUploadingThumb) return;
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: kIsWeb,
+    );
+    final file = result?.files.single;
+    if (file == null) return;
+    setState(() => draft.isUploadingThumb = true);
+    final upload = await _uploadImageFile(file);
+    if (!mounted) return;
+    setState(() {
+      draft.isUploadingThumb = false;
+      if (upload != null) {
+        draft.thumbnailUrl = upload.url;
+        draft.thumbnailPreview = upload.preview;
       }
     });
-
+    if (upload == null) {
+      CustomToast.show('Failed to upload thumbnail', isSuccess: false);
+    }
   }
 
+  Future<void> _submit() async {
+    if (_remainingParts <= 0) {
+      Navigator.of(context).pop(true);
+      return;
+    }
 
-  // ===============================================================
-  // IMAGE PICK + UPLOAD
-  // ===============================================================
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
 
-  Future<void> uploadImage(StateSetter setState) async {
-    debugPrint(" uploade image url : ${ApiConstant.uploadContentImg}");
+    final missingVideos = _partDrafts.any(
+      (draft) => draft.videoUrl == null || draft.videoUrl!.trim().isEmpty,
+    );
+    if (missingVideos) {
+      CustomToast.show(
+        'Upload video for every remaining short part.',
+        isSuccess: false,
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    final provider = context.read<ShortProvider>();
+
     try {
-      final uri = Uri.parse(ApiConstant.uploadContentImg);
-      uploadProgress = 0;
+      for (final draft in _partDrafts) {
+        final body = {
+          'coins':
+              int.tryParse(draft.coinsCtrl.text.trim()) ?? widget.defaultCoins,
+          'description': draft.descCtrl.text.trim(),
+          'durationSec': 0,
+          'isFreePreview': draft.isFreePreview,
+          'likes': 0,
+          'partNumber': draft.partNumber,
+          'shortId': widget.shortId,
+          'thumbnail': draft.thumbnailUrl,
+          'title': draft.titleCtrl.text.trim(),
+          'videoUrl': draft.videoUrl,
+          'views': 0,
+        };
 
-      http.MultipartRequest request =
-      http.MultipartRequest('POST', uri);
-
-      Uint8List bytes;
-
-      if (kIsWeb && webFile != null) {
-        final reader = html.FileReader();
-        reader.readAsArrayBuffer(webFile!);
-        await reader.onLoad.first;
-
-        bytes = Uint8List.fromList(reader.result as List<int>);
-        previewBytes = bytes;
-
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'thumbnail',
-            bytes,
-            filename: webFile!.name,
-          ),
-        );
-      } else if (!kIsWeb && imageFile != null) {
-        bytes = await imageFile!.readAsBytes();
-        previewBytes = bytes;
-
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'thumbnail',
-            bytes,
-            filename: imageFile!.path.split('/').last,
-          ),
-        );
-      } else {
-        return;
+        final success = await provider.createShortPart(body);
+        if (!success) {
+          throw Exception('Failed to create part ${draft.partNumber}');
+        }
       }
 
-      setState(() => uploadProgress = 0.3);
-
-      final response = await request.send();
-      final responseBody = await response.stream.bytesToString();
-
-      final decoded = jsonDecode(responseBody);
-      final res = ContentImageUploadResponse.fromJson(decoded);
-
-      uploadedImageUrl = res.data?.thumbnailUrl;
-
-      if (uploadedImageUrl == null || uploadedImageUrl!.isEmpty) {
-        throw Exception("Thumbnail URL not received");
-      }
-
-      debugPrint("✅ Thumbnail uploaded: $uploadedImageUrl");
-
-      setState(() => uploadProgress = 1);
-    } catch (e) {
-      uploadProgress = 0;
-      showGlobalSnack("Thumbnail upload failed");
-      debugPrint("❌ Upload error: $e");
-    }
-  }
-
-
-  Future<void> pickImage(StateSetter setState) async {
-    if (kIsWeb) {
-      final input = html.FileUploadInputElement()..accept = 'image/*';
-      input.click();
-      input.onChange.listen((_) async {
-        webFile = input.files!.first;
-        await uploadImage(setState);
-        setState(() {});
-      });
-    } else {
-      final picker = ImagePicker();
-      final file = await picker.pickImage(source: ImageSource.gallery);
-      if (file != null) {
-        imageFile = io.File(file.path);
-        await uploadImage(setState);
-        setState(() {});
+      if (!mounted) return;
+      CustomToast.show('Short parts added successfully.', isSuccess: true);
+      Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!mounted) return;
+      CustomToast.show(error.toString(), isSuccess: false);
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
       }
     }
   }
-
-  // ===============================================================
-  // UI
-  // ===============================================================
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ShortProvider>();
-       var selectedThemeData =  Provider.of<ThemeProvider>(context, listen: false).getTheme;
-    return  WillPopScope(
-        onWillPop: () async {
-          return await showDialog(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text("Discard progress?"),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text("Cancel"),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text("Discard"),
-                ),
-              ],
-            ),
-          );
-        },
-        child: Container(
-          width: 720,
-          alignment: Alignment.center,
-          constraints: const BoxConstraints(maxHeight: 640),
-          color: selectedThemeData.cardColor,
-          child: Column(
-            children: [
-              _dialogHeader(),
+    final theme = Theme.of(context);
+    final size = MediaQuery.of(context).size;
 
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      _stepProgressBar(),
-                      const SizedBox(height: 20),
-                      _darkField("Title", titleCtrl),
-                      _videoUploadCard(provider),
-                      _thumbnailUploadCard(),
-                      _darkField("Price Per Short", coinsCtrl),
-                      _freePreviewSwitch(),
-                    ],
-                  ),
-                ),
-              ),
-
-              _footerActions(provider),
-            ],
-          ),
+    return WillPopScope(
+      onWillPop: () async => !_isSubmitting,
+      child: Container(
+        width: size.width > 900 ? 920 : size.width * 0.94,
+        constraints: BoxConstraints(maxHeight: size.height * 0.9),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
         ),
-      );
+        child: Column(
+          children: [
+            _buildHeader(theme),
+            Expanded(
+              child: _remainingParts <= 0
+                  ? _buildNoPendingParts(theme)
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildMasterSection(theme),
+                            const SizedBox(height: 18),
+                            _buildPartsSection(theme),
+                          ],
+                        ),
+                      ),
+                    ),
+            ),
+            _buildFooter(theme),
+          ],
+        ),
+      ),
+    );
   }
 
-  // ===============================================================
-  // HEADER
-  // ===============================================================
-
-  Widget _dialogHeader() {
+  Widget _buildHeader(ThemeData theme) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(20, 18, 12, 18),
       decoration: BoxDecoration(
-        borderRadius:
-        const BorderRadius.vertical(top: Radius.circular(20)),
         border: Border(
-          bottom: BorderSide(color: Colors.red.withOpacity(0.4)),
+          bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.28)),
         ),
       ),
       child: Row(
         children: [
-          const Text(
-            "Upload Video Content",
-            style: TextStyle(
-              color: Colors.red,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add Short Parts',
+                  style: TextStyle(
+                    color: theme.primaryColor,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _remainingParts > 0
+                      ? 'Upload the remaining $_remainingParts part(s) for this short master.'
+                      : 'All configured short parts are already uploaded.',
+                  style: TextStyle(
+                    color: theme.canvasColor.withValues(alpha: 0.7),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
             ),
           ),
-          const Spacer(),
           IconButton(
-            icon: const Icon(Icons.close, color: Colors.white),
-            onPressed: () => Navigator.pop(context),
+            onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+            icon: Icon(Icons.close, color: theme.canvasColor),
           ),
         ],
       ),
     );
   }
 
-  // ===============================================================
-  // STEP BAR
-  // ===============================================================
-
-  Widget _stepProgressBar() {
-    final progress = currentPart / widget.totalParts;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Part $currentPart Out of ${widget.totalParts}",
-          style: const TextStyle(color: Colors.grey),
-        ),
-      ],
-    );
-  }
-
-  // ===============================================================
-  // FIELDS
-  // ===============================================================
-
-  Widget _darkField(String label, TextEditingController ctrl) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: TextField(
-        controller: ctrl,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(color: Colors.grey),
-          filled: true,
-          fillColor: const Color(0xFF141414),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
+  Widget _buildNoPendingParts(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          'All parts are already uploaded for this short.',
+          style: TextStyle(
+            color: theme.canvasColor,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
           ),
+          textAlign: TextAlign.center,
         ),
       ),
     );
   }
 
-  // ===============================================================
-  // UPLOAD CARDS
-  // ===============================================================
-
-  Widget _videoUploadCard(ShortProvider provider) {
-    final isUploaded =
-        provider.movieUrlController.text.isNotEmpty &&
-            !provider.isMovieUploading;
-
-    return _uploadCard(
-      title: "Short File",
-      uploading: provider.isMovieUploading,
-      progress: provider.movieUploadProgress,
-      uploadedFileName: isUploaded ? uploadedVideoName : null,
-      duration: videoDuration,
-      size: videoSize,
-      onPreview: () => _previewVideo(provider.movieUrlController.text),
-      onRemove: () => _removeUploadedVideo(provider),
-      onReplace: () => provider.uploadVideo(false),
-      onTap: () => provider.uploadVideo(false),
-    );
-  }
-
-
-  Widget _thumbnailUploadCard() {
-    return StatefulBuilder(
-      builder: (_, setState) {
-        return _uploadCard(
-          title: "Short Poster",
-          uploading: uploadProgress > 0 && uploadProgress < 1,
-          progress: uploadProgress,
-          preview: previewBytes,
-          onTap: () => pickImage(setState),
-        );
-      },
-    );
-  }
-
-  void _removeUploadedVideo(ShortProvider provider) {
-    setState(() {
-      provider.movieUrlController.clear();
-      uploadedVideoName = null;
-      videoDuration = null;
-      videoSize = null;
-    });
-  }
-
-  void _previewVideo(String url) {
-    if (kIsWeb) {
-      html.window.open(url, "_blank");
-    } else {
-      showDialog(
-        context: context,
-        builder: (_) => Dialog(
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: TrailerPage(trailerUrl: url), // if you already have one
+  Widget _buildMasterSection(ThemeData theme) {
+    return _sectionCard(
+      theme,
+      title: 'Short Master',
+      subtitle:
+          'These master values are used as defaults for each part title and description.',
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _infoTile(theme, 'Master Title', widget.masterTitle),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _infoTile(
+                  theme,
+                  'Parts',
+                  '${widget.existingPartCount} of ${widget.totalParts} uploaded',
+                ),
+              ),
+            ],
           ),
-        ),
-      );
-    }
+          const SizedBox(height: 12),
+          _infoTile(
+            theme,
+            'Master Description',
+            widget.masterDescription.isEmpty
+                ? 'No description available'
+                : widget.masterDescription,
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _uploadCard({
-    required String title,
-    required bool uploading,
-    required double progress,
-    required VoidCallback onTap,
-    Uint8List? preview,
-    String? uploadedFileName,
-    String? duration,
-    String? size,
-    VoidCallback? onPreview,
-    VoidCallback? onRemove,
-    VoidCallback? onReplace,
-  }) {
+  Widget _buildPartsSection(ThemeData theme) {
+    return _sectionCard(
+      theme,
+      title: 'Short Parts Upload Section',
+      subtitle:
+          'Every pending part needs a video. Title and description are prefilled from Short Master and can still be edited.',
+      child: Column(
+        children: _partDrafts
+            .map(
+              (draft) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _buildPartCard(theme, draft),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildPartCard(ThemeData theme, _ShortPartDraft draft) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.red.withOpacity(0.4)),
-        gradient: LinearGradient(
-          colors: [Colors.red.withOpacity(0.25), Colors.red.withOpacity(0.25)],
-        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.28)),
+        color: theme.scaffoldBackgroundColor.withValues(alpha: 0.28),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-
-          if (preview != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.memory(preview, height: 120),
-            ),
-
-          const SizedBox(height: 12),
-
-          const SizedBox(height: 12),
-
-          /// ✅ SUCCESS STATE (FILE UPLOADED)
-          if (uploadedFileName != null) ...[
-            Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.green, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    uploadedFileName,
-                    style: const TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            /// ACTION BUTTONS
-            Row(
-              children: [
-                /// 👁 PREVIEW
-                TextButton.icon(
-                  onPressed: onPreview,
-                  icon: const Icon(Icons.visibility, color: Colors.white),
-                  label: const Text(
-                    "Preview",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-
-                const Spacer(),
-
-                /// 🔁 REPLACE
-                TextButton(
-                  onPressed: onReplace,
-                  child: const Text(
-                    "Replace",
-                    style: TextStyle(color: Colors.orange),
-                  ),
-                ),
-
-                /// ❌ REMOVE
-                IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.red),
-                  onPressed: onRemove,
-                ),
-              ],
-            ),
-          ]
-
-          /// ⏳ UPLOADING
-          else if (uploading) ...[
-            LinearProgressIndicator(
-              value: progress,
-              color: Colors.red,
-            ),
-          ]
-
-          /// ⬆️ DEFAULT UPLOAD BUTTON
-          else ...[
-              GestureDetector(
-                onTap: onTap,
-                child: Container(
-                  height: 48,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red),
-                  ),
-                  child: const Text(
-                    "Upload File",
-                    style: TextStyle(color: Colors.red),
-                  ),
+          Row(
+            children: [
+              Text(
+                'Part ${draft.partNumber}',
+                style: TextStyle(
+                  color: theme.primaryColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
                 ),
               ),
+              const Spacer(),
             ],
-
+          ),
+          const SizedBox(height: 14),
+          _uploadRow(
+            theme,
+            title: 'Part Video Upload',
+            statusText: draft.videoUrl?.isNotEmpty == true
+                ? (draft.videoFileName ?? 'Video uploaded')
+                : 'No video uploaded yet',
+            uploading: draft.isUploadingVideo,
+            uploaded: draft.videoUrl?.isNotEmpty == true,
+            onTap: () => _pickVideo(draft),
+          ),
+          const SizedBox(height: 12),
+          _uploadRow(
+            theme,
+            title: 'Thumbnail Upload',
+            statusText: draft.thumbnailUrl?.isNotEmpty == true
+                ? 'Thumbnail uploaded'
+                : 'Optional thumbnail',
+            uploading: draft.isUploadingThumb,
+            uploaded: draft.thumbnailUrl?.isNotEmpty == true,
+            onTap: () => _pickThumbnail(draft),
+            preview: draft.thumbnailPreview,
+          ),
         ],
       ),
     );
   }
 
-
-
-
-  // ===============================================================
-  // FOOTER
-  // ===============================================================
-
-  Widget _freePreviewSwitch() {
-    return SwitchListTile(
-      value: isFreePreview,
-      activeColor: Colors.red,
-      title: const Text("Free Preview",
-          style: TextStyle(color: Colors.white)),
-      onChanged: (v) => setState(() => isFreePreview = v),
+  Widget _uploadRow(
+    ThemeData theme, {
+    required String title,
+    required String statusText,
+    required bool uploading,
+    required bool uploaded,
+    required VoidCallback onTap,
+    Uint8List? preview,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          if (preview != null) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(
+                preview,
+                width: 52,
+                height: 52,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
+          ] else ...[
+            Icon(
+              uploaded ? Icons.check_circle : Icons.upload_file_rounded,
+              color: uploaded ? const Color(0xFF0F9D58) : theme.primaryColor,
+            ),
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: theme.canvasColor.withValues(alpha: 0.65),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  uploading ? 'Uploading...' : statusText,
+                  style: TextStyle(
+                    color: theme.canvasColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: _isSubmitting || uploading ? null : onTap,
+            child: Text(uploaded ? 'Replace' : 'Upload'),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _footerActions(ShortProvider provider) {
-    final canSubmit =
-        provider.movieUrlController.text.isNotEmpty &&
-            !provider.isMovieUploading &&
-            !provider.isSubmitting;
-
+  Widget _sectionCard(
+    ThemeData theme, {
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.3)),
+        color: theme.scaffoldBackgroundColor.withValues(alpha: 0.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: theme.primaryColor,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: theme.canvasColor.withValues(alpha: 0.68),
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 18),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _infoTile(ThemeData theme, String label, String value) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.28)),
+        color: theme.cardColor,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: theme.canvasColor.withValues(alpha: 0.62),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              color: theme.canvasColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _textField(
+    ThemeData theme,
+    TextEditingController controller,
+    String label, {
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      style: TextStyle(color: theme.canvasColor),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: theme.canvasColor.withValues(alpha: 0.7)),
+        filled: true,
+        fillColor: theme.cardColor,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide:
+              BorderSide(color: theme.dividerColor.withValues(alpha: 0.3)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooter(ThemeData theme) {
+    return Container(
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: Colors.red.withOpacity(0.4)),
+          top: BorderSide(color: theme.dividerColor.withValues(alpha: 0.28)),
         ),
       ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 48,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: canSubmit ? Colors.red : Colors.grey.shade700,
+      child: Row(
+        children: [
+          TextButton(
+            onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
           ),
-          onPressed: canSubmit ? () => _submit(provider) : null,
-          child: provider.isSubmitting
-              ? const CircularProgressIndicator(color: Colors.white)
-              : const Text("Save & Continue"),
-        ),
+          const Spacer(),
+          ElevatedButton.icon(
+            onPressed: _isSubmitting || _remainingParts <= 0 ? null : _submit,
+            icon: _isSubmitting
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.cloud_upload_outlined),
+            label: Text(
+              _isSubmitting ? 'Submitting...' : 'Submit Short Parts',
+            ),
+          ),
+        ],
       ),
     );
   }
+}
 
+class _ShortPartDraft {
+  _ShortPartDraft({
+    required this.partNumber,
+    required String title,
+    required String description,
+    required String coins,
+  })  : titleCtrl = TextEditingController(text: title),
+        descCtrl = TextEditingController(text: description),
+        coinsCtrl = TextEditingController(text: coins);
 
-  // ===============================================================
-  // SUBMIT
-  // ===============================================================
+  final int partNumber;
+  final TextEditingController titleCtrl;
+  final TextEditingController descCtrl;
+  final TextEditingController coinsCtrl;
+  String? videoUrl;
+  String? videoFileName;
+  String? thumbnailUrl;
+  Uint8List? thumbnailPreview;
+  bool isUploadingVideo = false;
+  bool isUploadingThumb = false;
+  bool isFreePreview = false;
 
-  Future<void> _submit(ShortProvider provider) async {
-    final body = {
-
-      "coins": coinsCtrl.text.trim(),
-      "durationSec": 0,
-      "isFreePreview": isFreePreview,
-      "likes": 0,
-      "partNumber": currentPart,
-      "shortId": widget.shortId,
-      "thumbnail": uploadedImageUrl,
-      "title": titleCtrl.text.trim(),
-      "videoUrl": videoUrlCtrl.text.trim(),
-      "views": 0
-    };
-
-    final success = await provider.createShortPart(body);
-
-    if (!mounted) return;
-
-    if (success) {
-      if (currentPart == widget.totalParts) {
-        Navigator.pop(context, true);
-      } else {
-        setState(() {
-          currentPart++;
-          titleCtrl.clear();
-          videoUrlCtrl.clear();
-          previewBytes = null;
-          uploadProgress = 0;
-          isFreePreview = false;
-        });
-      }
-    }
+  void dispose() {
+    titleCtrl.dispose();
+    descCtrl.dispose();
+    coinsCtrl.dispose();
   }
+}
 
-  bool get _canSubmit {
-    final provider = context.read<ShortProvider>();
-    return provider.movieUrlController.text.isNotEmpty &&
-        !provider.isMovieUploading &&
-        !provider.isSubmitting;
-  }
+class _ImageUploadResult {
+  const _ImageUploadResult({
+    required this.url,
+    required this.preview,
+  });
 
+  final String url;
+  final Uint8List preview;
 }

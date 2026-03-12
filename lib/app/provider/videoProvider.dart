@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:media_house/data/models/request/save_series_request.dart';
 import 'package:media_house/data/models/response/allContentResponse.dart';
 import 'package:media_house/data/models/response/content_image_upload_response.dart';
+import 'package:media_house/data/models/response/image_upload_response.dart';
 import 'package:media_house/data/models/response/video_upload_response.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:image_picker/image_picker.dart';
@@ -139,6 +140,10 @@ class VideoProvider extends ChangeNotifier {
   final TextEditingController registrationValidityController =
       TextEditingController();
   final TextEditingController registrationPaymentMethodController =
+      TextEditingController();
+  final TextEditingController agreementDocumentUrlController =
+      TextEditingController();
+  final TextEditingController agreementSignedDateController =
       TextEditingController();
   final List<Map<String, String>> _pendingCasts = [];
   List<Map<String, String>> get pendingCasts =>
@@ -568,9 +573,21 @@ class VideoProvider extends ChangeNotifier {
   bool get isRegistrationFeePaid => _isRegistrationFeePaid;
   String get registrationFeePaidValue => _isRegistrationFeePaid ? "Y" : "N";
   String get registrationFeeDetailsValue => _composeRegistrationFeeDetails();
+  bool _isAgreementUploading = false;
+  bool get isAgreementUploading => _isAgreementUploading;
+  double _agreementUploadProgress = 0.0;
+  double get agreementUploadProgress => _agreementUploadProgress;
+  String? _agreementFileName;
+  String? get agreementFileName => _agreementFileName;
+  String get agreementDocumentUrl => agreementDocumentUrlController.text.trim();
+  String get agreementSignedDate => agreementSignedDateController.text.trim();
+  bool get hasUploadedAgreement => agreementDocumentUrl.isNotEmpty;
+  bool get hasCompletedAgreementWorkflow =>
+      hasUploadedAgreement && _isRegistrationFeePaid;
 
   void toggleRegistrationFeePaid(bool value) {
     _isRegistrationFeePaid = value;
+    registrationFeeDetailsController.text = registrationFeeDetailsValue;
     notifyListeners();
   }
 
@@ -592,6 +609,7 @@ class VideoProvider extends ChangeNotifier {
     if (markPaid) {
       _isRegistrationFeePaid = true;
     }
+    registrationFeeDetailsController.text = registrationFeeDetailsValue;
     notifyListeners();
   }
 
@@ -605,6 +623,7 @@ class VideoProvider extends ChangeNotifier {
     if (markUnpaid) {
       _isRegistrationFeePaid = false;
     }
+    registrationFeeDetailsController.text = registrationFeeDetailsValue;
     notifyListeners();
   }
 
@@ -616,6 +635,9 @@ class VideoProvider extends ChangeNotifier {
       "Plan Type: ${registrationPlanTypeController.text.trim()}",
       "Validity: ${registrationValidityController.text.trim()}",
       "Payment Method: ${registrationPaymentMethodController.text.trim()}",
+      "Agreement Upload URL: ${agreementDocumentUrlController.text.trim()}",
+      "Agreement Signed Date: ${agreementSignedDateController.text.trim()}",
+      "Agreement Uploaded: ${hasUploadedAgreement ? 'Y' : 'N'}",
     ].join("; ");
   }
 
@@ -626,6 +648,9 @@ class VideoProvider extends ChangeNotifier {
     registrationPlanTypeController.clear();
     registrationValidityController.clear();
     registrationPaymentMethodController.clear();
+    agreementDocumentUrlController.clear();
+    agreementSignedDateController.clear();
+    _agreementFileName = null;
 
     final text = details.trim();
     if (text.isEmpty) return;
@@ -642,19 +667,31 @@ class VideoProvider extends ChangeNotifier {
     final planType = extract("Plan Type");
     final validity = extract("Validity");
     final paymentMethod = extract("Payment Method");
+    final agreementUploadUrl = extract("Agreement Upload URL");
+    final agreementSignedDate = extract("Agreement Signed Date");
 
     if (paymentId != null ||
         paymentDate != null ||
         amountPaid != null ||
         planType != null ||
         validity != null ||
-        paymentMethod != null) {
+        paymentMethod != null ||
+        agreementUploadUrl != null ||
+        agreementSignedDate != null) {
       registrationPaymentIdController.text = paymentId ?? '';
       registrationPaymentDateController.text = paymentDate ?? '';
       registrationAmountPaidController.text = amountPaid ?? '';
       registrationPlanTypeController.text = planType ?? '';
       registrationValidityController.text = validity ?? '';
       registrationPaymentMethodController.text = paymentMethod ?? '';
+      agreementDocumentUrlController.text = agreementUploadUrl ?? '';
+      agreementSignedDateController.text = agreementSignedDate ?? '';
+      if (agreementUploadUrl != null && agreementUploadUrl.trim().isNotEmpty) {
+        final uri = Uri.tryParse(agreementUploadUrl.trim());
+        final segments = uri?.pathSegments ?? const <String>[];
+        _agreementFileName =
+            segments.isEmpty ? null : Uri.decodeComponent(segments.last);
+      }
       return;
     }
 
@@ -1154,7 +1191,7 @@ class VideoProvider extends ChangeNotifier {
 
     SaveContentRequest saveContent = SaveContentRequest();
     saveContent.ageRating = ageRatingController.text;
-    saveContent.approvalStatus = "PENDING";
+    saveContent.approvalStatus = "AGREEMENT_PENDING";
     saveContent.approvedDateTime = '';
     saveContent.audioFormatList = selectedAudioFormat;
     saveContent.availability = availability;
@@ -1206,7 +1243,10 @@ class VideoProvider extends ChangeNotifier {
         final addVideoResponse = AddVideoResponse.fromJson(responseBody);
         if (addVideoResponse.isSuccess == true) {
           Content contentObj = addVideoResponse.data!;
-          CustomToast.show("Video added successfully", isSuccess: true);
+          CustomToast.show(
+            "Video added successfully. Complete the agreement step to send it for admin approval.",
+            isSuccess: true,
+          );
           fetchMoviesByStatusAndMediaHouseId("All", mediaHouse.id!);
           notifyListeners();
           return contentObj;
@@ -2161,6 +2201,86 @@ class VideoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> pickAndUploadAgreementDocument() async {
+    _isAgreementUploading = true;
+    _agreementUploadProgress = 0.0;
+    notifyListeners();
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
+        withData: kIsWeb,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        _isAgreementUploading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final pickedFile = result.files.single;
+      final request =
+          http.MultipartRequest('POST', Uri.parse(ApiConstant.uploadImg));
+
+      if (kIsWeb) {
+        final bytes = pickedFile.bytes;
+        if (bytes == null) {
+          _agreementUploadProgress = 0.0;
+          _isAgreementUploading = false;
+          notifyListeners();
+          return false;
+        }
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            bytes,
+            filename: pickedFile.name,
+          ),
+        );
+      } else {
+        final path = pickedFile.path;
+        if (path == null || path.isEmpty) {
+          _agreementUploadProgress = 0.0;
+          _isAgreementUploading = false;
+          notifyListeners();
+          return false;
+        }
+        request.files.add(await http.MultipartFile.fromPath('file', path));
+      }
+
+      _agreementUploadProgress = 0.45;
+      notifyListeners();
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      if (response.statusCode != 200) {
+        _agreementUploadProgress = 0.0;
+        _isAgreementUploading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final parsed = ImageUploadResponse.fromJson(
+        jsonDecode(responseBody) as Map<String, dynamic>,
+      );
+      agreementDocumentUrlController.text = parsed.data?.fileUrl ?? '';
+      agreementSignedDateController.text =
+          DateTime.now().toIso8601String().split('T').first;
+      _agreementFileName = pickedFile.name;
+      registrationFeeDetailsController.text = registrationFeeDetailsValue;
+      _agreementUploadProgress = 1.0;
+      _isAgreementUploading = false;
+      notifyListeners();
+      return agreementDocumentUrlController.text.trim().isNotEmpty;
+    } catch (error) {
+      debugPrint('Agreement upload failed: $error');
+      _agreementUploadProgress = 0.0;
+      _isAgreementUploading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   Future<List<GraphData>> fetchContentMetricGraphData(
     int selectedTimeRange,
     int id,
@@ -2611,6 +2731,8 @@ class VideoProvider extends ChangeNotifier {
     registrationPlanTypeController.clear();
     registrationValidityController.clear();
     registrationPaymentMethodController.clear();
+    agreementDocumentUrlController.clear();
+    agreementSignedDateController.clear();
 
     trailerUploadProgress = 0.0;
     teaserUploadProgress = 0.0;
@@ -2657,6 +2779,9 @@ class VideoProvider extends ChangeNotifier {
     _isDownloadable = false;
     _isRegistrationFeePaid = false;
     _isFeatured = false;
+    _isAgreementUploading = false;
+    _agreementUploadProgress = 0.0;
+    _agreementFileName = null;
 
     notifyListeners();
   }
@@ -2765,6 +2890,8 @@ class VideoProvider extends ChangeNotifier {
     registrationPlanTypeController.dispose();
     registrationValidityController.dispose();
     registrationPaymentMethodController.dispose();
+    agreementDocumentUrlController.dispose();
+    agreementSignedDateController.dispose();
     censorCertificateController.dispose();
     poster1Controller.dispose();
     poster2Controller.dispose();

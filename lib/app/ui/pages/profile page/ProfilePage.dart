@@ -291,17 +291,18 @@ class _ProfilePageState extends State<ProfilePage> {
     ];
 
     final uploaded = <MapEntry<String, String>>[
-      MapEntry('Logo', _resolveUploadedFile(provider, 'Logo')),
-      MapEntry('Profile Image', _resolveUploadedFile(provider, 'Profile Image')),
       MapEntry('Registration Certificate',
           _resolveUploadedFile(provider, 'Registration Certificate')),
       MapEntry('Aadhaar Card', _resolveUploadedFile(provider, 'Aadhaar Card')),
       MapEntry('PAN Card', _resolveUploadedFile(provider, 'PAN Card')),
-      MapEntry('GST Certificate', _resolveUploadedFile(provider, 'GST Certificate')),
+      MapEntry(
+          'GST Certificate', _resolveUploadedFile(provider, 'GST Certificate')),
       MapEntry('Shop Act', _resolveUploadedFile(provider, 'Shop Act')),
       MapEntry('Bank Proof', _resolveUploadedFile(provider, 'Bank Proof')),
-      MapEntry('Identity Proof', _resolveUploadedFile(provider, 'Identity Proof')),
-      MapEntry('Address Proof', _resolveUploadedFile(provider, 'Address Proof')),
+      MapEntry(
+          'Identity Proof', _resolveUploadedFile(provider, 'Identity Proof')),
+      MapEntry(
+          'Address Proof', _resolveUploadedFile(provider, 'Address Proof')),
     ].where((e) => e.value != '-').toList(growable: false);
 
     return LayoutBuilder(

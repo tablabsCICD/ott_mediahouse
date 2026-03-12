@@ -21,8 +21,6 @@ class ShortMasterPage extends StatefulWidget {
 }
 
 class _ShortMasterPageState extends State<ShortMasterPage> {
-  int createdPartCount = 0;
-
   @override
   void initState() {
     super.initState();
@@ -77,7 +75,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
     }
 
     final short = provider.shortDetail!;
-    final totalParts = short.data!.totalParts ?? 0;
+    final createdPartCount = short.data!.parts?.length ?? 0;
 
     final crossAxisCount = ResponsiveWidget.isDesktop(context)
         ? 5
@@ -278,6 +276,13 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                                 child: CreateShortPartsDialog(
                                   shortId: short.data!.id ?? 0,
                                   totalParts: short.data!.totalParts ?? 0,
+                                  existingPartCount:
+                                      short.data!.parts?.length ?? 0,
+                                  masterTitle: short.data!.title ?? '',
+                                  masterDescription:
+                                      short.data!.description ?? '',
+                                  defaultCoins:
+                                      short.data!.coinsPerPart ?? 0,
                                 ),
                               ),
                             ),
@@ -290,10 +295,6 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                                   shortId: short.data!.id ?? 0,
                                   userId: 1,
                                 );
-
-                            setState(() {
-                              createdPartCount = short.data!.totalParts!;
-                            });
                           }
                         },
                 ),

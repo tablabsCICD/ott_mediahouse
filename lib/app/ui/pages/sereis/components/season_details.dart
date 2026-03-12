@@ -29,6 +29,9 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
   bool _isCastCrewLoading = false;
   List<CastCrewItem> _castCrewMembers = [];
 
+  bool get _isSeasonPublished => widget.seasonBundle.season.active == true;
+  bool get _isSeasonDeactivated => widget.seasonBundle.season.active == false;
+
   @override
   void initState() {
     super.initState();
@@ -76,9 +79,10 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
     final totalEpisodes = _episodes.length;
     final totalViews =
         _episodes.fold<int>(0, (sum, e) => sum + (e.viewCount ?? 0));
+    final seasonAmount = season.amount ?? 0;
     final totalRevenue = _episodes.fold<int>(
       0,
-      (sum, e) => sum + ((e.amount ?? 0) * (e.viewCount ?? 0)),
+      (sum, e) => sum + (seasonAmount * (e.viewCount ?? 0)),
     );
     final posterUrl = "${season.posterUrl ?? ''}";
     final castCrewMembers = _castCrewMembers
@@ -209,7 +213,9 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () => _editSeason(context),
+                  onPressed: _isSeasonDeactivated
+                      ? null
+                      : () => _editSeason(context),
                   icon: const Icon(Icons.edit_outlined, size: 18),
                   label: const Text("Edit Season"),
                   style: FilledButton.styleFrom(
@@ -225,7 +231,9 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => _deleteSeason(context),
+                  onPressed: _isSeasonDeactivated
+                      ? null
+                      : () => _deleteSeason(context),
                   icon: const Icon(Icons.delete_outline, size: 18),
                   label: const Text("Delete Season"),
                   style: OutlinedButton.styleFrom(
@@ -260,7 +268,29 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
         ActionButtonWidget(
           label: "Add Episode",
           icon: Icons.add_circle,
-          onTap: () => _addEpisode(context),
+          onTap: () {
+            if (_isSeasonPublished) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    "Published seasons cannot add episodes. Raise a ticket to admin for changes.",
+                  ),
+                ),
+              );
+              return;
+            }
+            if (_isSeasonDeactivated) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    "This season is deactivated. Raise a ticket to admin for further changes.",
+                  ),
+                ),
+              );
+              return;
+            }
+            _addEpisode(context);
+          },
         ),
       ],
     );
@@ -283,7 +313,7 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
       itemBuilder: (context, index) {
         final ep = episodes[index];
         final views = ep.viewCount ?? 0;
-        final amount = ep.amount ?? 0;
+        final amount = widget.seasonBundle.season.amount ?? ep.amount ?? 0;
         final revenue = views * amount;
 
         return Container(
@@ -392,16 +422,17 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
                   IconButton(
                     tooltip: "Edit Episode",
                     icon: Icon(Icons.edit_outlined, color: theme.primaryColor),
-                    onPressed: () => _editEpisode(context, ep),
+                    onPressed:
+                        _isSeasonPublished ? null : () => _editEpisode(context, ep),
                   ),
-                  IconButton(
-                    tooltip: "Delete Episode",
-                    icon: const Icon(Icons.delete_outline,
-                        color: Colors.redAccent),
-                    onPressed: ep.id == null
-                        ? null
-                        : () => _deleteEpisode(context, ep.id!),
-                  ),
+                  // IconButton(
+                  //   tooltip: "Delete Episode",
+                  //   icon: const Icon(Icons.delete_outline,
+                  //       color: Colors.redAccent),
+                  //   onPressed: _isSeasonPublished || ep.id == null
+                  //       ? null
+                  //       : () => _deleteEpisode(context, ep.id!),
+                  // ),
                 ],
               );
 
@@ -636,6 +667,17 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
   }
 
   Future<void> _editSeason(BuildContext context) async {
+    if (_isSeasonDeactivated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "This season is deactivated. Raise a ticket to admin for further changes.",
+          ),
+        ),
+      );
+      return;
+    }
+
     final seasonId = widget.seasonBundle.season.id;
     if (seasonId == null) return;
 
@@ -653,6 +695,18 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
     );
     await provider.loadSeries(widget.seriesId);
 
+    if (success) {
+      setState(() {
+        final updatedAmount = int.tryParse('${body['amount']}');
+        if (updatedAmount != null) {
+          widget.seasonBundle.season.amount = updatedAmount;
+          for (final episode in _episodes) {
+            episode.amount = updatedAmount;
+          }
+        }
+      });
+    }
+
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -664,6 +718,15 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
   }
 
   void _deleteSeason(BuildContext context) {
+    if (_isSeasonDeactivated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("This season is already deactivated."),
+        ),
+      );
+      return;
+    }
+
     final seasonId = widget.seasonBundle.season.id;
     if (seasonId == null) return;
     showDialog(
@@ -681,7 +744,11 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
               Navigator.pop(context);
               final provider =
                   Provider.of<SeriesProvider>(context, listen: false);
-              final success = await provider.deleteSeasonApi(seasonId);
+              final message = await provider.deleteSeasonApi(
+                seasonId,
+                seriesId: widget.seriesId,
+              );
+              final success = message != null;
               await provider.loadSeries(widget.seriesId);
 
               if (!context.mounted) return;
@@ -689,13 +756,14 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
                 SnackBar(
                   content: Text(
                     success
-                        ? "Season deleted successfully"
+                        ? (message ?? "Season deactivated successfully")
                         : "Failed to delete season",
                   ),
                 ),
               );
 
               if (success) {
+                widget.seasonBundle.season.active = false;
                 Navigator.pop(context);
               }
             },
@@ -713,6 +781,7 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
       builder: (_) => AddEpisodeDialog(
         seriesId: widget.seriesId,
         seasonId: widget.seasonBundle.season.id!,
+        seasonPrice: widget.seasonBundle.season.amount ?? 0,
         onSuccess: () {
           Provider.of<SeriesProvider>(context, listen: false)
               .loadSeries(widget.seriesId);
@@ -722,6 +791,17 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
   }
 
   void _deleteEpisode(BuildContext context, int episodeId) async {
+    if (_isSeasonPublished) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Published seasons cannot delete episodes. Raise a ticket to admin for changes.",
+          ),
+        ),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
@@ -769,12 +849,26 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
   }
 
   Future<void> _editEpisode(BuildContext context, Episode ep) async {
+    if (_isSeasonPublished) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Published seasons cannot edit episodes. Raise a ticket to admin for changes.",
+          ),
+        ),
+      );
+      return;
+    }
+
     final seasonId = widget.seasonBundle.season.id;
     if (seasonId == null || ep.id == null) return;
 
     final body = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => EditEpisodeDialog(episode: ep),
+      builder: (_) => EditEpisodeDialog(
+        episode: ep,
+        seasonPrice: widget.seasonBundle.season.amount ?? ep.amount ?? 0,
+      ),
     );
     if (body == null) return;
 
