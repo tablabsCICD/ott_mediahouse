@@ -1,3 +1,5 @@
+import '../../../domain/entities/content.dart';
+
 class ShortDetailResponse {
   String? message;
   ShortDetailModel? data;
@@ -34,6 +36,8 @@ class ShortDetailModel {
   int? likeCount;
   bool? isTrending;
   String? category;
+  String? rentlDuration;
+  List<LanguageList>? languageList;
   List<dynamic>? tags;
   List<ShortPartModel>? parts;
   bool? trending;
@@ -50,6 +54,8 @@ class ShortDetailModel {
     this.likeCount,
     this.isTrending,
     this.category,
+    this.rentlDuration,
+    this.languageList,
     this.tags,
     this.parts,
     this.trending,
@@ -67,6 +73,12 @@ class ShortDetailModel {
     likeCount: json["likeCount"],
     isTrending: json["isTrending"],
     category: json["category"],
+    rentlDuration: json["rentlDuration"],
+    languageList: json["languageList"] == null
+        ? []
+        : List<LanguageList>.from(
+            json["languageList"]!.map((x) => LanguageList.fromJson(x)),
+          ),
     tags: json["tags"] == null ? [] : List<dynamic>.from(json["tags"]!.map((x) => x)),
     parts: json["parts"] == null ? [] : List<ShortPartModel>.from(json["parts"]!.map((x) => ShortPartModel.fromJson(x))),
     trending: json["trending"],
@@ -84,6 +96,10 @@ class ShortDetailModel {
     "likeCount": likeCount,
     "isTrending": isTrending,
     "category": category,
+    "rentlDuration": rentlDuration,
+    "languageList": languageList == null
+        ? []
+        : List<dynamic>.from(languageList!.map((x) => x.toJson())),
     "tags": tags == null ? [] : List<dynamic>.from(tags!.map((x) => x)),
     "parts": parts == null ? [] : List<dynamic>.from(parts!.map((x) => x.toJson())),
     "trending": trending,

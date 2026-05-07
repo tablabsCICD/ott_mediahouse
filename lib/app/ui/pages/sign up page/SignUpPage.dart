@@ -79,7 +79,7 @@ class _SignUpPageState extends State<SignUpPage> {
     'mediaHouseName',
     'firmType',
     'email',
-    'contactNumber',
+    'mobileNumber',
     'directorName',
     'directorEmail',
     'directorMobile',
@@ -131,7 +131,7 @@ class _SignUpPageState extends State<SignUpPage> {
     'registrationCertificate',
     'email',
     'emailId',
-    'contactNumber',
+    'mobileNumber',
   ];
 
   final List<String> _stepTwoFields = [

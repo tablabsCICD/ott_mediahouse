@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:typed_data';
@@ -10,6 +11,7 @@ import 'package:media_house/app/core/constant/api_constant.dart';
 import 'package:media_house/app/provider/shorts_provider.dart';
 import 'package:media_house/app/widget/show_toast.dart';
 import 'package:provider/provider.dart';
+import 'package:universal_html/html.dart' as html;
 
 import '../../../../../data/models/response/content_image_upload_response.dart';
 import '../../../../../data/models/response/video_upload_response.dart';
@@ -40,6 +42,7 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
   final _formKey = GlobalKey<FormState>();
   late final List<_ShortPartDraft> _partDrafts;
   bool _isSubmitting = false;
+  String? _lastUploadError;
 
   int get _remainingParts => widget.totalParts - widget.existingPartCount;
 
@@ -73,23 +76,126 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
 
   Future<String?> _uploadVideoFile(PlatformFile file) async {
     try {
+      _lastUploadError = null;
       final bytes = await _resolveFileBytes(file);
-      if (bytes == null) return null;
+      if (bytes == null) {
+        _lastUploadError = 'Could not read selected video file.';
+        return null;
+      }
       final request = http.MultipartRequest(
         'POST',
         Uri.parse(ApiConstant.uploadVideo),
       );
       request.files.add(
-        http.MultipartFile.fromBytes('video', bytes, filename: file.name),
+        http.MultipartFile.fromBytes('file', bytes, filename: file.name),
       );
       final response = await request.send();
       final body = await response.stream.bytesToString();
-      if (response.statusCode != 200) return null;
-      final parsed = VideoUploadResponse.fromJson(jsonDecode(body));
-      return parsed.data?.videoUrl?.trim();
-    } catch (_) {
+      if (!_isUploadSuccessStatus(response.statusCode)) {
+        _lastUploadError = _uploadErrorMessage(response.statusCode, body);
+        debugPrint("Short part video upload failed -> "
+            "${response.statusCode}: $body");
+        return null;
+      }
+      final uploadedUrl = _extractUploadedVideoUrl(body);
+      if (uploadedUrl == null || uploadedUrl.isEmpty) {
+        _lastUploadError = 'Upload completed but video URL was missing.';
+        debugPrint("Short part video upload URL missing -> $body");
+        return null;
+      }
+      return uploadedUrl;
+    } catch (error) {
+      _lastUploadError = error.toString();
       return null;
     }
+  }
+
+  Future<String?> _uploadVideoWebFile(html.File file) async {
+    _lastUploadError = null;
+    final completer = Completer<String?>();
+    final xhr = html.HttpRequest();
+    final formData = html.FormData()..appendBlob('file', file, file.name);
+
+    xhr.onLoad.listen((_) {
+      final body = xhr.responseText ?? '';
+      if (!_isUploadSuccessStatus(xhr.status ?? 0)) {
+        _lastUploadError = _uploadErrorMessage(xhr.status ?? 0, body);
+        debugPrint("Short part web video upload failed -> "
+            "${xhr.status}: $body");
+        if (!completer.isCompleted) completer.complete(null);
+        return;
+      }
+
+      try {
+        final uploadedUrl = _extractUploadedVideoUrl(body);
+        if (uploadedUrl == null || uploadedUrl.isEmpty) {
+          _lastUploadError = 'Upload completed but video URL was missing.';
+          debugPrint("Short part web video upload URL missing -> $body");
+          completer.complete(null);
+          return;
+        }
+        completer.complete(uploadedUrl);
+      } catch (error) {
+        _lastUploadError = error.toString();
+        completer.complete(null);
+      }
+    });
+
+    xhr.onError.listen((_) {
+      _lastUploadError = 'Network error while uploading video.';
+      if (!completer.isCompleted) completer.complete(null);
+    });
+
+    xhr.open('POST', ApiConstant.uploadVideo);
+    xhr.send(formData);
+    return completer.future;
+  }
+
+  bool _isUploadSuccessStatus(int statusCode) {
+    return statusCode == 200 || statusCode == 201 || statusCode == 202;
+  }
+
+  String? _extractUploadedVideoUrl(String body) {
+    final decoded = jsonDecode(body);
+    if (decoded is String) return decoded.trim();
+    if (decoded is! Map<String, dynamic>) return null;
+
+    final directUrl = _firstUrlFromMap(decoded);
+    if (directUrl != null) return directUrl;
+
+    final data = decoded['data'];
+    if (data is String) return data.trim();
+    if (data is Map<String, dynamic>) {
+      final dataUrl = _firstUrlFromMap(data);
+      if (dataUrl != null) return dataUrl;
+
+      final parsed = VideoUploadResponse.fromJson(decoded);
+      return parsed.data?.videoUrl?.trim();
+    }
+
+    return null;
+  }
+
+  String? _firstUrlFromMap(Map<String, dynamic> map) {
+    const keys = ['videoUrl', 'fileUrl', 'url', 'secureUrl', 'path'];
+    for (final key in keys) {
+      final value = map[key]?.toString().trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+    return null;
+  }
+
+  String _uploadErrorMessage(int statusCode, String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final message = decoded['message']?.toString().trim();
+        if (message != null && message.isNotEmpty) {
+          return 'Upload failed ($statusCode): $message';
+        }
+      }
+    } catch (_) {}
+    return 'Upload failed with status $statusCode.';
   }
 
   Future<_ImageUploadResult?> _uploadImageFile(PlatformFile file) async {
@@ -101,13 +207,13 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
         Uri.parse(ApiConstant.uploadContentImg),
       );
       request.files.add(
-        http.MultipartFile.fromBytes('thumbnail', bytes, filename: file.name),
+        http.MultipartFile.fromBytes('file', bytes, filename: file.name),
       );
       final response = await request.send();
       final body = await response.stream.bytesToString();
       if (response.statusCode != 200) return null;
       final parsed = ContentImageUploadResponse.fromJson(jsonDecode(body));
-      final url = parsed.data?.thumbnailUrl?.trim();
+      final url = parsed.data?.fileUrl?.trim();
       if (url == null || url.isEmpty) return null;
       return _ImageUploadResult(url: url, preview: bytes);
     } catch (_) {
@@ -117,9 +223,13 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
 
   Future<void> _pickVideo(_ShortPartDraft draft) async {
     if (_isSubmitting || draft.isUploadingVideo) return;
+    if (kIsWeb) {
+      await _pickVideoWeb(draft);
+      return;
+    }
+
     final result = await FilePicker.platform.pickFiles(
       type: FileType.video,
-      withData: kIsWeb,
     );
     final file = result?.files.single;
     if (file == null) return;
@@ -134,7 +244,39 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
       draft.videoUrl = url;
     });
     if (url == null) {
-      CustomToast.show('Failed to upload ${file.name}', isSuccess: false);
+      CustomToast.show(
+        _lastUploadError ?? 'Failed to upload ${file.name}',
+        isSuccess: false,
+      );
+    }
+  }
+
+  Future<void> _pickVideoWeb(_ShortPartDraft draft) async {
+    final input = html.FileUploadInputElement()..accept = 'video/*';
+    input.click();
+    await input.onChange.first;
+
+    final file = input.files?.first;
+    if (file == null) return;
+
+    setState(() {
+      draft.isUploadingVideo = true;
+      draft.videoFileName = file.name;
+    });
+
+    final url = await _uploadVideoWebFile(file);
+    if (!mounted) return;
+
+    setState(() {
+      draft.isUploadingVideo = false;
+      draft.videoUrl = url;
+    });
+
+    if (url == null) {
+      CustomToast.show(
+        _lastUploadError ?? 'Failed to upload ${file.name}',
+        isSuccess: false,
+      );
     }
   }
 
@@ -190,15 +332,22 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
         final body = {
           'coins':
               int.tryParse(draft.coinsCtrl.text.trim()) ?? widget.defaultCoins,
-          'description': draft.descCtrl.text.trim(),
+          'description': draft.descCtrl.text.trim().isNotEmpty
+              ? draft.descCtrl.text.trim()
+              : widget.masterDescription,
           'durationSec': 0,
+          'id': 0,
           'isFreePreview': draft.isFreePreview,
           'likes': 0,
           'partNumber': draft.partNumber,
           'shortId': widget.shortId,
-          'thumbnail': draft.thumbnailUrl,
-          'title': draft.titleCtrl.text.trim(),
-          'videoUrl': draft.videoUrl,
+          'thumbnail': draft.thumbnailUrl?.trim().isNotEmpty == true
+              ? draft.thumbnailUrl!.trim()
+              : '',
+          'title': draft.titleCtrl.text.trim().isNotEmpty
+              ? draft.titleCtrl.text.trim()
+              : widget.masterTitle,
+          'videoUrl': draft.videoUrl!.trim(),
           'views': 0,
         };
 

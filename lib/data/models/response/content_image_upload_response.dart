@@ -13,39 +13,36 @@ class ContentImageUploadResponse {
     this.success,
   });
 
-  factory ContentImageUploadResponse.fromJson(Map<String, dynamic> json) => ContentImageUploadResponse(
-    message: json["message"],
-    data: json["data"] == null ? null : Data.fromJson(json["data"]),
-    statusCode: json["statusCode"],
-    total: json["total"],
-    success: json["success"],
-  );
+  factory ContentImageUploadResponse.fromJson(Map<String, dynamic> json) =>
+      ContentImageUploadResponse(
+        message: json["message"],
+        data: json["data"] == null ? null : Data.fromJson(json["data"]),
+        statusCode: json["statusCode"],
+        total: json["total"],
+        success: json["success"],
+      );
 
   Map<String, dynamic> toJson() => {
-    "message": message,
-    "data": data?.toJson(),
-    "statusCode": statusCode,
-    "total": total,
-    "success": success,
-  };
+        "message": message,
+        "data": data?.toJson(),
+        "statusCode": statusCode,
+        "total": total,
+        "success": success,
+      };
 }
 
 class Data {
-  String? videoId;
-  String? thumbnailUrl;
+  String? fileUrl;
 
   Data({
-    this.videoId,
-    this.thumbnailUrl,
+    this.fileUrl,
   });
 
   factory Data.fromJson(Map<String, dynamic> json) => Data(
-    videoId: json["videoId"],
-    thumbnailUrl: json["thumbnailUrl"],
-  );
+        fileUrl: json["fileUrl"],
+      );
 
   Map<String, dynamic> toJson() => {
-    "videoId": videoId,
-    "thumbnailUrl": thumbnailUrl,
-  };
+        "fileUrl": fileUrl,
+      };
 }

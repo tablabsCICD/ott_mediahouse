@@ -11,90 +11,63 @@ class ShortMasterResponse {
     this.success,
   });
 
-  factory ShortMasterResponse.fromJson(Map<String, dynamic> json) => ShortMasterResponse(
-    message: json["message"],
-    data: json["data"] == null ? null : Data.fromJson(json["data"]),
-    success: json["success"],
-  );
+  factory ShortMasterResponse.fromJson(Map<String, dynamic> json) =>
+      ShortMasterResponse(
+        message: json["message"],
+        data: json["data"] == null ? null : Data.fromJson(json["data"]),
+        success: json["success"],
+      );
 
   Map<String, dynamic> toJson() => {
-    "message": message,
-    "data": data?.toJson(),
-    "success": success,
-  };
+        "message": message,
+        "data": data?.toJson(),
+        "success": success,
+      };
 }
 
 class Data {
   int? totalItems;
+  List<ShortModel>? miniSeries;
   int? totalPages;
   int? pageSize;
   bool? hasPrevious;
   bool? hasNext;
-  List<ShortModel>? shorts;
   int? currentPage;
 
   Data({
     this.totalItems,
+    this.miniSeries,
     this.totalPages,
     this.pageSize,
     this.hasPrevious,
     this.hasNext,
-    this.shorts,
     this.currentPage,
   });
 
-  factory Data.fromJson(Map<String, dynamic> json) {
-    final shortItems = _extractShortItems(json);
-    final normalizedShortItems = shortItems
-        .map((item) {
-          if (item is Map<String, dynamic>) return item;
-          if (item is Map) return Map<String, dynamic>.from(item);
-          return <String, dynamic>{};
-        })
-        .where((item) => item.isNotEmpty)
-        .toList(growable: false);
-
-    return Data(
-      totalItems: _asInt(json["totalItems"]) ??
-          _asInt(json["totalElements"]) ??
-          _asInt(json["numberOfElements"]) ??
-          normalizedShortItems.length,
-      totalPages: _asInt(json["totalPages"]) ?? 1,
-      pageSize:
-          _asInt(json["pageSize"]) ??
-              _asInt(json["size"]) ??
-              normalizedShortItems.length,
-      hasPrevious: json["hasPrevious"],
-      hasNext: json["hasNext"],
-      shorts: normalizedShortItems.map(ShortModel.fromJson).toList(),
-      currentPage: _asInt(json["currentPage"]) ??
-          _asInt(json["number"]) ??
-          _asInt(json["pageNumber"]) ??
-          0,
-    );
-  }
+  factory Data.fromJson(Map<String, dynamic> json) => Data(
+        totalItems: json["totalItems"],
+        miniSeries: json["miniSeries"] == null
+            ? []
+            : List<ShortModel>.from(
+                json["miniSeries"]!.map((x) => ShortModel.fromJson(x))),
+        totalPages: json["totalPages"],
+        pageSize: json["pageSize"],
+        hasPrevious: json["hasPrevious"],
+        hasNext: json["hasNext"],
+        currentPage: json["currentPage"],
+      );
 
   Map<String, dynamic> toJson() => {
-    "totalItems": totalItems,
-    "totalPages": totalPages,
-    "pageSize": pageSize,
-    "hasPrevious": hasPrevious,
-    "hasNext": hasNext,
-    "shorts": shorts == null ? [] : List<ShortModel>.from(shorts!.map((x) => x.toJson())),
-    "currentPage": currentPage,
-  };
-
-  static List<dynamic> _extractShortItems(Map<String, dynamic> json) {
-    final rawList = json["shorts"] ?? json["content"];
-    if (rawList is List) return List<dynamic>.from(rawList);
-    return const <dynamic>[];
-  }
-
-  static int? _asInt(dynamic value) {
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value);
-    return null;
-  }
+        "totalItems": totalItems,
+        "miniSeries": miniSeries == null
+            ? []
+            : List<dynamic>.from(miniSeries!.map((x) => x.toJson())),
+        "totalPages": totalPages,
+        "pageSize": pageSize,
+        "hasPrevious": hasPrevious,
+        "hasNext": hasNext,
+        "currentPage": currentPage,
+      };
 }
 
 class ShortModel {
@@ -111,8 +84,11 @@ class ShortModel {
   String? category;
   int? mediaHouseId;
   String? rentlDuration;
-  dynamic createdAt;
-  dynamic createdDate;
+  List<dynamic>? castList;
+  List<String>? crewList;
+  int? uploadDateTime;
+  String? approvalStatus;
+  int? approvedDateTime;
   List<LanguageList>? languageList;
 
   ShortModel({
@@ -129,50 +105,68 @@ class ShortModel {
     this.category,
     this.mediaHouseId,
     this.rentlDuration,
-    this.createdAt,
-    this.createdDate,
+    this.castList,
+    this.crewList,
+    this.uploadDateTime,
+    this.approvalStatus,
+    this.approvedDateTime,
     this.languageList,
   });
 
-  factory ShortModel.fromJson(Map<String, dynamic> json) {
-    return ShortModel(
-      id: json["id"],
-      title: json["title"],
-      description: json["description"],
-      posterUrl: json["posterUrl"],
-      totalParts: json["totalParts"],
-      coinsPerPart: json["coinsPerPart"],
-      creatorName: json["creatorName"],
-      viewCount: json["viewCount"],
-      likeCount: json["likeCount"],
-      isTrending: json["isTrending"],
-      category: json["category"],
-      mediaHouseId: json["mediaHouseId"],
-      rentlDuration: json["rentlDuration"],
-      createdAt: json["createdAt"],
-      createdDate: json["createdDate"],
-      languageList: json["languageList"] == null ? [] : List<LanguageList>.from(json["languageList"]!.map((x) => LanguageList.fromJson(x))),
-    );
-  }
+  factory ShortModel.fromJson(Map<String, dynamic> json) => ShortModel(
+        id: json["id"],
+        title: json["title"],
+        description: json["description"],
+        posterUrl: json["posterUrl"],
+        totalParts: json["totalParts"],
+        coinsPerPart: json["coinsPerPart"],
+        creatorName: json["creatorName"],
+        viewCount: json["viewCount"],
+        likeCount: json["likeCount"],
+        isTrending: json["isTrending"],
+        category: json["category"],
+        mediaHouseId: json["mediaHouseId"],
+        rentlDuration: json["rentlDuration"],
+        castList: json["castList"] == null
+            ? []
+            : List<dynamic>.from(json["castList"]!.map((x) => x)),
+        crewList: json["crewList"] == null
+            ? []
+            : List<String>.from(json["crewList"]!.map((x) => x)),
+        uploadDateTime: json["uploadDateTime"],
+        approvalStatus: json["approvalStatus"],
+        approvedDateTime: json["approvedDateTime"],
+        languageList: json["languageList"] == null
+            ? []
+            : List<LanguageList>.from(
+                json["languageList"]!.map((x) => LanguageList.fromJson(x))),
+      );
 
   Map<String, dynamic> toJson() => {
-    "id": id,
-    "title": title,
-    "description": description,
-    "posterUrl": posterUrl,
-    "totalParts": totalParts,
-    "coinsPerPart": coinsPerPart,
-    "creatorName": creatorName,
-    "viewCount": viewCount,
-    "likeCount": likeCount,
-    "isTrending": isTrending,
-    "category": category,
-    "mediaHouseId": mediaHouseId,
-    "rentlDuration": rentlDuration,
-    "createdAt": createdAt,
-    "createdDate": createdDate,
-    "languageList": languageList == null ? [] : List<dynamic>.from(languageList!.map((x) => x.toJson())),
-  };
+        "id": id,
+        "title": title,
+        "description": description,
+        "posterUrl": posterUrl,
+        "totalParts": totalParts,
+        "coinsPerPart": coinsPerPart,
+        "creatorName": creatorName,
+        "viewCount": viewCount,
+        "likeCount": likeCount,
+        "isTrending": isTrending,
+        "category": category,
+        "mediaHouseId": mediaHouseId,
+        "rentlDuration": rentlDuration,
+        "castList":
+            castList == null ? [] : List<dynamic>.from(castList!.map((x) => x)),
+        "crewList":
+            crewList == null ? [] : List<dynamic>.from(crewList!.map((x) => x)),
+        "uploadDateTime": uploadDateTime,
+        "approvalStatus": approvalStatus,
+        "approvedDateTime": approvedDateTime,
+        "languageList": languageList == null
+            ? []
+            : List<dynamic>.from(languageList!.map((x) => x.toJson())),
+      };
 }
 
 class ShortDetailModel {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:media_house/app/core/constant/image_constant.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/ui/pages/analytics_page/analyticsPage.dart';
@@ -56,86 +57,153 @@ class _NavigationPageState extends State<NavigationPage> {
     var selectedThemeData =
         Provider.of<ThemeProvider>(context, listen: false).getTheme;
 
-    return Scaffold(
-      key: _scaffoldKey,
-      appBar: ResponsiveWidget.isDesktop(context)
-          ? null
-          : AppBar(
-              centerTitle: true,
-              title: Text(
-                _pages[_selectedIndex].title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              backgroundColor: selectedThemeData.primaryColor,
-              leading: IconButton(
-                icon: const Icon(
-                  Icons.menu,
-                  color: Colors.white,
-                ),
-                onPressed: () {
-                  _scaffoldKey.currentState!.openDrawer();
-                },
-              ),
-              actions: [
-                // IconButton(
-                //   onPressed: () async {
-                //     final localSharePreferences = LocalSharePreferences();
-                //     await localSharePreferences.logOut();
-                //     Navigator.pushReplacement(
-                //       context,
-                //       MaterialPageRoute(builder: (context) => SignInPage()),
-                //     );
-                //   },
-                //   icon: Icon(
-                //     Icons.logout,
-                //     color: Colors.white,
-                //   ),
-                // ),
-                IconButton(
-                  highlightColor: selectedThemeData.primaryColor,
-                  tooltip: "Upload Content",
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (_) => SelectUploadTypeDialog(),
-                    );
-                  },
-                  icon: Icon(
-                    Icons.file_upload_outlined,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackNavigation();
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        appBar: ResponsiveWidget.isDesktop(context)
+            ? null
+            : AppBar(
+                centerTitle: true,
+                title: Text(
+                  _pages[_selectedIndex].title,
+                  style: const TextStyle(
                     color: Colors.white,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                IconButton(
-                  onPressed: () {
-                    setState(() {
-                      _selectedIndex = 8;
-                    });
-                  },
-                  icon: Icon(
-                    Icons.account_circle_sharp,
+                backgroundColor: selectedThemeData.primaryColor,
+                leading: IconButton(
+                  icon: const Icon(
+                    Icons.menu,
                     color: Colors.white,
                   ),
+                  onPressed: () {
+                    _scaffoldKey.currentState!.openDrawer();
+                  },
                 ),
-              ],
-            ),
-      drawer: ResponsiveWidget.isDesktop(context)
-          ? null
-          : Drawer(child: _buildDrawerContent(context)),
-      body: Row(
-        children: [
-          if (ResponsiveWidget.isDesktop(context))
-            Container(
-              width: 250,
-              color: selectedThemeData.cardColor,
-              child: _buildDrawerContent(context),
-            ),
-          Expanded(child: _pages[_selectedIndex].page),
-        ],
+                actions: [
+                  // IconButton(
+                  //   onPressed: () async {
+                  //     final localSharePreferences = LocalSharePreferences();
+                  //     await localSharePreferences.logOut();
+                  //     Navigator.pushReplacement(
+                  //       context,
+                  //       MaterialPageRoute(builder: (context) => SignInPage()),
+                  //     );
+                  //   },
+                  //   icon: Icon(
+                  //     Icons.logout,
+                  //     color: Colors.white,
+                  //   ),
+                  // ),
+                  IconButton(
+                    highlightColor: selectedThemeData.primaryColor,
+                    tooltip: "Upload Content",
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => SelectUploadTypeDialog(),
+                      );
+                    },
+                    icon: Icon(
+                      Icons.file_upload_outlined,
+                      color: Colors.white,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedIndex = 8;
+                      });
+                    },
+                    icon: Icon(
+                      Icons.account_circle_sharp,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+        drawer: ResponsiveWidget.isDesktop(context)
+            ? null
+            : Drawer(child: _buildDrawerContent(context)),
+        body: Row(
+          children: [
+            if (ResponsiveWidget.isDesktop(context))
+              Container(
+                width: 250,
+                color: selectedThemeData.cardColor,
+                child: _buildDrawerContent(context),
+              ),
+            Expanded(child: _pages[_selectedIndex].page),
+          ],
+        ),
       ),
+    );
+  }
+
+  Future<void> _handleBackNavigation() async {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.of(context).pop();
+      return;
+    }
+
+    if (_selectedIndex != 0) {
+      setState(() {
+        _selectedIndex = 0;
+      });
+      return;
+    }
+
+    final shouldExit = await _showExitAppDialog();
+    if (shouldExit == true) {
+      SystemNavigator.pop();
+    }
+  }
+
+  Future<bool?> _showExitAppDialog() {
+    final selectedThemeData =
+        Provider.of<ThemeProvider>(context, listen: false).getTheme;
+
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: selectedThemeData.cardColor,
+          title: Text(
+            'Close app?',
+            style: TextStyle(color: selectedThemeData.canvasColor),
+          ),
+          content: Text(
+            'Do you want to close the app?',
+            style: TextStyle(color: selectedThemeData.canvasColor),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: selectedThemeData.primaryColor),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: selectedThemeData.primaryColor,
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text(
+                'Close',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

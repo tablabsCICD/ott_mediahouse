@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:media_house/app/core/constant/app_constant.dart';
 import 'package:media_house/app/core/utils/agreement_download_helper.dart';
 import 'package:media_house/app/core/utils/agreement_template.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
@@ -108,8 +109,9 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     final options = {
       'key': _razorpayKeyId,
       'amount': amountInPaise,
-      'name': 'OTT Production House',
+      'name': AppConstant.razorpayMerchantName,
       'description': 'Onboarding Fee',
+      'image': _razorpayLogoUrl,
       'prefill': {
         'contact': user?.mobileNumber ?? '',
         'email': user?.emailId ?? '',
@@ -122,11 +124,12 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       await WebRazorpayGateway.openCheckout(
         keyId: _razorpayKeyId,
         amountInPaise: amountInPaise,
-        merchantName: 'OTT Production House',
+        merchantName: AppConstant.razorpayMerchantName,
         description: 'Onboarding Fee',
         prefillContact: user?.mobileNumber ?? '',
         prefillEmail: user?.emailId ?? '',
         prefillName: userName,
+        logoUrl: _razorpayLogoUrl,
         onSuccess: (paymentId) => _applyPaymentSuccess(
           paymentId: paymentId,
           paymentMethod: 'Razorpay (Web)',
@@ -144,6 +147,13 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       CustomToast.show("Unable to open payment gateway: $error",
           isSuccess: false);
     }
+  }
+
+  String get _razorpayLogoUrl {
+    if (kIsWeb) {
+      return Uri.base.resolve('assets/assets/images/logo.png').toString();
+    }
+    return AppConstant.razorpayLogoUrl;
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) {

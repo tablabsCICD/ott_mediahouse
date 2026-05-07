@@ -3,7 +3,9 @@
 import '../../../domain/entities/content.dart';
 
 class SaveContentRequest {
+  int? id;
   String? ageRating;
+  String? aggrementDocument;
   String? approvalStatus;
   String? approvedDateTime;
   List<String>? audioFormatList;
@@ -15,6 +17,7 @@ class SaveContentRequest {
   List<String>? genersList;
   bool? isDownloadable;
   bool? isFeatured;
+  String? isReadyForApproval;
   String? registrationFeePaid;
   String? registrationFeeDetails;
   List<LanguageList>? languageList;
@@ -41,7 +44,9 @@ class SaveContentRequest {
 
 
   SaveContentRequest({
+    this.id,
     this.ageRating,
+    this.aggrementDocument,
     this.approvalStatus,
     this.approvedDateTime,
     this.audioFormatList,
@@ -53,6 +58,7 @@ class SaveContentRequest {
     this.genersList,
     this.isDownloadable,
     this.isFeatured,
+    this.isReadyForApproval,
     this.registrationFeePaid,
     this.registrationFeeDetails,
     this.languageList,
@@ -79,7 +85,9 @@ class SaveContentRequest {
   });
 
   factory SaveContentRequest.fromJson(Map<String, dynamic> json) => SaveContentRequest(
+    id: json["id"],
     ageRating: json["ageRating"],
+    aggrementDocument: json["aggrementDocument"],
     approvalStatus: json["approvalStatus"],
     approvedDateTime: json["approvedDateTime"],
     audioFormatList: json["audioFormatList"] == null ? [] : List<String>.from(json["audioFormatList"]!.map((x) => x)),
@@ -93,7 +101,11 @@ class SaveContentRequest {
     isFeatured: json["isFeatured"],
     registrationFeePaid: json["registrationFeePaid"],
     registrationFeeDetails: json["registrationFeeDetails"],
-    languageList: json["languageList"] == null ? [] : List<LanguageList>.from(json["languageList"]!.map((x) => x)),
+    isReadyForApproval: json["isReadyForApproval"],
+    languageList: json["languageList"] == null
+        ? []
+        : List<LanguageList>.from(
+            json["languageList"]!.map((x) => LanguageList.fromJson(x))),
     mediaHouseId: json["mediaHouseId"],
     posterUrlList: json["posterUrlList"] == null ? [] : List<String>.from(json["posterUrlList"]!.map((x) => x)),
     price: json["price"],
@@ -117,7 +129,9 @@ class SaveContentRequest {
   );
 
   Map<String, dynamic> toJson() => {
+    "id": id,
     "ageRating": ageRating,
+    "aggrementDocument": aggrementDocument,
     "approvalStatus": approvalStatus,
     "approvedDateTime": approvedDateTime,
     "audioFormatList": audioFormatList == null ? [] : List<dynamic>.from(audioFormatList!.map((x) => x)),
@@ -129,9 +143,12 @@ class SaveContentRequest {
     "genersList": genersList == null ? [] : List<dynamic>.from(genersList!.map((x) => x)),
     "isDownloadable": isDownloadable,
     "isFeatured": isFeatured,
+    "isReadyForApproval": isReadyForApproval,
     "registrationFeePaid": registrationFeePaid,
     "registrationFeeDetails": registrationFeeDetails,
-    "languageList": languageList == null ? [] : List<LanguageList>.from(languageList!.map((x) => x)),
+    "languageList": languageList == null
+        ? []
+        : List<dynamic>.from(languageList!.map((x) => x.toJson())),
     "mediaHouseId": mediaHouseId,
     "posterUrlList": posterUrlList == null ? [] : List<dynamic>.from(posterUrlList!.map((x) => x)),
     "price": price,

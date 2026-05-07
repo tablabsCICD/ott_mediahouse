@@ -1,6 +1,5 @@
 class ApiConstant {
-  static const String baseUrl =
-      "http://ec2-13-201-5-93.ap-south-1.compute.amazonaws.com:8080/ott/";
+  static const String baseUrl = "https://filmytell.in/ott/";
 
   static String login(mobileNumber) =>
       "${baseUrl}user/forgotPassword/findUserAndSendOTP?mobileNumber=$mobileNumber";
@@ -117,10 +116,9 @@ class ApiConstant {
   static String getUserAndRevenueGraph(startDate, endEnd, promoterId) =>
       "${baseUrl}api/admin/userOnboardedGraphByPromoterId2?start_date=$startDate&end_date=$endEnd&promoterId=$promoterId";
 
-  static String uploadImg = "${baseUrl}api/other/upload-file";
-  static String uploadContentImg =
-      "${baseUrl}api/video/upload-thumbnail?videoId=19";
-  static String uploadVideo = "${baseUrl}api/video/upload-raw?videoId=19";
+  static String uploadImg = "${baseUrl}api/documents/upload";
+  static String uploadContentImg = "${baseUrl}api/documents/upload";
+  static String uploadVideo = "${baseUrl}api/video/upload";
   static String dashboardCount = "${baseUrl}api/admin/dashboardCounts";
 
   static String resetPassword(mobile, password) =>

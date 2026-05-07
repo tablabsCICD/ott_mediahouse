@@ -1303,7 +1303,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        color: selectedThemeData.cardColor, fontSize: 11),
+                        color: selectedThemeData.canvasColor, fontSize: 11),
                   ),
                   Text(
                     role.isEmpty ? '-' : role,
@@ -1311,7 +1311,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                        color: selectedThemeData.cardColor, fontSize: 10),
+                        color: selectedThemeData.canvasColor, fontSize: 10),
                   ),
                 ],
               ),

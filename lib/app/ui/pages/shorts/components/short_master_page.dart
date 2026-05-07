@@ -76,6 +76,10 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
 
     final short = provider.shortDetail!;
     final createdPartCount = short.data!.parts?.length ?? 0;
+    final languages = (short.data!.languageList ?? [])
+        .map((lang) => lang.language?.trim() ?? '')
+        .where((lang) => lang.isNotEmpty)
+        .join(', ');
 
     final crossAxisCount = ResponsiveWidget.isDesktop(context)
         ? 5
@@ -175,6 +179,18 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                         style: TextStyle(
                             color: theme.canvasColor.withOpacity(0.7)),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Rental Duration: ${short.data!.rentlDuration?.trim().isNotEmpty == true ? short.data!.rentlDuration : 'N/A'}",
+                        style: TextStyle(
+                            color: theme.canvasColor.withOpacity(0.7)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Languages: ${languages.isNotEmpty ? languages : 'N/A'}",
+                        style: TextStyle(
+                            color: theme.canvasColor.withOpacity(0.7)),
+                      ),
                       const SizedBox(height: 10),
                       if (short.data!.isTrending!)
                         Container(
@@ -224,6 +240,8 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                       "Total Parts", short.data!.totalParts.toString(), theme),
                   _buildInfoTile(
                       "Views", short.data!.viewCount.toString(), theme),
+                  _buildInfoTile(
+                      "Likes", short.data!.likeCount.toString(), theme),
                 ],
               ),
             ),
@@ -281,8 +299,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                                   masterTitle: short.data!.title ?? '',
                                   masterDescription:
                                       short.data!.description ?? '',
-                                  defaultCoins:
-                                      short.data!.coinsPerPart ?? 0,
+                                  defaultCoins: short.data!.coinsPerPart ?? 0,
                                 ),
                               ),
                             ),

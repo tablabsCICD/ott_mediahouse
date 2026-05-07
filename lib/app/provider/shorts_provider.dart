@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
-import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -44,7 +43,7 @@ class ShortProvider extends ChangeNotifier {
       final xhr = html.HttpRequest();
       final formData = html.FormData();
 
-      formData.appendBlob('video', file, file.name);
+      formData.appendBlob('file', file, file.name);
 
       xhr.upload.onProgress.listen((e) {
         if (e.lengthComputable == true &&
@@ -59,19 +58,26 @@ class ShortProvider extends ChangeNotifier {
       });
 
       xhr.onLoad.listen((_) {
-        if (xhr.status == 200) {
+        if (_isVideoUploadSuccessStatus(xhr.status)) {
           final response = json.decode(xhr.responseText!);
           VideoUploadResponse contentImageUploadResponse =
               VideoUploadResponse.fromJson(response);
-          final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
+          final encryptedUrl =
+              contentImageUploadResponse.data?.videoUrl?.trim();
+          if (encryptedUrl == null || encryptedUrl.isEmpty) {
+            _resetVideoUploadState();
+            return;
+          }
 
           print(encryptedUrl);
 
-          movieUrlController.text = encryptedUrl!;
+          movieUrlController.text = encryptedUrl;
           //  movieFileName = file.name;
           movieUploadProgress = 1.0;
           _isMovieUploading = false;
           notifyListeners();
+        } else {
+          _resetVideoUploadState();
         }
       });
 
@@ -111,7 +117,7 @@ class ShortProvider extends ChangeNotifier {
         final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
 
         if (pickedFile != null) {
-          final File file = File(pickedFile.path);
+          final io.File file = io.File(pickedFile.path);
           final totalBytes = await file.length();
 
           print(
@@ -155,7 +161,7 @@ class ShortProvider extends ChangeNotifier {
 
           // Add the file with progress tracking
           request.files.add(http.MultipartFile(
-            'video',
+            'file',
             progressStream,
             totalBytes,
             filename: pickedFile.name,
@@ -164,14 +170,20 @@ class ShortProvider extends ChangeNotifier {
           print("Sending request...");
           final response = await request.send();
 
-          if (response.statusCode == 200) {
+          if (_isVideoUploadSuccessStatus(response.statusCode)) {
             final responseBody = await response.stream.bytesToString();
             final responseJson = json.decode(responseBody);
             VideoUploadResponse contentImageUploadResponse =
                 VideoUploadResponse.fromJson(responseJson);
-            final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
+            final encryptedUrl =
+                contentImageUploadResponse.data?.videoUrl?.trim();
+            if (encryptedUrl == null || encryptedUrl.isEmpty) {
+              print("Video upload response did not include a videoUrl");
+              movieUploadProgress = 0.0;
+              return;
+            }
 
-            movieUrlController.text = encryptedUrl!;
+            movieUrlController.text = encryptedUrl;
             movieUploadProgress = 1.0;
 
             print("Video uploaded successfully: $encryptedUrl");
@@ -208,6 +220,17 @@ class ShortProvider extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  bool _isVideoUploadSuccessStatus(int? statusCode) {
+    return statusCode == 200 || statusCode == 201 || statusCode == 202;
+  }
+
+  void _resetVideoUploadState() {
+    movieUploadProgress = 0.0;
+    _isMovieUploading = false;
+    _isUploading = false;
+    notifyListeners();
   }
 
   Future<void> fetchShorts({
@@ -300,7 +323,7 @@ class ShortProvider extends ChangeNotifier {
 
       if (requestId != _shortsRequestSerial) return;
 
-      shorts = shortMasterResponse.data?.shorts ?? [];
+      shorts = shortMasterResponse.data?.miniSeries ?? [];
       shortsTotalItems = shortMasterResponse.data?.totalItems ?? shorts.length;
       shortsTotalPages = shortMasterResponse.data?.totalPages ?? 1;
       shortsCurrentPage = shortMasterResponse.data?.currentPage ?? 0;
@@ -320,7 +343,25 @@ class ShortProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> addShortMaster(Map<String, dynamic> body) async {
+  int? _extractShortId(dynamic data) {
+    if (data is! Map) return null;
+    final map = Map<String, dynamic>.from(data);
+    final candidates = [
+      map["id"],
+      map["shortId"],
+      map["shortMasterId"],
+    ];
+    for (final value in candidates) {
+      if (value is int) return value;
+      if (value is String) {
+        final parsed = int.tryParse(value);
+        if (parsed != null) return parsed;
+      }
+    }
+    return null;
+  }
+
+  Future<ShortModel?> createShortMaster(Map<String, dynamic> body) async {
     try {
       isLoading = true;
       notifyListeners();
@@ -330,35 +371,94 @@ class ShortProvider extends ChangeNotifier {
       ApiHelper apiHelper = ApiHelper();
       var response = await apiHelper.postApiWithBody(url, body);
 
-      debugPrint("Request Body → ${jsonEncode(body)}");
-      debugPrint("Response Code → ${response.statusCode}");
-      debugPrint("Response Body → ${response.body}");
+      debugPrint("Add Short Master Request -> ${jsonEncode(body)}");
+      debugPrint("Add Short Master Code -> ${response.statusCode}");
+      debugPrint("Add Short Master Response -> ${response.body}");
 
       final Map<String, dynamic> data = jsonDecode(response.body);
 
-      /// ✅ SUCCESS CHECK (THIS IS THE KEY FIX)
-      if (data["success"] == true) {
+      if ((response.statusCode == 200 ||
+              response.statusCode == 201 ||
+              response.statusCode == 202) &&
+          data["success"] != false) {
+        ShortModel? createdShort;
         if (data["data"] != null) {
-          ShortModel shortModel = ShortModel.fromJson(data["data"]);
+          createdShort = ShortModel.fromJson(
+            Map<String, dynamic>.from(data["data"]),
+          );
+          createdShort.id ??= _extractShortId(data["data"]);
         }
 
-        /// Refresh list
         await fetchShorts();
 
         isLoading = false;
         notifyListeners();
-        return true;
+        return createdShort;
       } else {
-        debugPrint("Add Short Failed → ${data["message"]}");
+        debugPrint("Add Short Master Failed -> ${data["message"]}");
       }
     } catch (e, s) {
-      debugPrint("Add Short Exception → $e");
+      debugPrint("Add Short Master Exception -> $e");
       debugPrintStack(stackTrace: s);
     }
 
     isLoading = false;
     notifyListeners();
-    return false;
+    return null;
+  }
+
+  Future<bool> addShortMaster(Map<String, dynamic> body) async {
+    return await createShortMaster(body) != null;
+  }
+
+  Future<bool> saveShortCastCrewMembers({
+    required int shortId,
+    required List<Map<String, String>> members,
+  }) async {
+    if (shortId <= 0) {
+      debugPrint("Invalid short ID for cast/crew save.");
+      return false;
+    }
+    if (members.isEmpty) return true;
+
+    final apiHelper = ApiHelper();
+    for (final member in members) {
+      final payload = {
+        "castId": 0,
+        "contentId": 0,
+        "description": (member["description"] ?? "").trim(),
+        "image": (member["image"] ?? "").trim(),
+        "name": (member["name"] ?? "").trim(),
+        "role": (member["role"] ?? "").trim(),
+        "seasonId": 0,
+        "shortId": shortId,
+      };
+
+      try {
+        final response =
+            await apiHelper.postApiWithBody(ApiConstant.saveCast, payload);
+        debugPrint("Save Short Cast/Crew Request -> ${jsonEncode(payload)}");
+        debugPrint("Save Short Cast/Crew Code -> ${response.statusCode}");
+        debugPrint("Save Short Cast/Crew Response -> ${response.body}");
+
+        if (response.statusCode != 200 &&
+            response.statusCode != 201 &&
+            response.statusCode != 202) {
+          return false;
+        }
+
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map && decoded["success"] == false) {
+          return false;
+        }
+      } catch (e, s) {
+        debugPrint("Save Short Cast/Crew Exception -> $e");
+        debugPrintStack(stackTrace: s);
+        return false;
+      }
+    }
+
+    return true;
   }
 
   Future<bool> deleteShortMaster({
@@ -491,11 +591,24 @@ class ShortProvider extends ChangeNotifier {
       notifyListeners();
 
       String apiUrl = ApiConstant.createShortPart;
-      print(apiUrl);
+      debugPrint("Create Short Part URL -> $apiUrl");
+      debugPrint("Create Short Part Body -> ${jsonEncode(body)}");
       ApiHelper apiHelper = ApiHelper();
       var response = await apiHelper.postApiWithBody(apiUrl, body);
-      print(response.body);
-      return response.statusCode == 200 || response.statusCode == 201;
+      debugPrint("Create Short Part Code -> ${response.statusCode}");
+      debugPrint("Create Short Part Response -> ${response.body}");
+      if (response.statusCode != 200 &&
+          response.statusCode != 201 &&
+          response.statusCode != 202) {
+        return false;
+      }
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map && decoded["success"] == false) {
+        return false;
+      }
+
+      return true;
     } catch (e) {
       debugPrint("Create Short Part Error: $e");
       return false;

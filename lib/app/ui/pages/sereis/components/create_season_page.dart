@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:media_house/main.dart';
+import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 import 'package:universal_html/html.dart' as html;
 
@@ -38,6 +39,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
   final descCtrl = TextEditingController();
   final seasonNoCtrl = TextEditingController();
   final amountCtrl = TextEditingController();
+  final episodeCountCtrl = TextEditingController();
   DateTime? selectedDate;
 
   io.File? imageFile;
@@ -67,6 +69,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
     titleCtrl.dispose();
     descCtrl.dispose();
     seasonNoCtrl.dispose();
+    episodeCountCtrl.dispose();
     amountCtrl.dispose();
     castNameCtrl.dispose();
     castRoleCtrl.dispose();
@@ -105,7 +108,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         final request = http.MultipartRequest('POST', uri)
           ..files.add(
             http.MultipartFile.fromBytes(
-              'thumbnail',
+              'file',
               bytes,
               filename: webFile!.name,
             ),
@@ -114,7 +117,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         final response = await request.send();
         final body = await response.stream.bytesToString();
         final res = ContentImageUploadResponse.fromJson(jsonDecode(body));
-        uploadedImageUrl = res.data?.thumbnailUrl;
+        uploadedImageUrl = res.data?.fileUrl;
       } else if (!kIsWeb && imageFile != null) {
         final total = await imageFile!.length();
         int sent = 0;
@@ -134,7 +137,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         final request = http.MultipartRequest('POST', uri)
           ..files.add(
             http.MultipartFile(
-              'thumbnail',
+              'file',
               stream,
               total,
               filename: imageFile!.path.split('/').last,
@@ -144,7 +147,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         final response = await request.send();
         final body = await response.stream.bytesToString();
         final parsed = ContentImageUploadResponse.fromJson(jsonDecode(body));
-        uploadedImageUrl = parsed.data?.thumbnailUrl;
+        uploadedImageUrl = parsed.data?.fileUrl;
       }
     } catch (_) {
       showGlobalSnack("Image upload failed");
@@ -248,12 +251,12 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         Uri.parse(ApiConstant.uploadContentImg),
       );
       request.files.add(
-        http.MultipartFile.fromBytes('thumbnail', bytes, filename: filename),
+        http.MultipartFile.fromBytes('file', bytes, filename: filename),
       );
       final response = await request.send();
       final body = await response.stream.bytesToString();
       final parsed = ContentImageUploadResponse.fromJson(jsonDecode(body));
-      return parsed.data?.thumbnailUrl?.trim() ?? '';
+      return parsed.data?.fileUrl?.trim() ?? '';
     } catch (_) {
       return '';
     }
@@ -334,6 +337,10 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
       showGlobalSnack("Please select a release date");
       return;
     }
+    if (episodeCountCtrl.text.isEmpty) {
+      showGlobalSnack("Please add episode count");
+      return;
+    }
     if (_isDateBeforeToday(selectedDate!)) {
       showGlobalSnack("Release date cannot be before today");
       return;
@@ -350,6 +357,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
       final body = {
         "amount": amountCtrl.text.trim(),
         "title": titleCtrl.text.trim(),
+        "episodeCount": episodeCountCtrl.text.trim(),
         "description": descCtrl.text.trim(),
         "posterUrl": uploadedImageUrl,
         "releaseDate": selectedDate!.toIso8601String(),
@@ -456,6 +464,8 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
                 _field(titleCtrl, "Season Title"),
                 _field(descCtrl, "Description", maxLines: 3),
                 _field(amountCtrl, "Season Price",
+                    keyboard: TextInputType.number),
+                _field(episodeCountCtrl, "Episode Count",
                     keyboard: TextInputType.number),
                 _field(
                   seasonNoCtrl,
@@ -652,8 +662,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
   }
 
   Widget _datePicker(ThemeData theme) {
-    final isInvalid =
-        selectedDate != null && _isDateBeforeToday(selectedDate!);
+    final isInvalid = selectedDate != null && _isDateBeforeToday(selectedDate!);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

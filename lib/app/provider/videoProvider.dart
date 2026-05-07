@@ -584,6 +584,11 @@ class VideoProvider extends ChangeNotifier {
   bool get hasUploadedAgreement => agreementDocumentUrl.isNotEmpty;
   bool get hasCompletedAgreementWorkflow =>
       hasUploadedAgreement && _isRegistrationFeePaid;
+  String get derivedApprovalStatus {
+    final isPaid = registrationFeePaidValue == "Y";
+    final hasFeeDetails = registrationFeeDetailsValue.trim().isNotEmpty;
+    return isPaid && hasFeeDetails ? "PENDING" : "PENDING";
+  }
 
   void toggleRegistrationFeePaid(bool value) {
     _isRegistrationFeePaid = value;
@@ -1190,17 +1195,21 @@ class VideoProvider extends ChangeNotifier {
     String apiUrl = ApiConstant.saveVideo;
 
     SaveContentRequest saveContent = SaveContentRequest();
+    saveContent.id = 0;
     saveContent.ageRating = ageRatingController.text;
-    saveContent.approvalStatus = "AGREEMENT_PENDING";
+    saveContent.aggrementDocument = agreementDocumentUrl;
+    saveContent.approvalStatus = derivedApprovalStatus;
     saveContent.approvedDateTime = '';
     saveContent.audioFormatList = selectedAudioFormat;
     saveContent.availability = availability;
+    saveContent.castList = castList;
     saveContent.contentUrl = movieUrlController.text;
     saveContent.directorList = directorList;
     saveContent.description = descriptionController.text;
     saveContent.genersList = selectedGeners;
     saveContent.isDownloadable = isDownloadable;
     saveContent.isFeatured = isFeatured;
+    saveContent.isReadyForApproval = hasCompletedAgreementWorkflow ? "Y" : "N";
     saveContent.registrationFeePaid = registrationFeePaidValue;
     saveContent.registrationFeeDetails = registrationFeeDetailsValue;
     saveContent.languageList = selectedLanguages;
@@ -1369,8 +1378,10 @@ class VideoProvider extends ChangeNotifier {
 
     SaveContentRequest saveContent = SaveContentRequest();
     try {
+      saveContent.id = movieId;
       saveContent.ageRating = ageRatingController.text;
-      saveContent.approvalStatus = content!.approvalStatus;
+      saveContent.aggrementDocument = agreementDocumentUrl;
+      saveContent.approvalStatus = derivedApprovalStatus;
       saveContent.approvedDateTime = null;
       saveContent.audioFormatList = selectedAudioFormat;
       saveContent.availability = availability;
@@ -1381,6 +1392,8 @@ class VideoProvider extends ChangeNotifier {
       saveContent.genersList = selectedGeners;
       saveContent.isDownloadable = isDownloadable;
       saveContent.isFeatured = isFeatured;
+      saveContent.isReadyForApproval =
+          hasCompletedAgreementWorkflow ? "Y" : "N";
       saveContent.registrationFeePaid = registrationFeePaidValue;
       saveContent.registrationFeeDetails = registrationFeeDetailsValue;
       saveContent.languageList = selectedLanguages;
@@ -1824,7 +1837,7 @@ class VideoProvider extends ChangeNotifier {
         final byteData = reader.result as List<int>;
 
         final multipartFile = http.MultipartFile.fromBytes(
-          'thumbnail',
+          'file',
           byteData,
           filename: _webFile!.name,
         );
@@ -1844,7 +1857,7 @@ class VideoProvider extends ChangeNotifier {
           final responseBody = await response.stream.bytesToString();
           ContentImageUploadResponse contentImageUploadResponse =
               ContentImageUploadResponse.fromJson(jsonDecode(responseBody));
-          _uploadedImageUrl = contentImageUploadResponse.data!.thumbnailUrl;
+          _uploadedImageUrl = contentImageUploadResponse.data!.fileUrl;
           _setControllerText(label, _uploadedImageUrl!);
           _setProgressByLabel(label, 1.0);
         } else {
@@ -1869,7 +1882,7 @@ class VideoProvider extends ChangeNotifier {
 
         final request = http.MultipartRequest('POST', url);
         request.files.add(http.MultipartFile(
-          'thumbnail',
+          'file',
           stream,
           totalBytes,
           filename: _imageFile!.path.split('/').last,
@@ -2425,7 +2438,7 @@ class VideoProvider extends ChangeNotifier {
       final xhr = html.HttpRequest();
       final formData = html.FormData();
 
-      formData.appendBlob('video', file, file.name);
+      formData.appendBlob('file', file, file.name);
 
       xhr.upload.onProgress.listen((e) {
         if (e.lengthComputable == true &&
@@ -2445,29 +2458,36 @@ class VideoProvider extends ChangeNotifier {
       });
 
       xhr.onLoad.listen((_) {
-        if (xhr.status == 200) {
+        if (_isVideoUploadSuccessStatus(xhr.status)) {
           final response = json.decode(xhr.responseText!);
           VideoUploadResponse contentImageUploadResponse =
               VideoUploadResponse.fromJson(response);
-          final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
+          final encryptedUrl =
+              contentImageUploadResponse.data?.videoUrl?.trim();
+          if (encryptedUrl == null || encryptedUrl.isEmpty) {
+            _resetVideoUploadState(videoType);
+            return;
+          }
 
           if (videoType == "trailer") {
-            trailerUrlController.text = encryptedUrl!;
+            trailerUrlController.text = encryptedUrl;
             trailerFileName = file.name;
             trailerUploadProgress = 1.0;
             _isTrailerUploading = false;
           } else if (videoType == "teaser") {
-            teaserUrlController.text = encryptedUrl!;
+            teaserUrlController.text = encryptedUrl;
             teaserFileName = file.name;
             teaserUploadProgress = 1.0;
             _isTeaserUploading = false;
           } else {
-            movieUrlController.text = encryptedUrl!;
+            movieUrlController.text = encryptedUrl;
             movieFileName = file.name;
             movieUploadProgress = 1.0;
             _isMovieUploading = false;
           }
           notifyListeners();
+        } else {
+          _resetVideoUploadState(videoType);
         }
       });
 
@@ -2581,7 +2601,7 @@ class VideoProvider extends ChangeNotifier {
           final request = http.MultipartRequest('POST', uploadUri);
 
           request.files.add(http.MultipartFile(
-            'video',
+            'file',
             progressStream,
             totalBytes,
             filename: pickedFile.name,
@@ -2590,23 +2610,36 @@ class VideoProvider extends ChangeNotifier {
           print("Sending request...");
           final response = await request.send();
 
-          if (response.statusCode == 200) {
+          if (_isVideoUploadSuccessStatus(response.statusCode)) {
             final responseBody = await response.stream.bytesToString();
             final responseJson = json.decode(responseBody);
             VideoUploadResponse contentImageUploadResponse =
                 VideoUploadResponse.fromJson(responseJson);
-            final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
+            final encryptedUrl =
+                contentImageUploadResponse.data?.videoUrl?.trim();
+
+            if (encryptedUrl == null || encryptedUrl.isEmpty) {
+              print("Video upload response did not include a videoUrl");
+              if (videoType == "trailer") {
+                trailerUploadProgress = 0.0;
+              } else if (videoType == "teaser") {
+                teaserUploadProgress = 0.0;
+              } else {
+                movieUploadProgress = 0.0;
+              }
+              return;
+            }
 
             if (videoType == "trailer") {
-              trailerUrlController.text = encryptedUrl!;
+              trailerUrlController.text = encryptedUrl;
               trailerFileName = pickedFile.name;
               trailerUploadProgress = 1.0;
             } else if (videoType == "teaser") {
-              teaserUrlController.text = encryptedUrl!;
+              teaserUrlController.text = encryptedUrl;
               teaserFileName = pickedFile.name;
               teaserUploadProgress = 1.0;
             } else {
-              movieUrlController.text = encryptedUrl!;
+              movieUrlController.text = encryptedUrl;
               movieFileName = pickedFile.name;
               movieUploadProgress = 1.0;
             }
@@ -2669,6 +2702,25 @@ class VideoProvider extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  bool _isVideoUploadSuccessStatus(int? statusCode) {
+    return statusCode == 200 || statusCode == 201 || statusCode == 202;
+  }
+
+  void _resetVideoUploadState(String videoType) {
+    if (videoType == "trailer") {
+      trailerUploadProgress = 0.0;
+      _isTrailerUploading = false;
+    } else if (videoType == "teaser") {
+      teaserUploadProgress = 0.0;
+      _isTeaserUploading = false;
+    } else {
+      movieUploadProgress = 0.0;
+      _isMovieUploading = false;
+    }
+    _isUploading = false;
+    notifyListeners();
   }
 
   bool get isVideoUploading =>

@@ -10,6 +10,7 @@ import 'package:media_house/app/ui/pages/released_content_page/released_content.
 import 'package:media_house/app/ui/pages/settlemet_page/SettlementPage.dart';
 import 'package:media_house/app/ui/pages/sign%20in%20page/SignInPage.dart';
 
+import '../../ui/NavigationPage.dart';
 import '../../ui/pages/profile page/ProfilePage.dart';
 import 'app_routes.dart';
 
@@ -24,7 +25,7 @@ class RouteGenerator {
         return buildRoute(SplashScreen(), settings: settings);
 
       case AppRoutes.home:
-        return buildRoute(DashboardPage(), settings: settings);
+        return buildRoute(NavigationPage(), settings: settings);
 
       case AppRoutes.forgotPassword:
         return buildRoute(DashboardPage(), settings: settings);

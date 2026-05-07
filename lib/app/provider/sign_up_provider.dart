@@ -90,6 +90,9 @@ class SignUpProvider extends ChangeNotifier {
       }
       payload[entry.key] = entry.value.text.trim();
     }
+    payload['postCount'] = '0';
+    payload['totalReveneu'] = '0';
+    payload['totalViews'] = '0';
     return payload;
   }
 

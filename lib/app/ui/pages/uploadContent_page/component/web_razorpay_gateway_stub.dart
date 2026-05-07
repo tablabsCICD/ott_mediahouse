@@ -9,6 +9,7 @@ class WebRazorpayGatewayImpl {
     required String prefillContact,
     required String prefillEmail,
     required String prefillName,
+    String? logoUrl,
     required void Function(String paymentId) onSuccess,
     required void Function(String message) onError,
     void Function(String walletName)? onExternalWallet,

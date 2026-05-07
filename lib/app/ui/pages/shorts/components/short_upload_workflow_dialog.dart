@@ -115,7 +115,8 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
     }
   }
 
-  Future<void> _uploadBulkVideo(_BulkShortEntry entry, PlatformFile file) async {
+  Future<void> _uploadBulkVideo(
+      _BulkShortEntry entry, PlatformFile file) async {
     setState(() {
       entry.isUploadingVideo = true;
       entry.videoFileName = file.name;
@@ -225,16 +226,58 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
         Uri.parse(ApiConstant.uploadVideo),
       );
       request.files.add(
-        http.MultipartFile.fromBytes('video', bytes, filename: file.name),
+        http.MultipartFile.fromBytes('file', bytes, filename: file.name),
       );
       final response = await request.send();
       final body = await response.stream.bytesToString();
-      if (response.statusCode != 200) return null;
-      final parsed = VideoUploadResponse.fromJson(jsonDecode(body));
-      return parsed.data?.videoUrl?.trim();
+      if (!_isUploadSuccessStatus(response.statusCode)) {
+        debugPrint("Short video upload failed -> "
+            "${response.statusCode}: $body");
+        return null;
+      }
+      final uploadedUrl = _extractUploadedVideoUrl(body);
+      if (uploadedUrl == null || uploadedUrl.isEmpty) {
+        debugPrint("Short video upload URL missing -> $body");
+        return null;
+      }
+      return uploadedUrl;
     } catch (_) {
       return null;
     }
+  }
+
+  bool _isUploadSuccessStatus(int statusCode) {
+    return statusCode == 200 || statusCode == 201 || statusCode == 202;
+  }
+
+  String? _extractUploadedVideoUrl(String body) {
+    final decoded = jsonDecode(body);
+    if (decoded is String) return decoded.trim();
+    if (decoded is! Map<String, dynamic>) return null;
+
+    final directUrl = _firstUrlFromMap(decoded);
+    if (directUrl != null) return directUrl;
+
+    final data = decoded['data'];
+    if (data is String) return data.trim();
+    if (data is Map<String, dynamic>) {
+      final dataUrl = _firstUrlFromMap(data);
+      if (dataUrl != null) return dataUrl;
+
+      final parsed = VideoUploadResponse.fromJson(decoded);
+      return parsed.data?.videoUrl?.trim();
+    }
+
+    return null;
+  }
+
+  String? _firstUrlFromMap(Map<String, dynamic> map) {
+    const keys = ['videoUrl', 'fileUrl', 'url', 'secureUrl', 'path'];
+    for (final key in keys) {
+      final value = map[key]?.toString().trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+    return null;
   }
 
   Future<_ImageUploadResult?> _uploadImageFile(PlatformFile file) async {
@@ -246,13 +289,13 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
         Uri.parse(ApiConstant.uploadContentImg),
       );
       request.files.add(
-        http.MultipartFile.fromBytes('thumbnail', bytes, filename: file.name),
+        http.MultipartFile.fromBytes('file', bytes, filename: file.name),
       );
       final response = await request.send();
       final body = await response.stream.bytesToString();
       if (response.statusCode != 200) return null;
       final parsed = ContentImageUploadResponse.fromJson(jsonDecode(body));
-      final url = parsed.data?.thumbnailUrl?.trim();
+      final url = parsed.data?.fileUrl?.trim();
       if (url == null || url.isEmpty) return null;
       return _ImageUploadResult(url: url, preview: bytes);
     } catch (_) {
@@ -319,7 +362,9 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
         headers: const {'Content-Type': 'application/json'},
         body: jsonEncode(body),
       );
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 202) {
         final decoded = jsonDecode(response.body);
         if (decoded is Map<String, dynamic> && decoded['success'] == false) {
           return false;
@@ -332,7 +377,8 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
 
   Future<void> _submitBulk() async {
     if (_bulkEntries.isEmpty) {
-      CustomToast.show('Select videos for bulk upload first.', isSuccess: false);
+      CustomToast.show('Select videos for bulk upload first.',
+          isSuccess: false);
       return;
     }
     for (final entry in _bulkEntries) {
@@ -676,8 +722,9 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
             runSpacing: 12,
             children: [
               ElevatedButton.icon(
-                onPressed:
-                    _isSubmitting || _isPickingBulkVideos ? null : _pickBulkVideos,
+                onPressed: _isSubmitting || _isPickingBulkVideos
+                    ? null
+                    : _pickBulkVideos,
                 icon: _isPickingBulkVideos
                     ? const SizedBox(
                         height: 16,
@@ -700,11 +747,11 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
           if (_bulkEntries.isNotEmpty) ...[
             const SizedBox(height: 18),
             ..._bulkEntries.asMap().entries.map(
-              (entry) => Padding(
-                padding: const EdgeInsets.only(bottom: 14),
-                child: _buildBulkEntryCard(theme, entry.key, entry.value),
-              ),
-            ),
+                  (entry) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _buildBulkEntryCard(theme, entry.key, entry.value),
+                  ),
+                ),
           ],
         ],
       ),
@@ -765,9 +812,8 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               OutlinedButton.icon(
-                onPressed: _isSubmitting
-                    ? null
-                    : () => _pickBulkThumbnail(entry),
+                onPressed:
+                    _isSubmitting ? null : () => _pickBulkThumbnail(entry),
                 icon: entry.isUploadingThumb
                     ? const SizedBox(
                         height: 14,
@@ -807,7 +853,8 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
           _sectionCard(
             theme,
             title: 'Short Master',
-            subtitle: 'Define the base title, description, and number of parts.',
+            subtitle:
+                'Define the base title, description, and number of parts.',
             child: Column(
               children: [
                 _textField(
@@ -849,13 +896,15 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed:
-                            _isUploadingMasterThumb || _isSubmitting ? null : _pickMasterThumbnail,
+                        onPressed: _isUploadingMasterThumb || _isSubmitting
+                            ? null
+                            : _pickMasterThumbnail,
                         icon: _isUploadingMasterThumb
                             ? const SizedBox(
                                 height: 14,
                                 width: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.add_photo_alternate_outlined),
                         label: const Text('Master Thumbnail'),
@@ -950,8 +999,9 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed:
-                      _isSubmitting || part.isUploadingThumb ? null : () => _pickPartThumbnail(part),
+                  onPressed: _isSubmitting || part.isUploadingThumb
+                      ? null
+                      : () => _pickPartThumbnail(part),
                   icon: part.isUploadingThumb
                       ? const SizedBox(
                           height: 14,
@@ -979,8 +1029,9 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
                     ),
                   ),
                   value: part.isFreePreview,
-                  onChanged:
-                      _isSubmitting ? null : (value) => setState(() => part.isFreePreview = value),
+                  onChanged: _isSubmitting
+                      ? null
+                      : (value) => setState(() => part.isFreePreview = value),
                 ),
               ),
             ],

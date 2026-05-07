@@ -646,7 +646,7 @@ class SeriesProvider extends ChangeNotifier {
       final xhr = html.HttpRequest();
       final formData = html.FormData();
 
-      formData.appendBlob('video', file, file.name);
+      formData.appendBlob('file', file, file.name);
 
       xhr.upload.onProgress.listen((e) {
         if (e.lengthComputable == true &&
@@ -661,19 +661,26 @@ class SeriesProvider extends ChangeNotifier {
       });
 
       xhr.onLoad.listen((_) {
-        if (xhr.status == 200) {
+        if (_isVideoUploadSuccessStatus(xhr.status)) {
           final response = json.decode(xhr.responseText!);
           VideoUploadResponse contentImageUploadResponse =
               VideoUploadResponse.fromJson(response);
-          final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
+          final encryptedUrl =
+              contentImageUploadResponse.data?.videoUrl?.trim();
+          if (encryptedUrl == null || encryptedUrl.isEmpty) {
+            _resetVideoUploadState();
+            return;
+          }
 
           print(encryptedUrl);
 
-          movieUrlController.text = encryptedUrl!;
+          movieUrlController.text = encryptedUrl;
           //  movieFileName = file.name;
           movieUploadProgress = 1.0;
           _isMovieUploading = false;
           notifyListeners();
+        } else {
+          _resetVideoUploadState();
         }
       });
 
@@ -757,7 +764,7 @@ class SeriesProvider extends ChangeNotifier {
 
           // Add the file with progress tracking
           request.files.add(http.MultipartFile(
-            'video',
+            'file',
             progressStream,
             totalBytes,
             filename: pickedFile.name,
@@ -766,14 +773,20 @@ class SeriesProvider extends ChangeNotifier {
           print("Sending request...");
           final response = await request.send();
 
-          if (response.statusCode == 200) {
+          if (_isVideoUploadSuccessStatus(response.statusCode)) {
             final responseBody = await response.stream.bytesToString();
             final responseJson = json.decode(responseBody);
             VideoUploadResponse contentImageUploadResponse =
                 VideoUploadResponse.fromJson(responseJson);
-            final encryptedUrl = contentImageUploadResponse.data!.videoUrl;
+            final encryptedUrl =
+                contentImageUploadResponse.data?.videoUrl?.trim();
+            if (encryptedUrl == null || encryptedUrl.isEmpty) {
+              print("Video upload response did not include a videoUrl");
+              movieUploadProgress = 0.0;
+              return;
+            }
 
-            movieUrlController.text = encryptedUrl!;
+            movieUrlController.text = encryptedUrl;
             movieUploadProgress = 1.0;
 
             print("Video uploaded successfully: $encryptedUrl");
@@ -810,6 +823,17 @@ class SeriesProvider extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  bool _isVideoUploadSuccessStatus(int? statusCode) {
+    return statusCode == 200 || statusCode == 201 || statusCode == 202;
+  }
+
+  void _resetVideoUploadState() {
+    movieUploadProgress = 0.0;
+    _isMovieUploading = false;
+    _isUploading = false;
+    notifyListeners();
   }
 
   bool isSubmitting = false;

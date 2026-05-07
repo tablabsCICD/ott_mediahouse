@@ -17,6 +17,44 @@ import '../../../../core/constant/api_constant.dart';
 import '../../../../core/utils/sharepreferences.dart';
 
 class AddShortMaster {
+  static const List<String> _languages = [
+    'Hindi',
+    'English',
+    'Bengali',
+    'Marathi',
+    'Telugu',
+    'Tamil',
+    'Gujarati',
+    'Urdu',
+    'Kannada',
+    'Odia',
+    'Malayalam',
+    'Punjabi',
+    'Assamese',
+    'Rajasthani',
+    'Bhojpuri',
+    'Sindhi',
+    'Konkani',
+    'Maithili',
+    'Santali',
+    'Manipuri',
+    'Kashmiri',
+    'Dogri',
+    'Tulu',
+    'Mizo',
+    'Bodo',
+  ];
+
+  static const List<String> _rentalDurations = [
+    "One Time",
+    "One Day",
+    "Two Days",
+    "Three Days",
+    "Seven Days",
+    "Two Week",
+    "One Month",
+  ];
+
   static void show(BuildContext rootContext) {
     final theme = Theme.of(rootContext);
     final provider = rootContext.read<ShortProvider>();
@@ -27,15 +65,33 @@ class AddShortMaster {
     final categoryCtrl = TextEditingController();
     final partsCtrl = TextEditingController();
     final coinsCtrl = TextEditingController();
+    final rentalDurationCtrl = TextEditingController();
+    final castNameCtrl = TextEditingController();
+    final castRoleCtrl = TextEditingController();
+    final castDescriptionCtrl = TextEditingController();
+    final crewNameCtrl = TextEditingController();
+    final crewRoleCtrl = TextEditingController();
 
     bool isTrending = false;
     bool isSubmitting = false;
+    bool isCastImageUploading = false;
+    bool isCrewImageUploading = false;
     double uploadProgress = 0;
+    double castUploadProgress = 0;
+    double crewUploadProgress = 0;
 
     io.File? imageFile;
     html.File? webFile;
     Uint8List? previewBytes;
     String? uploadedImageUrl;
+    Uint8List? castPreviewBytes;
+    String? castImageUrl;
+    Uint8List? crewPreviewBytes;
+    String? crewImageUrl;
+
+    final selectedLanguages = <String>[];
+    final castList = <Map<String, String>>[];
+    final crewList = <Map<String, String>>[];
 
     // ---------- GLOBAL SNACK ----------
     void showGlobalSnack(String message) {
@@ -53,13 +109,122 @@ class AddShortMaster {
         );
     }
 
+    bool hasCastDraft() {
+      return castNameCtrl.text.trim().isNotEmpty ||
+          castRoleCtrl.text.trim().isNotEmpty ||
+          castDescriptionCtrl.text.trim().isNotEmpty ||
+          castImageUrl != null;
+    }
+
+    void clearCastDraft(StateSetter setState) {
+      castNameCtrl.clear();
+      castRoleCtrl.clear();
+      castDescriptionCtrl.clear();
+      setState(() {
+        castImageUrl = null;
+        castPreviewBytes = null;
+        castUploadProgress = 0;
+      });
+    }
+
+    void addCast(StateSetter setState) {
+      final name = castNameCtrl.text.trim();
+      final role = castRoleCtrl.text.trim();
+      if (name.isEmpty || role.isEmpty || castImageUrl == null) {
+        showGlobalSnack("Cast name, role and image are required");
+        return;
+      }
+
+      castList.add({
+        "name": name,
+        "role": role,
+        "description": castDescriptionCtrl.text.trim(),
+        "image": castImageUrl!,
+      });
+      clearCastDraft(setState);
+    }
+
+    void addCrew(StateSetter setState) {
+      final crewName = crewNameCtrl.text.trim();
+      final crewRole = crewRoleCtrl.text.trim();
+      if (crewName.isEmpty || crewRole.isEmpty || crewImageUrl == null) {
+        showGlobalSnack("Crew name, role and image are required");
+        return;
+      }
+
+      setState(() {
+        crewList.add({
+          "name": crewName,
+          "role": crewRole,
+          "description": "",
+          "image": crewImageUrl!,
+        });
+        crewNameCtrl.clear();
+        crewRoleCtrl.clear();
+        crewImageUrl = null;
+        crewPreviewBytes = null;
+        crewUploadProgress = 0;
+      });
+    }
+
+    String? uploadedUrlFromBody(String body) {
+      final decoded = jsonDecode(body);
+      if (decoded is! Map<String, dynamic>) return null;
+
+      final data = decoded['data'];
+      if (data is String) return data;
+      if (data is Map<String, dynamic>) {
+        return ContentImageUploadResponse.fromJson(decoded).data?.fileUrl ??
+            data['fileUrl']?.toString();
+      }
+      return null;
+    }
+
+    Future<String?> uploadImageBytes({
+      required Uint8List bytes,
+      required String filename,
+    }) async {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(ApiConstant.uploadContentImg),
+      )..files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            bytes,
+            filename: filename,
+          ),
+        );
+
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      return uploadedUrlFromBody(body);
+    }
+
     // ---------- VALIDATION ----------
     String? validate() {
       if (uploadedImageUrl == null) return "Poster image required";
       if (titleCtrl.text.trim().length < 3) return "Title too short";
       if (descCtrl.text.trim().length < 10) return "Description too short";
+      if (creatorCtrl.text.trim().isEmpty) return "Creator required";
+      if (categoryCtrl.text.trim().isEmpty) return "Category required";
+      if (selectedLanguages.isEmpty) return "Select at least one language";
+      if (rentalDurationCtrl.text.trim().isEmpty) {
+        return "Rental duration required";
+      }
+      if (hasCastDraft()) return "Add or clear the current cast draft";
+      if (crewNameCtrl.text.trim().isNotEmpty ||
+          crewRoleCtrl.text.trim().isNotEmpty ||
+          crewImageUrl != null) {
+        return "Add or clear the current crew draft";
+      }
       if (int.tryParse(partsCtrl.text) == null) return "Invalid parts";
+      if ((int.tryParse(partsCtrl.text) ?? 0) <= 0) {
+        return "Parts must be greater than 0";
+      }
       if (int.tryParse(coinsCtrl.text) == null) return "Invalid price";
+      if ((int.tryParse(coinsCtrl.text) ?? -1) < 0) {
+        return "Price cannot be negative";
+      }
       return null;
     }
 
@@ -80,7 +245,7 @@ class AddShortMaster {
           final request = http.MultipartRequest('POST', uri)
             ..files.add(
               http.MultipartFile.fromBytes(
-                'thumbnail',
+                'file',
                 bytes,
                 filename: webFile!.name,
               ),
@@ -88,8 +253,7 @@ class AddShortMaster {
 
           final response = await request.send();
           final body = await response.stream.bytesToString();
-          final res = ContentImageUploadResponse.fromJson(jsonDecode(body));
-          uploadedImageUrl = res.data?.thumbnailUrl;
+          uploadedImageUrl = uploadedUrlFromBody(body);
         } else if (!kIsWeb && imageFile != null) {
           final total = await imageFile!.length();
           int sent = 0;
@@ -109,7 +273,7 @@ class AddShortMaster {
           final request = http.MultipartRequest('POST', uri)
             ..files.add(
               http.MultipartFile(
-                'thumbnail',
+                'file',
                 stream,
                 total,
                 filename: imageFile!.path.split('/').last,
@@ -118,13 +282,13 @@ class AddShortMaster {
 
           final response = await request.send();
           final body = await response.stream.bytesToString();
-          uploadedImageUrl = jsonDecode(body)['data'];
+          uploadedImageUrl = uploadedUrlFromBody(body);
         }
       } catch (_) {
         showGlobalSnack("Image upload failed");
       }
 
-      setState(() => uploadProgress = 1);
+      setState(() => uploadProgress = uploadedImageUrl == null ? 0 : 1);
     }
 
     // ---------- PICK IMAGE ----------
@@ -134,6 +298,7 @@ class AddShortMaster {
           final input = html.FileUploadInputElement()..accept = 'image/*';
           input.click();
           input.onChange.listen((_) async {
+            if (input.files == null || input.files!.isEmpty) return;
             webFile = input.files!.first;
             await uploadImage(setState);
             setState(() {});
@@ -153,6 +318,541 @@ class AddShortMaster {
       }
     }
 
+    Future<void> pickCastImage(StateSetter setState) async {
+      try {
+        if (kIsWeb) {
+          final input = html.FileUploadInputElement()..accept = 'image/*';
+          input.click();
+          input.onChange.listen((_) async {
+            if (input.files == null || input.files!.isEmpty) return;
+            setState(() {
+              isCastImageUploading = true;
+              castUploadProgress = 0.2;
+            });
+            final file = input.files!.first;
+            final reader = html.FileReader();
+            reader.readAsArrayBuffer(file);
+            await reader.onLoad.first;
+
+            final bytes = Uint8List.fromList(reader.result as List<int>);
+            final url =
+                await uploadImageBytes(bytes: bytes, filename: file.name);
+            setState(() {
+              castPreviewBytes = bytes;
+              castImageUrl = url;
+              castUploadProgress = url == null ? 0 : 1;
+              isCastImageUploading = false;
+            });
+          });
+        } else {
+          setState(() {
+            isCastImageUploading = true;
+            castUploadProgress = 0.2;
+          });
+          final picker = ImagePicker();
+          final file = await picker.pickImage(source: ImageSource.gallery);
+          if (file == null) {
+            setState(() {
+              isCastImageUploading = false;
+              castUploadProgress = 0;
+            });
+            return;
+          }
+
+          final bytes = await file.readAsBytes();
+          final url = await uploadImageBytes(
+            bytes: bytes,
+            filename: file.name,
+          );
+          setState(() {
+            castPreviewBytes = bytes;
+            castImageUrl = url;
+            castUploadProgress = url == null ? 0 : 1;
+            isCastImageUploading = false;
+          });
+        }
+      } catch (_) {
+        setState(() {
+          isCastImageUploading = false;
+          castUploadProgress = 0;
+        });
+        showGlobalSnack("Cast image upload failed");
+      }
+    }
+
+    Future<void> pickCrewImage(StateSetter setState) async {
+      try {
+        if (kIsWeb) {
+          final input = html.FileUploadInputElement()..accept = 'image/*';
+          input.click();
+          input.onChange.listen((_) async {
+            if (input.files == null || input.files!.isEmpty) return;
+            setState(() {
+              isCrewImageUploading = true;
+              crewUploadProgress = 0.2;
+            });
+            final file = input.files!.first;
+            final reader = html.FileReader();
+            reader.readAsArrayBuffer(file);
+            await reader.onLoad.first;
+
+            final bytes = Uint8List.fromList(reader.result as List<int>);
+            final url =
+                await uploadImageBytes(bytes: bytes, filename: file.name);
+            setState(() {
+              crewPreviewBytes = bytes;
+              crewImageUrl = url;
+              crewUploadProgress = url == null ? 0 : 1;
+              isCrewImageUploading = false;
+            });
+          });
+        } else {
+          setState(() {
+            isCrewImageUploading = true;
+            crewUploadProgress = 0.2;
+          });
+          final picker = ImagePicker();
+          final file = await picker.pickImage(source: ImageSource.gallery);
+          if (file == null) {
+            setState(() {
+              isCrewImageUploading = false;
+              crewUploadProgress = 0;
+            });
+            return;
+          }
+
+          final bytes = await file.readAsBytes();
+          final url = await uploadImageBytes(
+            bytes: bytes,
+            filename: file.name,
+          );
+          setState(() {
+            crewPreviewBytes = bytes;
+            crewImageUrl = url;
+            crewUploadProgress = url == null ? 0 : 1;
+            isCrewImageUploading = false;
+          });
+        }
+      } catch (_) {
+        setState(() {
+          isCrewImageUploading = false;
+          crewUploadProgress = 0;
+        });
+        showGlobalSnack("Crew image upload failed");
+      }
+    }
+
+    Widget sectionTitle(String title) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 8),
+          child: Text(
+            title,
+            style: TextStyle(
+              color: theme.primaryColor,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget languageSelector(
+      BuildContext dialogContext,
+      StateSetter setState,
+    ) {
+      Future<void> openLanguageDialog() async {
+        final draft = List<String>.from(selectedLanguages);
+        final result = await showDialog<List<String>>(
+          context: dialogContext,
+          builder: (context) {
+            return StatefulBuilder(
+              builder: (context, dialogSetState) {
+                return AlertDialog(
+                  backgroundColor: theme.cardColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: Text(
+                    "Select Languages",
+                    style: TextStyle(
+                      color: theme.primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: _languages.map((language) {
+                        final isSelected = draft.contains(language);
+                        return CheckboxListTile(
+                          value: isSelected,
+                          title: Text(
+                            language,
+                            style: TextStyle(color: theme.canvasColor),
+                          ),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          activeColor: theme.primaryColor,
+                          checkColor: Colors.white,
+                          onChanged: (checked) {
+                            dialogSetState(() {
+                              if (checked == true) {
+                                draft.add(language);
+                              } else {
+                                draft.remove(language);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        "Cancel",
+                        style: TextStyle(color: theme.canvasColor),
+                      ),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.primaryColor,
+                      ),
+                      onPressed: () => Navigator.pop(context, draft),
+                      child: const Text(
+                        "Submit",
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+
+        if (result == null) return;
+        setState(() {
+          selectedLanguages
+            ..clear()
+            ..addAll(result);
+        });
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          sectionTitle("Languages"),
+          InkWell(
+            onTap: isSubmitting ? null : openLanguageDialog,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: theme.inputDecorationTheme.fillColor ??
+                    theme.cardColor.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.dividerColor.withValues(alpha: 0.6),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      selectedLanguages.isEmpty
+                          ? "Select Languages"
+                          : selectedLanguages.join(", "),
+                      style: TextStyle(
+                        color: selectedLanguages.isEmpty
+                            ? theme.hintColor
+                            : theme.canvasColor,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(Icons.keyboard_arrow_down, color: theme.primaryColor),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    Widget rentalDurationDropdown(StateSetter setState) {
+      final selectedValue =
+          _rentalDurations.contains(rentalDurationCtrl.text.trim())
+              ? rentalDurationCtrl.text.trim()
+              : null;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          sectionTitle("Rental Duration"),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor),
+            ),
+            child: DropdownButtonFormField<String>(
+              value: selectedValue,
+              hint: Text(
+                "Select Rental Duration",
+                style: TextStyle(color: theme.hintColor, fontSize: 14),
+              ),
+              items: _rentalDurations
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item,
+                      child: Text(
+                        item,
+                        style: TextStyle(
+                          color: theme.canvasColor,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: isSubmitting
+                  ? null
+                  : (value) {
+                      if (value == null) return;
+                      setState(() => rentalDurationCtrl.text = value);
+                    },
+              decoration: InputDecoration(
+                filled: true,
+                fillColor:
+                    theme.inputDecorationTheme.fillColor ?? theme.cardColor,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              dropdownColor: theme.cardColor,
+              icon: Icon(
+                Icons.keyboard_arrow_down,
+                color: theme.primaryColor,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    Widget castSection(StateSetter setState) {
+      return Column(
+        children: [
+          sectionTitle("Cast"),
+          CustomTextField(
+            controller: castNameCtrl,
+            hintText: "Cast Name",
+            textInputType: TextInputType.text,
+            isValidator: false,
+          ),
+          CustomTextField(
+            controller: castRoleCtrl,
+            hintText: "Cast Role",
+            textInputType: TextInputType.text,
+            isValidator: false,
+          ),
+          CustomTextField(
+            controller: castDescriptionCtrl,
+            hintText: "Cast Description",
+            maxLine: 2,
+            textInputType: TextInputType.text,
+            isValidator: false,
+          ),
+          GestureDetector(
+            onTap: isSubmitting || isCastImageUploading
+                ? null
+                : () => pickCastImage(setState),
+            child: Container(
+              height: 92,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor),
+                image: castPreviewBytes != null
+                    ? DecorationImage(
+                        image: MemoryImage(castPreviewBytes!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: castPreviewBytes == null
+                  ? Center(
+                      child: Text(
+                        isCastImageUploading
+                            ? "Uploading Cast Image..."
+                            : "Upload Cast Image",
+                        style: TextStyle(color: theme.canvasColor),
+                      ),
+                    )
+                  : null,
+            ),
+          ),
+          if (castUploadProgress > 0 && castUploadProgress < 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: LinearProgressIndicator(
+                value: castUploadProgress,
+                color: theme.primaryColor,
+              ),
+            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: isSubmitting ? null : () => addCast(setState),
+                  icon: const Icon(Icons.add),
+                  label: const Text("Add Cast"),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed:
+                      isSubmitting ? null : () => clearCastDraft(setState),
+                  icon: const Icon(Icons.clear),
+                  label: const Text("Clear"),
+                ),
+              ),
+            ],
+          ),
+          if (castList.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...List.generate(castList.length, (index) {
+              final cast = castList[index];
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  "${cast["name"] ?? ""} (${cast["role"] ?? ""})",
+                  style: TextStyle(color: theme.canvasColor),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => setState(() => castList.removeAt(index)),
+                ),
+              );
+            }),
+          ],
+        ],
+      );
+    }
+
+    Widget crewSection(StateSetter setState) {
+      return Column(
+        children: [
+          sectionTitle("Crew"),
+          CustomTextField(
+            controller: crewNameCtrl,
+            hintText: "Crew Name",
+            textInputType: TextInputType.text,
+            isValidator: false,
+          ),
+          CustomTextField(
+            controller: crewRoleCtrl,
+            hintText: "Crew Role",
+            textInputType: TextInputType.text,
+            isValidator: false,
+          ),
+          GestureDetector(
+            onTap: isSubmitting || isCrewImageUploading
+                ? null
+                : () => pickCrewImage(setState),
+            child: Container(
+              height: 92,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: theme.dividerColor),
+                image: crewPreviewBytes != null
+                    ? DecorationImage(
+                        image: MemoryImage(crewPreviewBytes!),
+                        fit: BoxFit.cover,
+                      )
+                    : null,
+              ),
+              child: crewPreviewBytes == null
+                  ? Center(
+                      child: Text(
+                        isCrewImageUploading
+                            ? "Uploading Crew Image..."
+                            : "Upload Crew Image",
+                        style: TextStyle(color: theme.canvasColor),
+                      ),
+                    )
+                  : null,
+            ),
+          ),
+          if (crewUploadProgress > 0 && crewUploadProgress < 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: LinearProgressIndicator(
+                value: crewUploadProgress,
+                color: theme.primaryColor,
+              ),
+            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: isSubmitting ? null : () => addCrew(setState),
+                  icon: const Icon(Icons.add),
+                  label: const Text("Add Crew"),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: isSubmitting
+                      ? null
+                      : () => setState(() {
+                            crewNameCtrl.clear();
+                            crewRoleCtrl.clear();
+                            crewImageUrl = null;
+                            crewPreviewBytes = null;
+                            crewUploadProgress = 0;
+                          }),
+                  icon: const Icon(Icons.clear),
+                  label: const Text("Clear"),
+                ),
+              ),
+            ],
+          ),
+          if (crewList.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...List.generate(crewList.length, (index) {
+              final crew = crewList[index];
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  "${crew["name"] ?? ""} (${crew["role"] ?? ""})",
+                  style: TextStyle(color: theme.canvasColor),
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: isSubmitting
+                      ? null
+                      : () => setState(() => crewList.removeAt(index)),
+                ),
+              );
+            }),
+          ],
+        ],
+      );
+    }
+
     // ---------- UI ----------
     final screenWidth = MediaQuery.of(rootContext).size.width;
 
@@ -166,7 +866,7 @@ class AddShortMaster {
           child: StatefulBuilder(
             builder: (dialogContext, setState) {
               return Container(
-                width: screenWidth > 600 ? 420 : screenWidth * 0.9,
+                width: screenWidth > 720 ? 620 : screenWidth * 0.9,
                 decoration: BoxDecoration(
                   color: theme.cardColor,
                   borderRadius: BorderRadius.circular(20),
@@ -230,6 +930,8 @@ class AddShortMaster {
 
                       const SizedBox(height: 15),
 
+                      languageSelector(dialogContext, setState),
+
                       CustomTextField(
                           controller: titleCtrl,
                           hintText: "Title",
@@ -247,6 +949,7 @@ class AddShortMaster {
                           controller: categoryCtrl,
                           hintText: "Category",
                           textInputType: TextInputType.text),
+                      rentalDurationDropdown(setState),
 
                       Row(
                         children: [
@@ -254,13 +957,13 @@ class AddShortMaster {
                               child: CustomTextField(
                                   controller: partsCtrl,
                                   hintText: "Parts",
-                                  textInputType: TextInputType.text)),
+                                  textInputType: TextInputType.number)),
                           const SizedBox(width: 10),
                           Expanded(
                               child: CustomTextField(
                                   controller: coinsCtrl,
                                   hintText: "Price",
-                                  textInputType: TextInputType.text)),
+                                  textInputType: TextInputType.number)),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -281,6 +984,9 @@ class AddShortMaster {
                           ),
                         ],
                       ),
+
+                      castSection(setState),
+                      crewSection(setState),
 
                       const SizedBox(height: 20),
 
@@ -313,38 +1019,83 @@ class AddShortMaster {
                                   return;
                                 }
 
+                                final nowIso =
+                                    DateTime.now().toUtc().toIso8601String();
                                 final body = {
-                                  "title": titleCtrl.text.trim(),
-                                  "description": descCtrl.text.trim(),
-                                  "creatorName": creatorCtrl.text.trim(),
+                                  "approvalStatus": "PENDING",
+                                  "approvedDateTime": nowIso,
                                   "category": categoryCtrl.text.trim(),
-                                  "totalParts": int.parse(partsCtrl.text),
                                   "coinsPerPart": int.parse(coinsCtrl.text),
+                                  "creatorName": creatorCtrl.text.trim(),
+                                  "crewList": crewList
+                                      .map((crew) => crew["name"] ?? "")
+                                      .where((name) => name.trim().isNotEmpty)
+                                      .toList(),
+                                  "description": descCtrl.text.trim(),
                                   "isTrending": isTrending,
+                                  "languageList": selectedLanguages
+                                      .map(
+                                        (language) => {
+                                          "fileUrl": "",
+                                          "language": language,
+                                        },
+                                      )
+                                      .toList(),
+                                  "likeCount": 0,
                                   "mediaHouseId": mediaHouse.id,
                                   "posterUrl": uploadedImageUrl,
-                                  "likeCount": 0,
+                                  "rentlDuration":
+                                      rentalDurationCtrl.text.trim(),
+                                  "title": titleCtrl.text.trim(),
+                                  "totalParts": int.parse(partsCtrl.text),
+                                  "uploadDateTime": nowIso,
                                   "viewCount": 0,
                                 };
 
-                                final success =
-                                    await provider.addShortMaster(body);
+                                final createdShort =
+                                    await provider.createShortMaster(body);
 
+                                if (!dialogContext.mounted) return;
+
+                                if (createdShort == null) {
+                                  setState(() => isSubmitting = false);
+                                  showGlobalSnack(
+                                    "Failed to add short. Check console response.",
+                                  );
+                                  return;
+                                }
+
+                                final shortId = createdShort.id;
+                                if (shortId == null || shortId <= 0) {
+                                  setState(() => isSubmitting = false);
+                                  showGlobalSnack(
+                                    "Short saved but short ID not received for cast and crew save.",
+                                  );
+                                  return;
+                                }
+
+                                final members = [
+                                  ...castList,
+                                  ...crewList,
+                                ];
+                                final castCrewSaved =
+                                    await provider.saveShortCastCrewMembers(
+                                  shortId: shortId,
+                                  members: members,
+                                );
+
+                                if (!dialogContext.mounted) return;
                                 setState(() => isSubmitting = false);
 
-                                if (success) {
-                                  if (Navigator.of(rootContext,
-                                          rootNavigator: true)
-                                      .canPop()) {
-                                    Navigator.of(rootContext,
-                                            rootNavigator: true)
-                                        .pop();
-                                  }
-
-                                  Future.microtask(() {
-                                    showGlobalSnack("Short added successfully");
-                                  });
+                                if (!castCrewSaved) {
+                                  showGlobalSnack(
+                                    "Short saved, but cast and crew save failed.",
+                                  );
+                                  return;
                                 }
+
+                                Navigator.of(dialogContext).pop(true);
+                                showGlobalSnack("Short added successfully");
                               },
                         child: isSubmitting
                             ? const SizedBox(

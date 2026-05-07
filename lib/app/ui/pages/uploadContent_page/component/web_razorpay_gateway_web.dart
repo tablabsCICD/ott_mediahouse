@@ -42,6 +42,11 @@ class WebRazorpayGatewayImpl {
         if (isSupported) {
           completer.complete();
         } else {
+          if (script.dataset['loaded'] == 'true') {
+            script.remove();
+            _scriptLoadFuture = null;
+            return _ensureCheckoutScriptLoaded();
+          }
           script.onLoad.first.then((_) => completer.complete());
           script.onError.first.then((_) {
             completer.completeError(
@@ -56,7 +61,10 @@ class WebRazorpayGatewayImpl {
         ..type = 'text/javascript'
         ..async = true;
 
-      script.onLoad.first.then((_) => completer.complete());
+      script.onLoad.first.then((_) {
+        script.dataset['loaded'] = 'true';
+        completer.complete();
+      });
       script.onError.first.then((_) {
         completer.completeError(
             "Failed to load Razorpay checkout script from $_checkoutScriptSrc");
@@ -78,6 +86,7 @@ class WebRazorpayGatewayImpl {
     required String prefillContact,
     required String prefillEmail,
     required String prefillName,
+    String? logoUrl,
     required void Function(String paymentId) onSuccess,
     required void Function(String message) onError,
     void Function(String walletName)? onExternalWallet,
@@ -97,6 +106,8 @@ class WebRazorpayGatewayImpl {
         'amount': amountInPaise,
         'name': merchantName,
         'description': description,
+        if (logoUrl != null && logoUrl.trim().isNotEmpty)
+          'image': logoUrl.trim(),
         'prefill': {
           'contact': prefillContact,
           'email': prefillEmail,
@@ -141,7 +152,7 @@ class WebRazorpayGatewayImpl {
             'payment.external_wallet',
             js_util.allowInterop((dynamic response) {
               final walletName =
-                  (js_util.getProperty(response, 'external_wallet') as dynamic?)
+                  (js_util.getProperty(response, 'external_wallet') as dynamic)
                       ?.toString()
                       .trim();
               onExternalWallet(walletName?.isNotEmpty == true

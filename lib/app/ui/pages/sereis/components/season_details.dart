@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../../../domain/entities/cast_crew_model.dart';
 import '../../../../provider/series_provider.dart';
 import '../../../../provider/themeProvider.dart';
+import '../../../../widget/show_toast.dart';
 import '../../movie details page/component/actionButtonWidget.dart';
 import 'create_episode.dart';
 import 'edit_episode_dialog.dart';
@@ -213,9 +214,8 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: _isSeasonDeactivated
-                      ? null
-                      : () => _editSeason(context),
+                  onPressed:
+                      _isSeasonDeactivated ? null : () => _editSeason(context),
                   icon: const Icon(Icons.edit_outlined, size: 18),
                   label: const Text("Edit Season"),
                   style: FilledButton.styleFrom(
@@ -269,7 +269,7 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
           label: "Add Episode",
           icon: Icons.add_circle,
           onTap: () {
-            if (_isSeasonPublished) {
+            /*  if (_isSeasonPublished) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
@@ -288,7 +288,7 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
                 ),
               );
               return;
-            }
+            } */
             _addEpisode(context);
           },
         ),
@@ -422,8 +422,9 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
                   IconButton(
                     tooltip: "Edit Episode",
                     icon: Icon(Icons.edit_outlined, color: theme.primaryColor),
-                    onPressed:
-                        _isSeasonPublished ? null : () => _editEpisode(context, ep),
+                    onPressed: _isSeasonPublished
+                        ? null
+                        : () => _editEpisode(context, ep),
                   ),
                   // IconButton(
                   //   tooltip: "Delete Episode",
@@ -708,12 +709,9 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
     }
 
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? "Season updated successfully" : "Failed to update season",
-        ),
-      ),
+    CustomToast.show(
+      success ? "Season updated successfully" : "Failed to update season",
+      isSuccess: success,
     );
   }
 
@@ -774,20 +772,41 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
     );
   }
 
-  void _addEpisode(BuildContext context) {
-    showDialog(
+  Future<void> _addEpisode(BuildContext context) async {
+    await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => AddEpisodeDialog(
         seriesId: widget.seriesId,
         seasonId: widget.seasonBundle.season.id!,
         seasonPrice: widget.seasonBundle.season.amount ?? 0,
-        onSuccess: () {
-          Provider.of<SeriesProvider>(context, listen: false)
-              .loadSeries(widget.seriesId);
-        },
+        onSuccess: _reloadSeasonEpisodes,
       ),
     );
+  }
+
+  Future<void> _reloadSeasonEpisodes() async {
+    if (!mounted) return;
+
+    final provider = Provider.of<SeriesProvider>(context, listen: false);
+    await provider.loadSeries(widget.seriesId);
+
+    if (!mounted) return;
+
+    final seasonId = widget.seasonBundle.season.id;
+    SeasonBundle? refreshedSeason;
+    for (final season in provider.data?.seasons ?? <SeasonBundle>[]) {
+      if (season.season.id == seasonId) {
+        refreshedSeason = season;
+        break;
+      }
+    }
+
+    if (refreshedSeason == null) return;
+
+    setState(() {
+      _episodes = List<Episode>.from(refreshedSeason!.episodes);
+    });
   }
 
   void _deleteEpisode(BuildContext context, int episodeId) async {
@@ -1026,8 +1045,9 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
 
     if (!mounted) return;
     setState(() {
-      _castCrewMembers =
-          members.where((e) => e.name.trim().isNotEmpty).toList(growable: false);
+      _castCrewMembers = members
+          .where((e) => e.name.trim().isNotEmpty)
+          .toList(growable: false);
       _isCastCrewLoading = false;
     });
   }

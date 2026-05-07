@@ -7,6 +7,7 @@ import 'package:media_house/app/provider/user_provider.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/components/settlementCards.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/components/buildSummaryCard.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/components/contentUploadCrad.dart';
+import 'package:media_house/app/ui/pages/profile%20page/ProfilePage.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/select_upload_type.dart';
 import 'package:media_house/app/widget/CustomLineGraph.dart';
 import 'package:media_house/app/widget/TopMoviesLineGraph.dart';
@@ -70,6 +71,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     children: [
                       ListTile(
                         //tileColor: selectedThemeData.cardColor,
+                        onTap: () {
+                          ProfilePage();
+                        },
                         leading: Stack(
                           alignment: AlignmentGeometry.center,
                           children: [

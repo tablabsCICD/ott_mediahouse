@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:ui' as html hide window;
@@ -17,7 +18,7 @@ class AddEpisodeDialog extends StatefulWidget {
   final int seriesId;
   final int seasonId;
   final int seasonPrice;
-  final VoidCallback onSuccess;
+  final FutureOr<void> Function() onSuccess;
 
   const AddEpisodeDialog({
     super.key,
@@ -67,8 +68,7 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
       final uri = Uri.parse(ApiConstant.uploadContentImg);
       uploadProgress = 0;
 
-      http.MultipartRequest request =
-      http.MultipartRequest('POST', uri);
+      http.MultipartRequest request = http.MultipartRequest('POST', uri);
 
       Uint8List bytes;
 
@@ -87,7 +87,7 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
 
       request.files.add(
         http.MultipartFile.fromBytes(
-          'thumbnail',
+          'file',
           bytes,
           filename: 'thumb.jpg',
         ),
@@ -101,7 +101,7 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
       final decoded = jsonDecode(responseBody);
       final res = ContentImageUploadResponse.fromJson(decoded);
 
-      uploadedImageUrl = res.data?.thumbnailUrl;
+      uploadedImageUrl = res.data?.fileUrl;
 
       if (uploadedImageUrl == null || uploadedImageUrl!.isEmpty) {
         throw Exception("Thumbnail URL missing");
@@ -191,10 +191,10 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
           onPressed: () => _submit(provider),
           child: isLoading
               ? const SizedBox(
-            height: 18,
-            width: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          )
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text("Add"),
         ),
       ],
@@ -234,18 +234,21 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
       "runtime": 0
     };
 
+    print(body);
     final success = await provider.createEpisodeApi(
       body,
       widget.seasonId,
     );
+
+    print(success);
 
     if (!mounted) return;
 
     setState(() => isLoading = false);
 
     if (success) {
-      widget.onSuccess();
       Navigator.pop(context, true);
+      await widget.onSuccess();
     } else {
       showGlobalSnack("Failed to save episode");
     }
@@ -256,9 +259,8 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
   // ===============================================================
 
   Widget _videoUploadCard(SeriesProvider provider) {
-    final isUploaded =
-        provider.movieUrlController.text.isNotEmpty &&
-            !provider.isMovieUploading;
+    final isUploaded = provider.movieUrlController.text.isNotEmpty &&
+        !provider.isMovieUploading;
 
     return _uploadCard(
       title: "Episode File",
@@ -331,13 +333,11 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
               style: const TextStyle(
                   color: Colors.white, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
-
           if (preview != null)
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: Image.memory(preview, height: 120),
             ),
-
           if (uploadedFileName != null) ...[
             const SizedBox(height: 12),
             Row(
@@ -377,11 +377,11 @@ class _AddEpisodeDialogState extends State<AddEpisodeDialog> {
   }
 
   Widget _field(
-      TextEditingController ctrl,
-      String label, {
-        int maxLines = 1,
-        TextInputType keyboard = TextInputType.text,
-      }) {
+    TextEditingController ctrl,
+    String label, {
+    int maxLines = 1,
+    TextInputType keyboard = TextInputType.text,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(

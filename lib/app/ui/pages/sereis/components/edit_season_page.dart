@@ -456,7 +456,7 @@ class _EditSeasonDialogState extends State<EditSeasonDialog> {
 
         request.files.add(
           http.MultipartFile.fromBytes(
-            'thumbnail',
+            'file',
             bytes,
             filename: webFile!.name,
           ),
@@ -467,7 +467,7 @@ class _EditSeasonDialogState extends State<EditSeasonDialog> {
 
         request.files.add(
           http.MultipartFile.fromBytes(
-            'thumbnail',
+            'file',
             bytes,
             filename: imageFile!.path.split('/').last,
           ),
@@ -484,7 +484,7 @@ class _EditSeasonDialogState extends State<EditSeasonDialog> {
       final decoded = jsonDecode(responseBody);
       final res = ContentImageUploadResponse.fromJson(decoded);
 
-      uploadedImageUrl = res.data?.thumbnailUrl;
+      uploadedImageUrl = res.data?.fileUrl;
 
       if (uploadedImageUrl == null || uploadedImageUrl!.isEmpty) {
         throw Exception("Thumbnail URL not received");

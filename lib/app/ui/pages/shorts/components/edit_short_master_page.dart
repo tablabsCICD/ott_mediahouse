@@ -100,6 +100,10 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
   Widget build(BuildContext context) {
     final provider = context.watch<ShortProvider>();
     final theme = Theme.of(context);
+    final languages = (widget.shortDetailModel.languageList ?? [])
+        .map((lang) => lang.language?.trim() ?? '')
+        .where((lang) => lang.isNotEmpty)
+        .join(', ');
 
     return Material(
       color: Colors.transparent,
@@ -120,10 +124,32 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
                 child: Column(
                   children: [
                     _darkField("Title", titleCtrl),
+                    _darkField("Total Parts", totalPartsCtrl),
                     _darkField("Category", categoryCtrl),
                     _darkField("Creator Name", creatorNameCtrl),
                     _darkField("Price per Part", coinsPerPartCtrl),
                     _darkField("Description", descriptionCtrl),
+                    _readOnlyInfoField(
+                      "Total Views",
+                      (widget.shortDetailModel.viewCount ?? 0).toString(),
+                    ),
+                    _readOnlyInfoField(
+                      "Total Likes",
+                      (widget.shortDetailModel.likeCount ?? 0).toString(),
+                    ),
+                    _readOnlyInfoField(
+                      "Rental Duration",
+                      widget.shortDetailModel.rentlDuration
+                                  ?.trim()
+                                  .isNotEmpty ==
+                              true
+                          ? widget.shortDetailModel.rentlDuration!
+                          : "N/A",
+                    ),
+                    _readOnlyInfoField(
+                      "Languages",
+                      languages.isNotEmpty ? languages : "N/A",
+                    ),
                     _thumbnailCard(),
                     SwitchListTile(
                       value: isTrending,
@@ -196,6 +222,34 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _readOnlyInfoField(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF141414),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
         ),
       ),
     );
@@ -404,6 +458,12 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
       "posterUrl": uploadedImageUrl,
       "likeCount": widget.shortDetailModel.likeCount ?? 0,
       "viewCount": widget.shortDetailModel.viewCount ?? 0,
+      "rentlDuration": widget.shortDetailModel.rentlDuration,
+      "languageList": widget.shortDetailModel.languageList == null
+          ? []
+          : List<dynamic>.from(
+              widget.shortDetailModel.languageList!.map((x) => x.toJson()),
+            ),
       "mediaHouseId": mediaHouse!.id!,
     };
 
@@ -446,7 +506,7 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
 
         request.files.add(
           http.MultipartFile.fromBytes(
-            'thumbnail',
+            'file',
             bytes,
             filename: webFile!.name,
           ),
@@ -457,7 +517,7 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
 
         request.files.add(
           http.MultipartFile.fromBytes(
-            'thumbnail',
+            'file',
             bytes,
             filename: imageFile!.path.split('/').last,
           ),
@@ -474,7 +534,7 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
       final decoded = jsonDecode(responseBody);
       final res = ContentImageUploadResponse.fromJson(decoded);
 
-      uploadedImageUrl = res.data?.thumbnailUrl;
+      uploadedImageUrl = res.data?.fileUrl;
 
       if (uploadedImageUrl == null || uploadedImageUrl!.isEmpty) {
         throw Exception("Thumbnail URL not received");
