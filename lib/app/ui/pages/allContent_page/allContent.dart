@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:media_house/app/provider/shorts_provider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/provider/videoProvider.dart';
+import 'package:media_house/app/ui/pages/shorts/components/short_master_page.dart';
 import 'package:media_house/app/widget/agreementMovieCard.dart';
 import 'package:media_house/app/widget/movieCardHorizontal.dart';
+import 'package:media_house/data/models/shorts.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:provider/provider.dart';
 
@@ -27,6 +30,9 @@ class _AllContentPageState extends State<AllContentPage> {
   String? _errorMessage;
   DateTime? _startDate;
   DateTime? _endDate;
+  static const String _miniSeriesType = "MINI_SERIES";
+
+  bool get _isMiniSeriesSelected => _selectedType == _miniSeriesType;
 
   static const List<Map<String, String>> _statusOptions = [
     {"label": "All Uploaded", "value": "ALL"},
@@ -68,26 +74,40 @@ class _AllContentPageState extends State<AllContentPage> {
     }
 
     try {
-      final localPrefs = LocalSharePreferences();
-      final mediaHouse = await localPrefs.getMediaHouse();
-      if (mediaHouse?.id == null) {
-        setState(() {
-          _errorMessage = "Production house not found. Please login again.";
-        });
-        return;
-      }
-      if (!mounted) return;
+      if (_isMiniSeriesSelected) {
+        final shortProvider = context.read<ShortProvider>();
+        if (_startDate != null && _endDate != null) {
+          await shortProvider.fetchShortsByDateRange(
+            startDate: _startDate!,
+            endDate: _endDate!,
+            page: 0,
+            size: 30,
+          );
+        } else {
+          await shortProvider.fetchShorts(page: 0, size: 30);
+        }
+      } else {
+        final localPrefs = LocalSharePreferences();
+        final mediaHouse = await localPrefs.getMediaHouse();
+        if (mediaHouse?.id == null) {
+          setState(() {
+            _errorMessage = "Production house not found. Please login again.";
+          });
+          return;
+        }
+        if (!mounted) return;
 
-      final provider = context.read<VideoProvider>();
-      provider.setItemsPerPage(10);
-      provider.resetPagination();
-      await provider.fetchMoviesByStatusAndMediaHouseId(
-        _selectedStatus,
-        mediaHouse!.id!,
-        type: _selectedType,
-        startDate: _startDate == null ? null : _formatDate(_startDate!),
-        endDate: _endDate == null ? null : _formatDate(_endDate!),
-      );
+        final provider = context.read<VideoProvider>();
+        provider.setItemsPerPage(10);
+        provider.resetPagination();
+        await provider.fetchMoviesByStatusAndMediaHouseId(
+          _selectedStatus,
+          mediaHouse!.id!,
+          type: _selectedType,
+          startDate: _startDate == null ? null : _formatDate(_startDate!),
+          endDate: _endDate == null ? null : _formatDate(_endDate!),
+        );
+      }
     } catch (_) {
       setState(() {
         _errorMessage = "Failed to load content. Please try again.";
@@ -103,6 +123,7 @@ class _AllContentPageState extends State<AllContentPage> {
 
   void _onScroll() {
     final provider = context.read<VideoProvider>();
+    if (_isMiniSeriesSelected) return;
     if (provider.isStatusLoadingMore || !provider.hasMoreStatusItems) return;
 
     if (_scrollController.position.pixels >=
@@ -121,6 +142,25 @@ class _AllContentPageState extends State<AllContentPage> {
           type.contains(_searchQuery) ||
           ageRating.contains(_searchQuery);
     }).toList();
+  }
+
+  List<ShortModel> _applyMiniSeriesFilters(List<ShortModel> items) {
+    Iterable<ShortModel> result = items;
+    if (_selectedStatus != "ALL") {
+      result = result.where((short) =>
+          (short.approvalStatus ?? '').toUpperCase() == _selectedStatus);
+    }
+    if (_searchQuery.isNotEmpty) {
+      result = result.where((short) {
+        final title = (short.title ?? '').toLowerCase();
+        final creator = (short.creatorName ?? '').toLowerCase();
+        final category = (short.category ?? '').toLowerCase();
+        return title.contains(_searchQuery) ||
+            creator.contains(_searchQuery) ||
+            category.contains(_searchQuery);
+      });
+    }
+    return result.toList();
   }
 
   String _formatDate(DateTime date) {
@@ -166,30 +206,43 @@ class _AllContentPageState extends State<AllContentPage> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Consumer<VideoProvider>(
-          builder: (context, provider, _) {
+        child: Consumer2<VideoProvider, ShortProvider>(
+          builder: (context, provider, shortProvider, _) {
             final filtered = _applyLocalSearch(provider.filteredContentList);
+            final miniSeries =
+                _applyMiniSeriesFilters(shortProvider.shorts);
+            final visibleCount =
+                _isMiniSeriesSelected ? miniSeries.length : filtered.length;
+            final isLoading = _isInitialLoading ||
+                (_isMiniSeriesSelected && shortProvider.isLoading);
+            final errorMessage =
+                _isMiniSeriesSelected ? shortProvider.shortsError : _errorMessage;
             return Column(
               children: [
-                _buildHeader(theme, filtered.length, isMobile),
+                _buildHeader(theme, visibleCount, isMobile),
                 Expanded(
-                  child: _isInitialLoading
+                  child: isLoading
                       ? Center(
                           child: CircularProgressIndicator(
                               color: theme.primaryColor),
                         )
-                      : _errorMessage != null
-                          ? _buildErrorState(theme)
-                          : filtered.isEmpty
+                      : errorMessage != null
+                          ? _buildErrorState(theme, errorMessage)
+                          : visibleCount == 0
                               ? _buildEmptyState(theme)
                               : RefreshIndicator(
                                   onRefresh: () =>
                                       _fetchContent(showLoader: false),
-                                  child: _buildContentGrid(
-                                    theme: theme,
-                                    items: filtered,
-                                    provider: provider,
-                                  ),
+                                  child: _isMiniSeriesSelected
+                                      ? _buildMiniSeriesGrid(
+                                          theme: theme,
+                                          items: miniSeries,
+                                        )
+                                      : _buildContentGrid(
+                                          theme: theme,
+                                          items: filtered,
+                                          provider: provider,
+                                        ),
                                 ),
                 ),
               ],
@@ -304,6 +357,7 @@ class _AllContentPageState extends State<AllContentPage> {
                   children: [
                     _buildTypeChip(theme, "MOVIE", "Movies"),
                     _buildTypeChip(theme, "SERIES", "Series"),
+                    _buildTypeChip(theme, _miniSeriesType, "Mini Series"),
                   ],
                 ),
               ],
@@ -314,6 +368,8 @@ class _AllContentPageState extends State<AllContentPage> {
                 _buildTypeChip(theme, "MOVIE", "Movies"),
                 const SizedBox(width: 8),
                 _buildTypeChip(theme, "SERIES", "Series"),
+                const SizedBox(width: 8),
+                _buildTypeChip(theme, _miniSeriesType, "Mini Series"),
                 const Spacer(),
                 _buildDateButton(
                     theme,
@@ -467,7 +523,203 @@ class _AllContentPageState extends State<AllContentPage> {
     );
   }
 
-  Widget _buildErrorState(ThemeData theme) {
+  Widget _buildMiniSeriesGrid({
+    required ThemeData theme,
+    required List<ShortModel> items,
+  }) {
+    final width = MediaQuery.of(context).size.width;
+    final crossAxisCount = width > 1500
+        ? 5
+        : width > 1180
+            ? 4
+            : width > 820
+                ? 3
+                : width > 560
+                    ? 2
+                    : 1;
+
+    return GridView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 24),
+      itemCount: items.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 0.72,
+      ),
+      itemBuilder: (context, index) {
+        return _buildMiniSeriesCard(theme, items[index]);
+      },
+    );
+  }
+
+  Widget _buildMiniSeriesCard(ThemeData theme, ShortModel short) {
+    final status = (short.approvalStatus ?? 'PENDING').toUpperCase();
+    final statusColor = status == 'APPROVED'
+        ? const Color(0xFF22C55E)
+        : status == 'REJECTED'
+            ? const Color(0xFFEF4444)
+            : const Color(0xFFF59E0B);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: () async {
+        final id = short.id;
+        if (id == null) return;
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => ShortMasterPage(shortId: id)),
+        );
+        if (mounted) {
+          await _fetchContent(showLoader: false);
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: theme.dividerColor.withValues(alpha: 0.45)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.network(
+                short.posterUrl ?? '',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  color: theme.scaffoldBackgroundColor,
+                  child: Icon(
+                    Icons.smart_display_outlined,
+                    color: theme.primaryColor,
+                    size: 42,
+                  ),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withValues(alpha: 0.08),
+                      Colors.black.withValues(alpha: 0.78),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 10,
+              left: 10,
+              child: _miniBadge(
+                label: 'MINI SERIES',
+                color: theme.primaryColor,
+              ),
+            ),
+            if (short.isTrending == true)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: _miniBadge(
+                  label: 'TRENDING',
+                  color: const Color(0xFFF59E0B),
+                ),
+              ),
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    short.title ?? 'Untitled Mini Series',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    short.creatorName?.trim().isNotEmpty == true
+                        ? 'Creator: ${short.creatorName}'
+                        : 'Creator: N/A',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _miniInfoPill(Icons.play_arrow_rounded,
+                          '${short.totalParts ?? 0} Parts'),
+                      _miniInfoPill(Icons.monetization_on_outlined,
+                          '${short.coinsPerPart ?? 0} Coins'),
+                      _miniBadge(label: status, color: statusColor),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _miniBadge({required String label, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _miniInfoPill(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white70, size: 13),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(ThemeData theme, [String? message]) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -477,7 +729,7 @@ class _AllContentPageState extends State<AllContentPage> {
             Icon(Icons.error_outline, color: theme.primaryColor, size: 36),
             const SizedBox(height: 8),
             Text(
-              _errorMessage ?? "Something went wrong",
+              message ?? _errorMessage ?? "Something went wrong",
               textAlign: TextAlign.center,
               style: TextStyle(color: theme.canvasColor),
             ),

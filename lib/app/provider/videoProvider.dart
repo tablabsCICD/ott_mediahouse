@@ -561,7 +561,7 @@ class VideoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool _isDownloadable = false;
+  bool _isDownloadable = true;
   bool get isDownloadable => _isDownloadable;
 
   void toggleDownloadable(bool value) {

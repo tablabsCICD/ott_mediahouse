@@ -499,7 +499,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                 child: DropdownButtonFormField<String>(
                   value: _reportContentType,
                   dropdownColor: theme.cardColor,
-                  style: const TextStyle(color: Colors.black),
+                  style: TextStyle(color: theme.canvasColor),
                   decoration: InputDecoration(
                     labelText: "Content Type",
                     labelStyle: TextStyle(
@@ -518,7 +518,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                           value: type,
                           child: Text(
                             type,
-                            style: const TextStyle(color: Colors.black),
+                            style: TextStyle(color: theme.canvasColor),
                           ),
                         ),
                       )
@@ -576,11 +576,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   ),
                   child: Text(
                     _reportCountry.isEmpty ? "Search country" : _reportCountry,
-                    style: TextStyle(
-                      color: _reportCountry.isEmpty
-                          ? Colors.black.withValues(alpha: 0.55)
-                          : Colors.black,
-                    ),
                   ),
                 ),
               ),
@@ -627,11 +622,6 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   ),
                   child: Text(
                     _reportState.isEmpty ? "Search state" : _reportState,
-                    style: TextStyle(
-                      color: _reportState.isEmpty
-                          ? Colors.black.withValues(alpha: 0.55)
-                          : Colors.black,
-                    ),
                   ),
                 ),
               ),

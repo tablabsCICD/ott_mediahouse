@@ -121,8 +121,8 @@ class SelectUploadTypeDialog extends StatelessWidget {
         const SizedBox(width: spacing),
         SizedBox(
           width: shortWidth,
-          child: _card(
-              theme, "Upload Short", Icons.smart_display, 9 / 16, context),
+          child: _card(theme, "Upload Mini Series", Icons.smart_display, 9 / 16,
+              context),
         ),
       ],
     );
@@ -143,7 +143,7 @@ class SelectUploadTypeDialog extends StatelessWidget {
       onTap: () {
         Navigator.pop(context);
         // Handle card tap here
-        title == "Upload Short"
+        title == "Upload Mini Series"
             ? AddShortMaster.show(context)
             : showDialog(
                 context: context,

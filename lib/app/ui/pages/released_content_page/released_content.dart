@@ -1,14 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:media_house/app/provider/shorts_provider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/provider/videoProvider.dart';
+import 'package:media_house/app/ui/pages/shorts/components/short_master_page.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/select_upload_type.dart';
 import 'package:media_house/app/widget/custom_textfield.dart';
 import 'package:media_house/app/widget/movieCard.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:provider/provider.dart';
 import '../../../../domain/entities/content.dart';
+import '../../../../data/models/shorts.dart';
 import '../../../core/utils/sharepreferences.dart';
 
 class ReleasedContentPage extends StatefulWidget {
@@ -53,12 +56,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
         provider.searchContentController.clear();
         provider.setItemsPerPage(12);
         provider.resetPagination();
-        await provider.fetchReleasedMoviesByMediaHouseId(
-          mediaHouse.id!,
-          type: selectedContentType,
-          startDate: _formatDate(_startDate),
-          endDate: _formatDate(_endDate),
-        );
+        await _fetchSelectedContent();
       }
     } catch (error) {
       debugPrint("Failed to fetch released content: $error");
@@ -70,6 +68,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
   }
 
   void _onScroll() {
+    if (selectedContentType == "MINI_SERIES") return;
     final provider = Provider.of<VideoProvider>(context, listen: false);
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 160) {
@@ -92,6 +91,46 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
     }).toList();
   }
 
+  List<ShortModel> _releasedMiniSeries(ShortProvider provider) {
+    return provider.shorts.where((short) {
+      final approvalStatus = (short.approvalStatus ?? "").toUpperCase();
+      return approvalStatus.isEmpty || approvalStatus == "APPROVED";
+    }).toList();
+  }
+
+  Future<void> _fetchSelectedContent({String? searchKeyword}) async {
+    final mediaHouseId = _mediaHouseId;
+    if (mediaHouseId == null) return;
+
+    if (selectedContentType == "MINI_SERIES") {
+      final shortProvider = context.read<ShortProvider>();
+      final keyword = (searchKeyword ??
+              context.read<VideoProvider>().searchContentController.text)
+          .trim();
+
+      if (keyword.isNotEmpty) {
+        await shortProvider.fetchShorts(keyword: keyword, page: 0, size: 12);
+      } else {
+        await shortProvider.fetchShortsByDateRange(
+          startDate: _startDate,
+          endDate: _endDate,
+          page: 0,
+          size: 12,
+        );
+      }
+      return;
+    }
+
+    await context.read<VideoProvider>().fetchReleasedMoviesByMediaHouseId(
+          mediaHouseId,
+          type: selectedContentType,
+          searchKeyword: searchKeyword ??
+              context.read<VideoProvider>().searchContentController.text.trim(),
+          startDate: _formatDate(_startDate),
+          endDate: _formatDate(_endDate),
+        );
+  }
+
   void _onSearchChanged(String value) {
     final mediaHouseId = _mediaHouseId;
     if (mediaHouseId == null) return;
@@ -99,14 +138,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 350), () async {
       if (!mounted) return;
-      final provider = Provider.of<VideoProvider>(context, listen: false);
-      await provider.fetchReleasedMoviesByMediaHouseId(
-        mediaHouseId,
-        type: selectedContentType,
-        searchKeyword: value.trim(),
-        startDate: _formatDate(_startDate),
-        endDate: _formatDate(_endDate),
-      );
+      await _fetchSelectedContent(searchKeyword: value.trim());
     });
   }
 
@@ -147,17 +179,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
 
     if (_mediaHouseId != null) {
       if (!mounted) return;
-      await context.read<VideoProvider>().fetchReleasedMoviesByMediaHouseId(
-            _mediaHouseId!,
-            type: selectedContentType,
-            searchKeyword: context
-                .read<VideoProvider>()
-                .searchContentController
-                .text
-                .trim(),
-            startDate: _formatDate(_startDate),
-            endDate: _formatDate(_endDate),
-          );
+      await _fetchSelectedContent();
     }
   }
 
@@ -168,8 +190,8 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Consumer<VideoProvider>(
-          builder: (context, provider, _) {
+        child: Consumer2<VideoProvider, ShortProvider>(
+          builder: (context, provider, shortProvider, _) {
             if (isLoading) {
               return Center(
                   child: CircularProgressIndicator(
@@ -178,13 +200,17 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
             }
 
             final movies = _filteredMovies(provider);
+            final miniSeries = _releasedMiniSeries(shortProvider);
+            final isMiniSeries = selectedContentType == "MINI_SERIES";
+            final currentItemCount =
+                isMiniSeries ? miniSeries.length : movies.length;
 
             return Column(
               children: [
-                _buildHeader(context, theme, provider),
+                _buildHeader(context, theme, provider, currentItemCount),
                 const SizedBox(height: 12),
                 Expanded(
-                  child: movies.isEmpty
+                  child: currentItemCount == 0
                       ? Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -193,7 +219,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
                                   size: 42, color: theme.primaryColor),
                               const SizedBox(height: 8),
                               Text(
-                                "No Realese content found",
+                                "No released content found",
                                 style: TextStyle(
                                   color: theme.canvasColor,
                                   fontWeight: FontWeight.w600,
@@ -210,7 +236,15 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
                           child: LayoutBuilder(
                             builder: (context, constraints) {
                               final width = constraints.maxWidth;
-                              final crossAxisCount = width > 1500
+                              final crossAxisCount = isMiniSeries
+                                  ? width > 1500
+                                      ? 5
+                                      : width > 1100
+                                          ? 4
+                                          : width > 760
+                                              ? 3
+                                              : 2
+                                  : width > 1500
                                   ? 4
                                   : width > 1100
                                       ? 3
@@ -225,15 +259,18 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
                                   crossAxisCount: crossAxisCount,
                                   crossAxisSpacing: 10,
                                   mainAxisSpacing: 10,
-                                  childAspectRatio: 16 / 9,
+                                  childAspectRatio:
+                                      isMiniSeries ? 9 / 16 : 16 / 9,
                                 ),
-                                itemCount: movies.length +
+                                itemCount: currentItemCount +
                                     ((provider.hasMoreReleasedItems ||
-                                            provider.isReleasedLoadingMore)
+                                            provider.isReleasedLoadingMore) &&
+                                            !isMiniSeries
                                         ? 1
                                         : 0),
                                 itemBuilder: (context, index) {
-                                  if (index == movies.length) {
+                                  if (!isMiniSeries &&
+                                      index == movies.length) {
                                     return Center(
                                       child: Padding(
                                         padding: const EdgeInsets.all(8.0),
@@ -243,6 +280,13 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
                                       ),
                                     );
                                   }
+                                  if (isMiniSeries) {
+                                    return _buildMiniSeriesCard(
+                                      miniSeries[index],
+                                      theme,
+                                    );
+                                  }
+
                                   final movie = movies[index];
                                   return ClipRRect(
                                     borderRadius: BorderRadius.circular(14),
@@ -270,8 +314,8 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
     );
   }
 
-  Widget _buildHeader(
-      BuildContext context, ThemeData theme, VideoProvider provider) {
+  Widget _buildHeader(BuildContext context, ThemeData theme,
+      VideoProvider provider, int currentItemCount) {
     final isDesktop = ResponsiveWidget.isDesktop(context);
     final isTablet = ResponsiveWidget.isTablet(context);
     final horizontal = isDesktop ? 20.0 : 12.0;
@@ -318,7 +362,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
                     borderRadius: BorderRadius.circular(26),
                   ),
                   child: Text(
-                    "${_filteredMovies(provider).length} items",
+                    "$currentItemCount items",
                     style: TextStyle(
                       color: theme.primaryColor,
                       fontWeight: FontWeight.w700,
@@ -443,22 +487,8 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
           onSelected: (_) async {
             if (selectedContentType == "MOVIE") return;
             setState(() => selectedContentType = "MOVIE");
-            if (_mediaHouseId != null) {
-              if (!mounted) return;
-              await context
-                  .read<VideoProvider>()
-                  .fetchReleasedMoviesByMediaHouseId(
-                    _mediaHouseId!,
-                    type: selectedContentType,
-                    searchKeyword: context
-                        .read<VideoProvider>()
-                        .searchContentController
-                        .text
-                        .trim(),
-                    startDate: _formatDate(_startDate),
-                    endDate: _formatDate(_endDate),
-                  );
-            }
+            if (!mounted) return;
+            await _fetchSelectedContent();
           },
         ),
         ChoiceChip(
@@ -476,25 +506,105 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
           onSelected: (_) async {
             if (selectedContentType == "SERIES") return;
             setState(() => selectedContentType = "SERIES");
-            if (_mediaHouseId != null) {
-              if (!mounted) return;
-              await context
-                  .read<VideoProvider>()
-                  .fetchReleasedMoviesByMediaHouseId(
-                    _mediaHouseId!,
-                    type: selectedContentType,
-                    searchKeyword: context
-                        .read<VideoProvider>()
-                        .searchContentController
-                        .text
-                        .trim(),
-                    startDate: _formatDate(_startDate),
-                    endDate: _formatDate(_endDate),
-                  );
-            }
+            if (!mounted) return;
+            await _fetchSelectedContent();
+          },
+        ),
+        ChoiceChip(
+          label: const Text("Mini Series"),
+          selected: selectedContentType == "MINI_SERIES",
+          selectedColor: theme.primaryColor,
+          backgroundColor:
+              theme.scaffoldBackgroundColor.withValues(alpha: 0.45),
+          labelStyle: TextStyle(
+            color: selectedContentType == "MINI_SERIES"
+                ? Colors.white
+                : theme.primaryColor,
+            fontWeight: FontWeight.w600,
+          ),
+          onSelected: (_) async {
+            if (selectedContentType == "MINI_SERIES") return;
+            setState(() => selectedContentType = "MINI_SERIES");
+            if (!mounted) return;
+            await _fetchSelectedContent();
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildMiniSeriesCard(ShortModel short, ThemeData theme) {
+    return GestureDetector(
+      onTap: short.id == null
+          ? null
+          : () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ShortMasterPage(shortId: short.id!),
+                ),
+              );
+            },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Container(
+              color: theme.cardColor,
+              child: Image.network(
+                short.posterUrl ?? "",
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Center(
+                  child: Icon(
+                    Icons.broken_image_outlined,
+                    color: theme.primaryColor,
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.72),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: 12,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    short.title ?? "",
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "${short.totalParts ?? 0} parts",
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.82),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

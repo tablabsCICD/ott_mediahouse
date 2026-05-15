@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:media_house/app/provider/content_provider.dart';
 import 'package:media_house/app/provider/graphProvider.dart';
 import 'package:media_house/app/provider/mediaHouseProvider.dart';
+import 'package:media_house/app/provider/notification_settings_provider.dart';
 import 'package:media_house/app/provider/series_provider.dart';
 import 'package:media_house/app/provider/sign_up_provider.dart';
 import 'package:media_house/app/provider/settelementProvider.dart';
@@ -46,6 +47,7 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => ShortProvider()),
         ChangeNotifierProvider(create: (_) => SeriesProvider()),
         ChangeNotifierProvider(create: (_) => SignUpProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationSettingsProvider()),
       ],
       child: MyApp(),
     ),

@@ -46,6 +46,9 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
 
   bool get _isMovie => widget.uploadType == UploadContentType.movie;
   bool get _isMobile => ResponsiveWidget.isMobile(context);
+  bool get _supportsNativeRazorpay =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
   EdgeInsets get _pagePadding =>
       EdgeInsets.symmetric(horizontal: _isMobile ? 12 : 24, vertical: 16);
 
@@ -69,7 +72,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   }
 
   void _initRazorpay() {
-    if (kIsWeb) return;
+    if (kIsWeb || !_supportsNativeRazorpay) return;
     _razorpay = Razorpay();
     _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
@@ -77,6 +80,14 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   }
 
   Future<void> _startRegistrationPayment(VideoProvider provider) async {
+    if (!kIsWeb && !_supportsNativeRazorpay) {
+      CustomToast.show(
+        "Razorpay checkout is available on Android, iOS, and web.",
+        isSuccess: false,
+      );
+      return;
+    }
+
     if (!kIsWeb && _razorpay == null) {
       CustomToast.show("Payment gateway not initialized.", isSuccess: false);
       return;

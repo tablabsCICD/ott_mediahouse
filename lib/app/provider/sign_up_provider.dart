@@ -37,6 +37,7 @@ class SignUpProvider extends ChangeNotifier {
     'directorEmail': TextEditingController(),
     'directorMobile': TextEditingController(),
     'directorName': TextEditingController(),
+    'designation': TextEditingController(),
     'discription': TextEditingController(),
     'district': TextEditingController(),
     'dob': TextEditingController(),

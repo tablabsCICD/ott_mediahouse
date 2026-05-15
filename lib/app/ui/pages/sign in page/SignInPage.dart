@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:media_house/app/core/constant/image_constant.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/ui/pages/sign%20in%20page/otp_screen.dart';
 import 'package:media_house/app/widget/show_toast.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../provider/user_provider.dart';
 import '../sign up page/SignUpPage.dart';
@@ -19,8 +17,17 @@ class SignInPage extends StatefulWidget {
 }
 
 class _SignInPageState extends State<SignInPage> {
-  final TextEditingController mobileController = TextEditingController();
+  final TextEditingController usernameController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    usernameController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,16 +100,37 @@ class _SignInPageState extends State<SignInPage> {
                 ),
               ),
               const SizedBox(height: 20),
-              IntlPhoneField(
-                controller: mobileController,
+              TextField(
+                controller: usernameController,
                 decoration: const InputDecoration(
-                  labelText: 'Mobile Number',
+                  labelText: 'Username / Mobile Number',
                   border: OutlineInputBorder(),
                 ),
-                initialCountryCode: 'IN',
-                onChanged: (phone) {
-                  print(phone.completeNumber); // Full number with country code
-                },
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: passwordController,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
+                ),
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _isLoading ? null : _handleLogin(context),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
@@ -114,15 +142,13 @@ class _SignInPageState extends State<SignInPage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                onPressed: () {
-                  _isLoading ? null : _handleLogin(context);
-                },
+                onPressed: _isLoading ? null : () => _handleLogin(context),
                 child: _isLoading
                     ? const CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       )
                     : Text(
-                        'Send OTP',
+                        'Continue',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -162,10 +188,17 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   Future<void> _handleLogin(BuildContext context) async {
-    final mobile = mobileController.text.trim();
+    final username = usernameController.text.trim();
+    final password = passwordController.text.trim();
 
-    if (mobile.isEmpty) {
-      CustomToast.show('Please enter mobile number', isSuccess: false);
+    if (username.isEmpty) {
+      CustomToast.show('Please enter username or mobile number',
+          isSuccess: false);
+      return;
+    }
+
+    if (password.isEmpty) {
+      CustomToast.show('Please enter password', isSuccess: false);
       return;
     }
 
@@ -174,16 +207,17 @@ class _SignInPageState extends State<SignInPage> {
     });
 
     var result = await Provider.of<UserProvider>(context, listen: false)
-        .loginWithMobile(mobile, context); // Assume you have this method
-    if (result['success'] == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
+        .loginWithCredentials(username, password, context);
+    if (!context.mounted) {
+      return;
+    }
 
-      CustomToast.show('OTP sent to $mobile', isSuccess: true);
+    if (result['success'] == true) {
+      CustomToast.show('OTP sent to $username', isSuccess: true);
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => OtpVerificationPage(mobileNumber: mobile),
+          builder: (context) => OtpVerificationPage(mobileNumber: username),
         ),
       );
     } else {

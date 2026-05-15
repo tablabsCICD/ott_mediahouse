@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:media_house/app/core/constant/app_constant.dart';
 import 'package:media_house/app/core/utils/agreement_download_helper.dart';
 import 'package:media_house/app/core/utils/agreement_template.dart';
 import 'package:media_house/app/core/utils/sharepreferences.dart';
@@ -40,6 +41,9 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
   MediaHouse? _mediaHouse;
   bool _isDownloading = false;
   bool _isSubmitting = false;
+  bool get _supportsNativeRazorpay =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
 
   @override
   void initState() {
@@ -65,7 +69,7 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
   }
 
   void _initRazorpay() {
-    if (kIsWeb) return;
+    if (kIsWeb || !_supportsNativeRazorpay) return;
     _razorpay = Razorpay();
     _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
     _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
@@ -105,8 +109,24 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
   }
 
   Future<void> _startRegistrationPayment(VideoProvider provider) async {
+    if (!kIsWeb && !_supportsNativeRazorpay) {
+      CustomToast.show(
+        'Razorpay checkout is available on Android, iOS, and web.',
+        isSuccess: false,
+      );
+      return;
+    }
+
     if (!kIsWeb && _razorpay == null) {
       CustomToast.show('Payment gateway not initialized.', isSuccess: false);
+      return;
+    }
+
+    if (_razorpayKeyId.isEmpty) {
+      CustomToast.show(
+        'Razorpay key is missing. Configure --dart-define=RAZORPAY_KEY_ID=...',
+        isSuccess: false,
+      );
       return;
     }
 
@@ -129,11 +149,12 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
       await WebRazorpayGateway.openCheckout(
         keyId: _razorpayKeyId,
         amountInPaise: amountInPaise,
-        merchantName: 'OTT Production House',
+        merchantName: AppConstant.razorpayMerchantName,
         description: 'Onboarding Charges',
         prefillContact: user?.mobileNumber ?? '',
         prefillEmail: user?.emailId ?? '',
         prefillName: userName,
+        logoUrl: _razorpayLogoUrl,
         onSuccess: (paymentId) => _applyPaymentSuccess(
           paymentId: paymentId,
           paymentMethod: 'Razorpay (Web)',
@@ -145,18 +166,31 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
       return;
     }
 
-    _razorpay!.open({
-      'key': _razorpayKeyId,
-      'amount': amountInPaise,
-      'name': 'OTT Production House',
-      'description': 'Onboarding Charges',
-      'prefill': {
-        'contact': user?.mobileNumber ?? '',
-        'email': user?.emailId ?? '',
-        'name': userName,
-      },
-      'theme': {'color': '#1A73E8'},
-    });
+    try {
+      _razorpay!.open({
+        'key': _razorpayKeyId,
+        'amount': amountInPaise,
+        'name': AppConstant.razorpayMerchantName,
+        'description': 'Onboarding Charges',
+        'image': _razorpayLogoUrl,
+        'prefill': {
+          'contact': user?.mobileNumber ?? '',
+          'email': user?.emailId ?? '',
+          'name': userName,
+        },
+        'theme': {'color': '#1A73E8'},
+      });
+    } catch (error) {
+      CustomToast.show('Unable to open payment gateway: $error',
+          isSuccess: false);
+    }
+  }
+
+  String get _razorpayLogoUrl {
+    if (kIsWeb) {
+      return Uri.base.resolve('assets/assets/images/logo.png').toString();
+    }
+    return AppConstant.razorpayLogoUrl;
   }
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) {
@@ -178,12 +212,20 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
     required String paymentId,
     required String paymentMethod,
   }) {
-    if (!mounted || paymentId.trim().isEmpty) return;
+    if (!mounted) return;
+    final normalizedPaymentId = paymentId.trim();
+    if (normalizedPaymentId.isEmpty) {
+      CustomToast.show(
+        'Payment succeeded but payment ID was not received.',
+        isSuccess: false,
+      );
+      return;
+    }
     final provider = context.read<VideoProvider>();
     final amountText = provider.registrationAmountPaidController.text.trim();
     final amount = (double.tryParse(amountText) ?? 499.0).toStringAsFixed(2);
     provider.setRegistrationPaymentDetails(
-      paymentId: paymentId.trim(),
+      paymentId: normalizedPaymentId,
       paymentDate: _formatDate(DateTime.now()),
       amountPaid: amount,
       planType: provider.registrationPlanTypeController.text.trim().isEmpty

@@ -23,22 +23,33 @@ class _SignUpPageState extends State<SignUpPage> {
     'Other',
   ];
 
+  static const List<String> _designationOptions = [
+    'Owner',
+    'Director',
+    'CEO',
+    'Manager',
+    'Authorized Signatory',
+    'Other',
+  ];
+
   int _currentStep = 0;
   final List<GlobalKey<FormState>> _stepKeys = [
     GlobalKey<FormState>(),
     GlobalKey<FormState>(),
     GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
+    GlobalKey<FormState>(),
   ];
-  final List<bool> _showStepValidation = [false, false, false];
+  final List<bool> _showStepValidation = [false, false, false, false];
 
   final Map<String, String> _labels = {
     'mediaHouseName': 'Production House Name',
     'firmType': 'Firm Type',
     'discription': 'Description',
-    'email': 'Email',
+    'email': 'Autherized Email',
     'emailId': 'Alternate Email',
-    'contactNumber': 'Contact Number',
-    'mobileNumber': 'Mobile Number',
+    'contactNumber': 'Autherized Contact Number',
+    'mobileNumber': 'Autherized Mobile Number',
     'refferedBy': 'Referred By',
     'postCount': 'Post Count',
     'totalViews': 'Total Views',
@@ -53,6 +64,7 @@ class _SignUpPageState extends State<SignUpPage> {
     'country': 'Country',
     'pincode': 'Pincode',
     'dob': 'Date of Birth',
+    'designation': 'Designation',
     'ceoName': 'CEO Name',
     'ceoEmail': 'CEO Email',
     'ceoMobile': 'CEO Mobile',
@@ -66,13 +78,12 @@ class _SignUpPageState extends State<SignUpPage> {
     'logo': 'Logo',
     'profileImage': 'Profile Image',
     'addressProof': 'Address Proof',
-    'adharCard': 'Aadhaar Card',
-    'panCard': 'PAN Card',
-    'identityProof': 'Identity Proof',
+    'adharCard': 'Signing Authority Aadhaar Card',
+    'panCard': 'Firm PAN Card',
     'bankProof': 'Bank Proof',
     'gstCertificates': 'GST Certificate',
     'registrationCertificate': 'Registration Certificate',
-    'shopAct': 'Shop Act',
+    'shopAct': 'Shop Act/Udyam Aadhaar',
   };
 
   final Set<String> _requiredFields = {
@@ -110,7 +121,6 @@ class _SignUpPageState extends State<SignUpPage> {
     'addressProof',
     'adharCard',
     'panCard',
-    'identityProof',
     'bankProof',
     'gstCertificates',
     'shopAct',
@@ -129,26 +139,18 @@ class _SignUpPageState extends State<SignUpPage> {
     'mediaHouseName',
     'firmType',
     'registrationCertificate',
-    'email',
-    'emailId',
-    'mobileNumber',
+    'designation',
   ];
 
   final List<String> _stepTwoFields = [
     'country',
     'state',
     'district',
-    'taluka',
     'city',
+    'taluka',
     'officeBuilding',
     'area',
     'pincode',
-    'directorName',
-    'directorEmail',
-    'directorMobile',
-    'ceoName',
-    'ceoEmail',
-    'ceoMobile',
   ];
 
   final List<String> _stepThreeFields = [
@@ -160,10 +162,24 @@ class _SignUpPageState extends State<SignUpPage> {
     'addressProof',
     'adharCard',
     'panCard',
-    'identityProof',
     'bankProof',
     'gstCertificates',
     'shopAct',
+  ];
+
+  final List<String> _stepFourFields = [
+    'email',
+    'emailId',
+    'mobileNumber',
+  ];
+
+  final List<String> _stepFiveFields = [
+    'directorName',
+    'directorEmail',
+    'directorMobile',
+    'ceoName',
+    'ceoEmail',
+    'ceoMobile',
   ];
 
   @override
@@ -336,6 +352,10 @@ class _SignUpPageState extends State<SignUpPage> {
         return _buildFirmTypeField(provider, themeData);
       }
 
+      if (key == 'designation') {
+        return _buildDesignationField(provider, themeData);
+      }
+
       if (key == 'country') {
         return _buildCountryField(provider, themeData);
       }
@@ -440,13 +460,17 @@ class _SignUpPageState extends State<SignUpPage> {
   List<String> get _currentStepFields {
     if (_currentStep == 0) return _stepOneFields;
     if (_currentStep == 1) return _stepTwoFields;
-    return _stepThreeFields;
+    if (_currentStep == 2) return _stepThreeFields;
+    if (_currentStep == 3) return _stepFourFields;
+    return _stepFiveFields;
   }
 
   String get _stepTitle {
     if (_currentStep == 0) return 'Basic Details';
     if (_currentStep == 1) return 'Address & Management';
-    return 'Bank & Documents';
+    if (_currentStep == 2) return 'Bank & Documents';
+    if (_currentStep == 3) return 'Contact Details';
+    return 'Address Details';
   }
 
   Widget _buildHeaderCard(ThemeData themeData) {
@@ -495,7 +519,7 @@ class _SignUpPageState extends State<SignUpPage> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              'Step ${_currentStep + 1}/3',
+              'Step ${_currentStep + 1}/5',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
@@ -525,7 +549,7 @@ class _SignUpPageState extends State<SignUpPage> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       child: Row(
-        children: List.generate(3, (index) {
+        children: List.generate(5, (index) {
           final isActive = index <= _currentStep;
           return Expanded(
             child: Row(
@@ -541,7 +565,7 @@ class _SignUpPageState extends State<SignUpPage> {
                     ),
                   ),
                 ),
-                if (index < 2) const SizedBox(width: 8),
+                if (index < 4) const SizedBox(width: 8),
               ],
             ),
           );
@@ -551,7 +575,7 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Widget _buildFooter(ThemeData themeData, SignUpProvider signUpProvider) {
-    final isLast = _currentStep == 2;
+    final isLast = _currentStep == 4;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       child: Row(
@@ -750,7 +774,7 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   Future<void> _onContinue(SignUpProvider signUpProvider) async {
-    if (_currentStep < 2) {
+    if (_currentStep < 4) {
       setState(() {
         _currentStep += 1;
       });
@@ -826,6 +850,9 @@ class _SignUpPageState extends State<SignUpPage> {
     for (final key in _stepThreeFields) {
       if (_validateFieldByKey(key, provider) != null) return key;
     }
+    for (final key in _stepFourFields) {
+      if (_validateFieldByKey(key, provider) != null) return key;
+    }
     return null;
   }
 
@@ -833,6 +860,7 @@ class _SignUpPageState extends State<SignUpPage> {
     if (_stepOneFields.contains(key)) return 0;
     if (_stepTwoFields.contains(key)) return 1;
     if (_stepThreeFields.contains(key)) return 2;
+    if (_stepFourFields.contains(key)) return 3;
     return null;
   }
 
@@ -954,6 +982,77 @@ class _SignUpPageState extends State<SignUpPage> {
                 borderRadius: BorderRadius.circular(12),
                 borderSide: const BorderSide(
                   color: Colors.red,
+                  width: 1.5,
+                ),
+              ),
+            ),
+            dropdownColor: themeData.cardColor,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesignationField(SignUpProvider provider, ThemeData themeData) {
+    final controller = provider.controller('designation');
+    final selectedValue = controller.text.trim();
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Designation',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: themeData.canvasColor,
+              ),
+            ),
+          ),
+          DropdownButtonFormField<String>(
+            initialValue: selectedValue.isEmpty ? null : selectedValue,
+            items: _designationOptions
+                .map(
+                  (designation) => DropdownMenuItem<String>(
+                    value: designation,
+                    child: Text(designation),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: (value) {
+              controller.text = value ?? '';
+            },
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: themeData.inputDecorationTheme.fillColor ??
+                  themeData.cardColor.withValues(alpha: 0.05),
+              hintText: 'Select Designation',
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: themeData.dividerColor,
+                  width: 1,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: themeData.dividerColor.withValues(alpha: 0.6),
+                  width: 1,
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(
+                  color: themeData.primaryColor,
                   width: 1.5,
                 ),
               ),

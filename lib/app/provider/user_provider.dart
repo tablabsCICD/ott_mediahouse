@@ -396,6 +396,18 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  Future loginWithCredentials(
+      String username, String password, BuildContext context) async {
+    if (password.trim().isEmpty) {
+      return {'success': false, 'message': 'Password is required'};
+    }
+
+    // The current backend endpoint sends the OTP to the registered mobile
+    // number. Keep password required in the login step while preserving the
+    // existing OTP verification contract.
+    return loginWithMobile(username, context);
+  }
+
   Future<Map<String, dynamic>> verifyOtp(
       String mobile, String otp, BuildContext context) async {
     String apiUrl = ApiConstant.verifyOtp(mobile, otp);

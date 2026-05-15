@@ -74,48 +74,38 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       backgroundColor: theme.primaryColor,
       body: SafeArea(
-        child: Center(
-          child: Column(
-            children: [
-              const Spacer(flex: 3),
-
-              /// Logo
-              Hero(
-                tag: 'logo',
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(logoSize),
-                  child: Image.asset(
-                    ImageConstant.logo,
-                    width: logoSize,
-                    height: logoSize,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 10,
-              ),
-
-              /// Tagline
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'Watch First Day First Show',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: textSize,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-
-              const Spacer(flex: 4),
-            ],
+          child: Stack(fit: StackFit.expand, children: [
+        Hero(
+          tag: 'logo',
+          child: Image.asset(
+            ImageConstant.fullScreenLogo,
+            fit: BoxFit.cover,
           ),
         ),
-      ),
+        /* Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+            child: Text(
+              'Watch First Day First Show',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: textSize,
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+                shadows: const [
+                  Shadow(
+                    blurRadius: 8,
+                    color: Colors.black54,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ), */
+      ])),
     );
   }
 }

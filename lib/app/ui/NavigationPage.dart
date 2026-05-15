@@ -8,11 +8,8 @@ import 'package:media_house/app/ui/pages/document_page/documentpage.dart';
 import 'package:media_house/app/ui/pages/released_content_page/released_content.dart';
 import 'package:media_house/app/ui/pages/allContent_page/allContent.dart';
 import 'package:media_house/app/ui/pages/profile%20page/ProfilePage.dart';
-import 'package:media_house/app/ui/pages/sereis/seriespage.dart';
 import 'package:media_house/app/ui/pages/settlemet_page/SettlementPage.dart';
-import 'package:media_house/app/ui/pages/shorts/shortspage.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/select_upload_type.dart';
-import 'package:media_house/app/ui/pages/uploadContent_page/upload_video.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:provider/provider.dart';
 
@@ -32,24 +29,26 @@ class _NavigationPageState extends State<NavigationPage> {
     PageData(title: 'Dashboard', page: DashboardPage()),
     PageData(title: 'Released Content', page: ReleasedContentPage()),
     PageData(title: 'All Content', page: AllContentPage()),
-    PageData(title: 'Shorts', page: ShortsPage()),
-    PageData(title: 'Series', page: SeriesPage()),
+    /*   PageData(title: 'Shorts', page: ShortsPage()),
+    PageData(title: 'Series', page: SeriesPage()), */
     PageData(title: 'Analytics', page: AnalyticsPage()),
     PageData(title: 'Documents', page: DocumentsPage()),
     PageData(title: 'Settlement', page: SettlementPage()),
     PageData(title: 'Profile', page: ProfilePage()),
+    PageData(title: 'Setting', page: ProfilePage()),
   ];
 
   final List<IconData> _icons = [
     Icons.dashboard_outlined,
     Icons.play_circle_outline_sharp,
     Icons.hourglass_top_outlined,
-    Icons.play_circle_fill_sharp,
-    Icons.play_circle_fill_sharp,
+    /*  Icons.play_circle_fill_sharp,
+    Icons.play_circle_fill_sharp, */
     Icons.bar_chart_sharp,
     Icons.document_scanner_outlined,
     Icons.transform_sharp,
     Icons.person,
+    Icons.settings
   ];
 
   @override
@@ -224,7 +223,7 @@ class _NavigationPageState extends State<NavigationPage> {
             child: ClipRRect(
               borderRadius: BorderRadiusGeometry.circular(25),
               child: Image.asset(
-                ImageConstant.logo2,
+                ImageConstant.logo,
               ),
             ),
           ),
