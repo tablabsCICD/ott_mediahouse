@@ -19,7 +19,6 @@ class _DocumentsPageState extends State<DocumentsPage> {
     'GST Certificate',
     'Shop Act',
     'Bank Proof',
-    'Identity Proof',
     'Address Proof',
   ];
 
@@ -48,8 +47,7 @@ class _DocumentsPageState extends State<DocumentsPage> {
         return _getFileUrl(media.shopAct);
       case 'Bank Proof':
         return _getFileUrl(media.bankProof);
-      case 'Identity Proof':
-        return _getFileUrl(media.identityProof);
+
       case 'Address Proof':
         return _getFileUrl(media.addressProof);
       default:

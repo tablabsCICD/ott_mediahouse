@@ -34,8 +34,7 @@ class UploadVideoWidget extends StatefulWidget {
 
 class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   final PageController _pageController = PageController();
-  static const String _razorpayKeyId = String.fromEnvironment('RAZORPAY_KEY_ID',
-      defaultValue: 'rzp_live_LraIKZvldr9N1J');
+  static const String _razorpayKeyId = AppConstant.razorpayKeyId;
   static const double _defaultRegistrationAmount = 499.0;
   static const String _defaultRegistrationPlan = 'Basic';
   static const String _defaultRegistrationValidity = '1 Year';
@@ -45,6 +44,8 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   bool _isDownloadingAgreement = false;
 
   bool get _isMovie => widget.uploadType == UploadContentType.movie;
+  int get _totalSteps => _isMovie ? 4 : 3;
+  int get _lastPageIndex => _totalSteps - 1;
   bool get _isMobile => ResponsiveWidget.isMobile(context);
   bool get _supportsNativeRazorpay =>
       defaultTargetPlatform == TargetPlatform.android ||
@@ -61,6 +62,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       context
           .read<VideoProvider>()
           .prepareUploadForm(_isMovie ? "MOVIE" : "SERIES");
+      context.read<VideoProvider>().fetchGroupedLanguages();
     });
   }
 
@@ -160,12 +162,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     }
   }
 
-  String get _razorpayLogoUrl {
-    if (kIsWeb) {
-      return Uri.base.resolve('assets/assets/images/logo.png').toString();
-    }
-    return AppConstant.razorpayLogoUrl;
-  }
+  String get _razorpayLogoUrl => AppConstant.razorpayLogoUrl;
 
   void _handlePaymentSuccess(PaymentSuccessResponse response) {
     final paymentId =
@@ -280,7 +277,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   }
 
   void _nextPage() {
-    if (_currentPage < 2) {
+    if (_currentPage < _lastPageIndex) {
       setState(() => _currentPage++);
       _pageController.nextPage(
         duration: const Duration(milliseconds: 280),
@@ -356,6 +353,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       _moviePageOne(theme, provider),
       _commonPricingPage(theme, provider, 1),
       _moviePageThree(theme, provider),
+      _moviePageFour(theme, provider),
     ];
   }
 
@@ -377,9 +375,10 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             [
               UploadFormHelpers.buildModernMultiSelectDropdownField(
                 'Languages',
-                languages,
+                provider.languageOptions,
                 context,
                 theme,
+                groupedItems: provider.groupedLanguageOptions,
               ),
               const SizedBox(height: 16),
               CustomTextField(
@@ -393,12 +392,6 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                 hintText: "Enter description",
                 label: "Description",
                 textInputType: TextInputType.text,
-              ),
-              CustomTextField(
-                controller: provider.runTimeController,
-                hintText: "Enter runtime in minutes",
-                label: "Runtime (min)",
-                textInputType: TextInputType.number,
               ),
             ],
             theme,
@@ -449,9 +442,10 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             [
               UploadFormHelpers.buildModernMultiSelectDropdownField(
                 'Languages',
-                languages,
+                provider.languageOptions,
                 context,
                 theme,
+                groupedItems: provider.groupedLanguageOptions,
               ),
               const SizedBox(height: 16),
               CustomTextField(
@@ -552,41 +546,225 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   }
 
   Widget _moviePageThree(ThemeData theme, VideoProvider provider) {
+    final selectedLanguages = provider.selectedLanguages
+        .map((item) => (item.language ?? '').trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
     return SingleChildScrollView(
       padding: _pagePadding,
       child: Column(
         children: [
           UploadFormHelpers.buildSectionCard(
-            "Upload Files",
+            "Common Upload Files",
             [
               UploadMediaHelpers.buildEnhancedUploadSection(
                   "Censor Certificate", theme, context),
-              const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Poster 1", theme, context),
-              const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Poster 2", theme, context),
-              const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Poster 3", theme, context),
-              const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Teaser File", theme, context),
-              const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Trailer File", theme, context),
-              const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Movie File", theme, context),
-              const SizedBox(height: 16),
             ],
             theme,
           ),
-          const SizedBox(height: 8),
-          _audioSubtitleAndSettings(theme, provider),
+          const SizedBox(height: 12),
+          if (selectedLanguages.isEmpty)
+            UploadFormHelpers.buildSectionCard(
+              "Language Variants",
+              [
+                Text(
+                  "Select at least one language in step 1 to create upload sections.",
+                  style: TextStyle(color: theme.canvasColor),
+                ),
+              ],
+              theme,
+            )
+          else
+            ...selectedLanguages.map(
+              (language) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _movieLanguageVariantSection(
+                  theme,
+                  provider,
+                  language,
+                ),
+              ),
+            ),
         ],
       ),
+    );
+  }
+
+  Widget _movieLanguageVariantSection(
+    ThemeData theme,
+    VideoProvider provider,
+    String language,
+  ) {
+    return UploadFormHelpers.buildSectionCard(
+      "$language Uploads",
+      [
+        _variantUploadTile(theme, provider, language, 'poster1', 'Poster 1'),
+        const SizedBox(height: 12),
+        _variantUploadTile(theme, provider, language, 'poster2', 'Poster 2'),
+        const SizedBox(height: 12),
+        _variantUploadTile(theme, provider, language, 'poster3', 'Poster 3'),
+        const SizedBox(height: 12),
+        _variantUploadTile(
+          theme,
+          provider,
+          language,
+          'teaser',
+          'Teaser File',
+          isVideo: true,
+        ),
+        const SizedBox(height: 12),
+        _variantUploadTile(
+          theme,
+          provider,
+          language,
+          'trailer',
+          'Trailer File',
+          isVideo: true,
+        ),
+        const SizedBox(height: 12),
+        _variantUploadTile(
+          theme,
+          provider,
+          language,
+          'movie',
+          'Movie File',
+          isVideo: true,
+        ),
+        const SizedBox(height: 12),
+        UploadMediaHelpers.buildAudioUploadSection(
+          "$language Audio",
+          theme,
+          context,
+        ),
+        const SizedBox(height: 12),
+        _variantUploadTile(
+          theme,
+          provider,
+          language,
+          'subtitle',
+          'Subtitle File',
+        ),
+      ],
+      theme,
+    );
+  }
+
+  Widget _variantUploadTile(
+    ThemeData theme,
+    VideoProvider provider,
+    String language,
+    String field,
+    String label, {
+    bool isVideo = false,
+  }) {
+    final controller = provider.movieVariantController(language, field);
+    final uploaded = controller.text.trim().isNotEmpty;
+    final isUploading = provider.isMovieVariantUploading(language, field);
+    final progress = provider.movieVariantUploadProgress(language, field);
+    final borderColor = uploaded
+        ? Colors.green.withValues(alpha: 0.35)
+        : theme.primaryColor.withValues(alpha: 0.35);
+    final containerColor = uploaded
+        ? Colors.green.withValues(alpha: 0.08)
+        : theme.primaryColor.withValues(alpha: 0.08);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: theme.canvasColor,
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: isUploading
+              ? null
+              : () => provider.pickMovieVariantFile(
+                    language,
+                    field,
+                    isVideo: isVideo,
+                  ),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: double.infinity,
+            height: 62,
+            decoration: BoxDecoration(
+              color: containerColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: borderColor, width: 2),
+            ),
+            child: Stack(
+              children: [
+                if (isUploading)
+                  Positioned.fill(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: LinearProgressIndicator(
+                        value: progress > 0 ? progress : null,
+                        backgroundColor: Colors.transparent,
+                        color: theme.primaryColor.withValues(alpha: 0.25),
+                      ),
+                    ),
+                  ),
+                Center(
+                  child: isUploading
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                value: progress > 0 ? progress : null,
+                                color: theme.primaryColor,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Uploading... ${(progress * 100).round()}%",
+                              style: TextStyle(
+                                color: theme.primaryColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              uploaded
+                                  ? Icons.check_circle_outline
+                                  : Icons.cloud_upload_outlined,
+                              color:
+                                  uploaded ? Colors.green : theme.primaryColor,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              uploaded ? "$label Uploaded" : "Upload $label",
+                              style: TextStyle(
+                                color: uploaded
+                                    ? Colors.green
+                                    : theme.primaryColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -625,6 +803,17 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     );
   }
 
+  Widget _moviePageFour(ThemeData theme, VideoProvider provider) {
+    return SingleChildScrollView(
+      padding: _pagePadding,
+      child: _audioSubtitleAndSettings(
+        theme,
+        provider,
+        showAudio: false,
+      ),
+    );
+  }
+
   Widget _castImageSection(ThemeData theme, VideoProvider provider) {
     return UploadFormHelpers.buildSectionCard(
       "Cast",
@@ -635,12 +824,6 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
           label: "Cast Name",
           textInputType: TextInputType.text,
           showRequiredAsterisk: true,
-        ),
-        CustomTextField(
-          controller: provider.castRoleController,
-          hintText: "Enter cast role",
-          label: "Cast Role",
-          textInputType: TextInputType.text,
         ),
         UploadMediaHelpers.buildEnhancedUploadSection(
           "Cast Image",
@@ -826,281 +1009,226 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     );
   }
 
-  Widget _audioSubtitleAndSettings(ThemeData theme, VideoProvider provider) {
+  Widget _audioSubtitleAndSettings(
+    ThemeData theme,
+    VideoProvider provider, {
+    bool showAudio = true,
+    bool showSettings = true,
+  }) {
     return Column(
       children: [
-        UploadFormHelpers.buildSectionCard(
-          "Audio & Subtitles",
-          [
-            UploadFormHelpers.buildModernMultiSelectDropdownField(
-              'Audio Formats',
-              audioFormats,
-              context,
-              theme,
-            ),
-            const SizedBox(height: 16),
-            UploadFormHelpers.buildModernMultiSelectDropdownField(
-              'Subtitle Languages',
-              languages,
-              context,
-              theme,
-            ),
-            const SizedBox(height: 20),
-            UploadMediaHelpers.buildDynamicLanguageAudioSection(context, theme),
-          ],
-          theme,
-        ),
-        const SizedBox(height: 8),
-        UploadFormHelpers.buildSectionCard(
-          "Content Settings",
-          [
-            UploadFormHelpers.buildModernToggleRow(
-              'Downloadable Content',
-              'Allow users to download this content',
-              provider.isDownloadable,
-              provider.toggleDownloadable,
-              theme,
-            ),
-            const SizedBox(height: 16),
-            UploadFormHelpers.buildModernToggleRow(
-              'Featured Content',
-              'Automatically controlled by release date logic',
-              provider.isFeatured,
-              (value) {
-                CustomToast.show(
-                  provider.isFeatured
-                      ? "Featured content is enabled for upcoming releases."
-                      : "Featured content is disabled for already released content.",
-                  isWarning: true,
-                );
-              },
-              theme,
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: theme.dividerColor.withValues(alpha: 0.3),
-                ),
+        if (showAudio)
+          UploadFormHelpers.buildSectionCard(
+            "Audio & Subtitles",
+            [
+              UploadFormHelpers.buildModernMultiSelectDropdownField(
+                'Audio Formats',
+                audioFormats,
+                context,
+                theme,
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: theme.primaryColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.file_present_rounded,
-                      color: theme.primaryColor,
-                      size: 22,
-                    ),
+              const SizedBox(height: 16),
+              UploadFormHelpers.buildModernMultiSelectDropdownField(
+                'Audio Languages',
+                provider.languageOptions,
+                context,
+                theme,
+                groupedItems: provider.groupedLanguageOptions,
+              ),
+              const SizedBox(height: 20),
+              UploadMediaHelpers.buildDynamicLanguageAudioSection(
+                  context, theme),
+            ],
+            theme,
+          ),
+        if (showAudio && showSettings) const SizedBox(height: 8),
+        if (showSettings)
+          UploadFormHelpers.buildSectionCard(
+            "Content Settings",
+            [
+              UploadFormHelpers.buildModernToggleRow(
+                'Downloadable Content',
+                'Allow users to download this content',
+                provider.isDownloadable,
+                provider.toggleDownloadable,
+                theme,
+              ),
+              const SizedBox(height: 16),
+              UploadFormHelpers.buildModernToggleRow(
+                'Featured Content',
+                'Automatically controlled by release date logic',
+                provider.isFeatured,
+                (value) {
+                  CustomToast.show(
+                    provider.isFeatured
+                        ? "Featured content is enabled for upcoming releases."
+                        : "Featured content is disabled for already released content.",
+                    isWarning: true,
+                  );
+                },
+                theme,
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.dividerColor.withValues(alpha: 0.3),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Signed Agreement Upload',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: theme.canvasColor,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          provider.hasUploadedAgreement
-                              ? 'Signed document uploaded successfully.'
-                              : 'Download the template, sign the hard copy, and upload it before Onboarding charges.',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: theme.canvasColor.withValues(alpha: 0.65),
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: theme.primaryColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.file_present_rounded,
+                        color: theme.primaryColor,
+                        size: 22,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: (provider.hasUploadedAgreement
-                              ? const Color(0xFF0F9D58)
-                              : const Color(0xFFD97706))
-                          .withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Signed Agreement Upload',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: theme.canvasColor,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            provider.hasUploadedAgreement
+                                ? 'Signed document uploaded successfully.'
+                                : 'Download the template, sign the hard copy, and upload it before Onboarding charges.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.canvasColor.withValues(alpha: 0.65),
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
                         color: (provider.hasUploadedAgreement
                                 ? const Color(0xFF0F9D58)
                                 : const Color(0xFFD97706))
-                            .withValues(alpha: 0.25),
-                      ),
-                    ),
-                    child: Text(
-                      provider.hasUploadedAgreement ? 'Uploaded' : 'Pending',
-                      style: TextStyle(
-                        color: provider.hasUploadedAgreement
-                            ? const Color(0xFF0F9D58)
-                            : const Color(0xFFD97706),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: theme.dividerColor.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                provider.agreementFileName ??
-                    (provider.hasUploadedAgreement
-                        ? 'Agreement uploaded'
-                        : 'No signed agreement uploaded yet'),
-                style: TextStyle(
-                  color: theme.canvasColor,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            if (provider.isAgreementUploading) ...[
-              const SizedBox(height: 12),
-              LinearProgressIndicator(
-                value: provider.agreementUploadProgress == 0
-                    ? null
-                    : provider.agreementUploadProgress,
-                color: theme.primaryColor,
-              ),
-            ],
-            const SizedBox(height: 14),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: ElevatedButton.icon(
-                onPressed: _isDownloadingAgreement
-                    ? null
-                    : () => _downloadAgreementTemplate(provider),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.primaryColor,
-                  foregroundColor: Colors.white,
-                ),
-                icon: _isDownloadingAgreement
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
+                            .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: (provider.hasUploadedAgreement
+                                  ? const Color(0xFF0F9D58)
+                                  : const Color(0xFFD97706))
+                              .withValues(alpha: 0.25),
                         ),
-                      )
-                    : const Icon(Icons.download_rounded),
-                label: Text(
-                  _isDownloadingAgreement
-                      ? 'Preparing PDF...'
-                      : 'Download Template',
+                      ),
+                      child: Text(
+                        provider.hasUploadedAgreement ? 'Uploaded' : 'Pending',
+                        style: TextStyle(
+                          color: provider.hasUploadedAgreement
+                              ? const Color(0xFF0F9D58)
+                              : const Color(0xFFD97706),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: provider.isAgreementUploading
-                    ? null
-                    : () async {
-                        final uploaded =
-                            await provider.pickAndUploadAgreementDocument();
-                        if (!mounted) return;
-                        CustomToast.show(
-                          uploaded
-                              ? 'Signed agreement uploaded successfully.'
-                              : 'Agreement upload cancelled.',
-                          isSuccess: uploaded,
-                        );
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.primaryColor,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: theme.dividerColor.withValues(alpha: 0.3),
                   ),
                 ),
-                icon: const Icon(Icons.upload_file_rounded),
-                label: Text(
-                  provider.hasUploadedAgreement
-                      ? 'Replace Signed Agreement'
-                      : 'Upload Signed Agreement',
+                child: Text(
+                  provider.agreementFileName ??
+                      (provider.hasUploadedAgreement
+                          ? 'Agreement uploaded'
+                          : 'No signed agreement uploaded yet'),
+                  style: TextStyle(
+                    color: theme.canvasColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
-            ),
-            if (provider.hasUploadedAgreement) ...[
-              const SizedBox(height: 12),
+              if (provider.isAgreementUploading) ...[
+                const SizedBox(height: 12),
+                LinearProgressIndicator(
+                  value: provider.agreementUploadProgress == 0
+                      ? null
+                      : provider.agreementUploadProgress,
+                  color: theme.primaryColor,
+                ),
+              ],
+              const SizedBox(height: 14),
               Align(
                 alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    await Clipboard.setData(
-                      ClipboardData(text: provider.agreementDocumentUrl),
-                    );
-                    if (!mounted) return;
-                    CustomToast.show(
-                      'Agreement URL copied.',
-                      isSuccess: true,
-                    );
-                  },
-                  icon: const Icon(Icons.copy_rounded, size: 16),
-                  label: const Text('Copy Uploaded URL'),
+                child: ElevatedButton.icon(
+                  onPressed: _isDownloadingAgreement
+                      ? null
+                      : () => _downloadAgreementTemplate(provider),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: _isDownloadingAgreement
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.download_rounded),
+                  label: Text(
+                    _isDownloadingAgreement
+                        ? 'Preparing PDF...'
+                        : 'Download Template',
+                  ),
                 ),
               ),
-            ],
-            const SizedBox(height: 20),
-            UploadFormHelpers.buildModernToggleRow(
-              'Onboarding Fee Paid',
-              'Y = Paid (upload allowed), N = Not paid (upload blocked)',
-              provider.isRegistrationFeePaid,
-              (value) {
-                if (value) {
-                  _startRegistrationPayment(provider);
-                  return;
-                }
-                provider.clearRegistrationPaymentDetails(markUnpaid: true);
-              },
-              theme,
-            ),
-            const SizedBox(height: 16),
-            if (!provider.isRegistrationFeePaid)
-              CustomTextField(
-                controller: provider.registrationAmountPaidController,
-                hintText: "Enter Onboarding fee amount",
-                label: "Onboarding Fee Amount",
-                textInputType: TextInputType.number,
-              ),
-            if (!provider.isRegistrationFeePaid) const SizedBox(height: 12),
-            if (!provider.isRegistrationFeePaid)
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _startRegistrationPayment(provider),
+                  onPressed: provider.isAgreementUploading
+                      ? null
+                      : () async {
+                          final uploaded =
+                              await provider.pickAndUploadAgreementDocument();
+                          if (!mounted) return;
+                          CustomToast.show(
+                            uploaded
+                                ? 'Signed agreement uploaded successfully.'
+                                : 'Agreement upload cancelled.',
+                            isSuccess: uploaded,
+                          );
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.primaryColor,
                     foregroundColor: Colors.white,
@@ -1109,71 +1237,135 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  icon: const Icon(Icons.payments_outlined),
-                  label: const Text("Pay Onboarding Fee"),
-                ),
-              ),
-            if (!provider.isRegistrationFeePaid) const SizedBox(height: 16),
-            if (provider.isRegistrationFeePaid) ...[
-              CustomTextField(
-                controller: provider.registrationPaymentIdController,
-                hintText: "Enter transaction/payment id",
-                label: "Payment ID / Transaction ID",
-                textInputType: TextInputType.text,
-              ),
-              CustomTextField(
-                controller: provider.registrationPaymentDateController,
-                hintText: "Enter payment date (e.g. 2026-02-10)",
-                label: "Payment Date",
-                textInputType: TextInputType.datetime,
-              ),
-              CustomTextField(
-                controller: provider.registrationAmountPaidController,
-                hintText: "Enter amount paid",
-                label: "Amount Paid",
-                textInputType: TextInputType.number,
-              ),
-              CustomTextField(
-                controller: provider.registrationPlanTypeController,
-                hintText: "Enter plan (Basic/Premium)",
-                label: "Plan Type",
-                textInputType: TextInputType.text,
-              ),
-              CustomTextField(
-                controller: provider.registrationValidityController,
-                hintText: "Enter validity (e.g. 1 year / 2027-02-10)",
-                label: "Validity",
-                textInputType: TextInputType.text,
-              ),
-              CustomTextField(
-                controller: provider.registrationPaymentMethodController,
-                hintText: "Enter payment method (UPI/Card/Net Banking)",
-                label: "Payment Method",
-                textInputType: TextInputType.text,
-              ),
-            ] else ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.primaryColor.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: theme.primaryColor.withValues(alpha: 0.2),
-                  ),
-                ),
-                child: Text(
-                  "Set Onboarding Fee Paid = Y to fill payment details and enable upload.",
-                  style: TextStyle(
-                    color: theme.canvasColor,
-                    fontSize: 13,
+                  icon: const Icon(Icons.upload_file_rounded),
+                  label: Text(
+                    provider.hasUploadedAgreement
+                        ? 'Replace Signed Agreement'
+                        : 'Upload Signed Agreement',
                   ),
                 ),
               ),
+              if (provider.hasUploadedAgreement) ...[
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await Clipboard.setData(
+                        ClipboardData(text: provider.agreementDocumentUrl),
+                      );
+                      if (!mounted) return;
+                      CustomToast.show(
+                        'Agreement URL copied.',
+                        isSuccess: true,
+                      );
+                    },
+                    icon: const Icon(Icons.copy_rounded, size: 16),
+                    label: const Text('Copy Uploaded URL'),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              UploadFormHelpers.buildModernToggleRow(
+                'Onboarding Fee Paid',
+                'Y = Paid (upload allowed), N = Not paid (upload blocked)',
+                provider.isRegistrationFeePaid,
+                (value) {
+                  if (value) {
+                    _startRegistrationPayment(provider);
+                    return;
+                  }
+                  provider.clearRegistrationPaymentDetails(markUnpaid: true);
+                },
+                theme,
+              ),
+              const SizedBox(height: 16),
+              if (!provider.isRegistrationFeePaid)
+                CustomTextField(
+                  controller: provider.registrationAmountPaidController,
+                  hintText: "Enter Onboarding fee amount",
+                  label: "Onboarding Fee Amount",
+                  textInputType: TextInputType.number,
+                ),
+              if (!provider.isRegistrationFeePaid) const SizedBox(height: 12),
+              if (!provider.isRegistrationFeePaid)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _startRegistrationPayment(provider),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text("Pay Onboarding Fee"),
+                  ),
+                ),
+              if (!provider.isRegistrationFeePaid) const SizedBox(height: 16),
+              if (provider.isRegistrationFeePaid) ...[
+                CustomTextField(
+                  controller: provider.registrationPaymentIdController,
+                  hintText: "Enter transaction/payment id",
+                  label: "Payment ID / Transaction ID",
+                  textInputType: TextInputType.text,
+                ),
+                CustomTextField(
+                  controller: provider.registrationPaymentDateController,
+                  hintText: "Enter payment date (e.g. 2026-02-10)",
+                  label: "Payment Date",
+                  textInputType: TextInputType.datetime,
+                ),
+                CustomTextField(
+                  controller: provider.registrationAmountPaidController,
+                  hintText: "Enter amount paid",
+                  label: "Amount Paid",
+                  textInputType: TextInputType.number,
+                ),
+                CustomTextField(
+                  controller: provider.registrationPlanTypeController,
+                  hintText: "Enter plan (Basic/Premium)",
+                  label: "Plan Type",
+                  textInputType: TextInputType.text,
+                ),
+                CustomTextField(
+                  controller: provider.registrationValidityController,
+                  hintText: "Enter validity (e.g. 1 year / 2027-02-10)",
+                  label: "Validity",
+                  textInputType: TextInputType.text,
+                ),
+                CustomTextField(
+                  controller: provider.registrationPaymentMethodController,
+                  hintText: "Enter payment method (UPI/Card/Net Banking)",
+                  label: "Payment Method",
+                  textInputType: TextInputType.text,
+                ),
+              ] else ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: theme.primaryColor.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Text(
+                    "Set Onboarding Fee Paid = Y to fill payment details and enable upload.",
+                    style: TextStyle(
+                      color: theme.canvasColor,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
-          theme,
-        ),
+            theme,
+          ),
       ],
     );
   }
@@ -1183,7 +1375,8 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
         ? const [
             "Language, Details & Cast",
             "Release, Price & Rental",
-            "Upload Files & Settings"
+            "Upload Files & Audio",
+            "Content Settings",
           ]
         : const [
             "Language, Details & Cast",
@@ -1234,7 +1427,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              "Step ${_currentPage + 1}/3",
+              "Step ${_currentPage + 1}/$_totalSteps",
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
@@ -1265,7 +1458,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       padding: EdgeInsets.symmetric(
           horizontal: _isMobile ? 14 : 24, vertical: _isMobile ? 12 : 16),
       child: Row(
-        children: List.generate(3, (index) {
+        children: List.generate(_totalSteps, (index) {
           final isActive = index <= _currentPage;
           return Expanded(
             child: Row(
@@ -1281,7 +1474,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                     ),
                   ),
                 ),
-                if (index < 2) const SizedBox(width: 8),
+                if (index < _lastPageIndex) const SizedBox(width: 8),
               ],
             ),
           );
@@ -1329,7 +1522,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(_currentPage == 2 ? "Submit" : "Next"),
+              child: Text(_currentPage == _lastPageIndex ? "Submit" : "Next"),
             ),
           ),
         ],
@@ -1351,12 +1544,20 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       return;
     }
 
-    if (!_validatePageThree(provider)) return;
+    if (_currentPage == 2) {
+      if (!_validatePageThree(provider)) return;
+      if (_isMovie) {
+        _nextPage();
+        return;
+      }
+    }
+
+    if (_isMovie && !_validatePageThree(provider)) return;
     _handleAdd(provider, themeData);
   }
 
   bool _validatePageOne(VideoProvider provider) {
-    /*  if (provider.selectedLanguages.isEmpty) {
+    if (provider.selectedLanguages.isEmpty) {
       CustomToast.show("Please select at least one language", isSuccess: false);
       return false;
     }
@@ -1368,13 +1569,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       CustomToast.show("Please enter description", isSuccess: false);
       return false;
     }
-    if (provider.runTimeController.text.trim().isEmpty) {
-      CustomToast.show(
-        _isMovie ? "Please enter runtime" : "Please enter number of episodes",
-        isSuccess: false,
-      );
-      return false;
-    } */
+
     return true;
   }
 
@@ -1384,7 +1579,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     final rentalDuration = provider.rentalDurationController.text.trim();
     final price = double.tryParse(priceText);
 
-    /*  if (releaseDate.isEmpty) {
+    if (releaseDate.isEmpty) {
       CustomToast.show("Please select release date", isSuccess: false);
       return false;
     }
@@ -1395,53 +1590,77 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     if (rentalDuration.isEmpty) {
       CustomToast.show("Please select rental duration", isSuccess: false);
       return false;
-    } */
+    }
     return true;
   }
 
   bool _validatePageThree(VideoProvider provider) {
-    /*  if (!provider.isRegistrationFeePaid) {
-      CustomToast.show(
-        "Onboarding fee is not paid (N). Upload is blocked.",
-        isSuccess: false,
-      );
-      return false;
-    }
-
-    if (provider.registrationPaymentIdController.text.trim().isEmpty ||
-        provider.registrationPaymentDateController.text.trim().isEmpty ||
-        provider.registrationAmountPaidController.text.trim().isEmpty ||
-        provider.registrationPlanTypeController.text.trim().isEmpty ||
-        provider.registrationValidityController.text.trim().isEmpty ||
-        provider.registrationPaymentMethodController.text.trim().isEmpty) {
-      CustomToast.show(
-        "Please fill all Onboarding fee detail fields.",
-        isSuccess: false,
-      );
-      return false;
-    } */
-
-    final trailerUrl = provider.trailerUrlController.text.trim();
-    if (trailerUrl.isEmpty) {
-      CustomToast.show("Please upload trailer file", isSuccess: false);
-      return false;
-    }
-
     if (_isMovie) {
-      final movieUrl = provider.movieUrlController.text.trim();
-      if (movieUrl.isEmpty) {
-        CustomToast.show("Please upload movie file", isSuccess: false);
+      if (provider.selectedLanguages.isEmpty) {
+        CustomToast.show("Please select at least one language",
+            isSuccess: false);
+        return false;
+      }
+      if (provider.censorCertificateController.text.trim().isEmpty) {
+        CustomToast.show("Please upload censor certificate", isSuccess: false);
+        return false;
+      }
+      for (final language in provider.selectedLanguages) {
+        final name = (language.language ?? '').trim();
+        final variant = provider.movieVariantControllers[name];
+        final missingFiles = <String>[];
+        if (variant == null) {
+          missingFiles.addAll(const [
+            'poster 1',
+            'poster 2',
+            'poster 3',
+            'teaser',
+            'trailer',
+            'movie',
+          ]);
+        } else {
+          if (variant['poster1']!.text.trim().isEmpty) {
+            missingFiles.add('poster 1');
+          }
+          /*  if (variant['poster2']!.text.trim().isEmpty) {
+            missingFiles.add('poster 2');
+          }
+          if (variant['poster3']!.text.trim().isEmpty) {
+            missingFiles.add('poster 3');
+          }  */
+          if (variant['teaser']!.text.trim().isEmpty) {
+            missingFiles.add('teaser');
+          }
+          if (variant['trailer']!.text.trim().isEmpty) {
+            missingFiles.add('trailer');
+          }
+          if (variant['movie']!.text.trim().isEmpty) {
+            missingFiles.add('movie');
+          }
+        }
+        if (missingFiles.isNotEmpty) {
+          CustomToast.show(
+            "Please upload ${missingFiles.join(', ')} for $name",
+            isSuccess: false,
+          );
+          return false;
+        }
+      }
+    } else {
+      final trailerUrl = provider.trailerUrlController.text.trim();
+      if (trailerUrl.isEmpty) {
+        CustomToast.show("Please upload trailer file", isSuccess: false);
         return false;
       }
     }
 
-    /*  if (provider.hasIncompleteCastDraft) {
+    if (provider.hasIncompleteCastDraft) {
       CustomToast.show(
         "Please complete cast draft or clear it before submit.",
         isSuccess: false,
       );
       return false;
-    } */
+    }
     return true;
   }
 
@@ -1459,41 +1678,11 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   Future<void> _handleAdd(
       VideoProvider provider, ThemeData selectedThemeData) async {
     if (_isMovie) {
-      final Content? content = await provider.uploadContent(context);
-      if (content != null) {
-        if (provider.hasAnyCastToSave) {
-          final contentId = content.id;
-          if (contentId == null) {
-            CustomToast.show(
-              "Content saved but content ID not received for cast save.",
-              isSuccess: false,
-            );
-            return;
-          }
-          final castSaved =
-              await provider.saveAllCastsForContent(contentId: contentId);
-          if (!castSaved) {
-            return;
-          }
-        }
-        if (provider.hasAnyCrewToSave) {
-          final contentId = content.id;
-          if (contentId == null) {
-            CustomToast.show(
-              "Content saved but content ID not received for crew save.",
-              isSuccess: false,
-            );
-            return;
-          }
-          final crewSaved =
-              await provider.saveAllCrewsForContent(contentId: contentId);
-          if (!crewSaved) {
-            return;
-          }
-        }
+      final results = await provider.uploadMovieVariants(context);
+      if (!mounted) return;
+      await _showMovieVariantResultDialog(results);
+      if (results.isNotEmpty && results.values.every((value) => value)) {
         provider.disposeData();
-      }
-      if (content != null && mounted) {
         Navigator.of(context).pop();
       }
       return;
@@ -1536,6 +1725,46 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     if (content != null && mounted) {
       Navigator.of(context).pop();
     }
+  }
+
+  Future<void> _showMovieVariantResultDialog(
+    Map<String, bool> results,
+  ) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        return AlertDialog(
+          backgroundColor: theme.cardColor,
+          title: const Text("Upload Result"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: results.entries.map((entry) {
+              final success = entry.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  success
+                      ? "${entry.key} movie added successfully"
+                      : "${entry.key} movie failed to add",
+                  style: TextStyle(
+                    color: success ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 
@@ -1581,32 +1810,4 @@ const List<String> audioFormats = [
   'Surround Sound',
   'Dolby Atmos',
   'Dolby Digital (AC-3)',
-];
-
-const List<String> languages = [
-  'Hindi',
-  'English',
-  'Bengali',
-  'Marathi',
-  'Telugu',
-  'Tamil',
-  'Gujarati',
-  'Urdu',
-  'Kannada',
-  'Odia',
-  'Malayalam',
-  'Punjabi',
-  'Assamese',
-  'Rajasthani',
-  'Bhojpuri',
-  'Sindhi',
-  'Konkani',
-  'Maithili',
-  'Santali',
-  'Manipuri',
-  'Kashmiri',
-  'Dogri',
-  'Tulu',
-  'Mizo',
-  'Bodo',
 ];

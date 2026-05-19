@@ -7,8 +7,12 @@ class SaveSeriesRequest {
   String? description;
   List<String>? directorList;
   List<String>? genreList;
+  String? aggrementDocument;
+  bool? isAggrement;
   bool? isDownloadable;
   bool? isFeatured;
+  bool? isPaid;
+  String? isReadyForApproval;
   String? registrationFeePaid;
   String? registrationFeeDetails;
   List<LanguageList>? languageList;
@@ -36,8 +40,12 @@ class SaveSeriesRequest {
     this.description,
     this.directorList,
     this.genreList,
+    this.aggrementDocument,
+    this.isAggrement,
     this.isDownloadable,
     this.isFeatured,
+    this.isPaid,
+    this.isReadyForApproval,
     this.registrationFeePaid,
     this.registrationFeeDetails,
     this.languageList,
@@ -65,8 +73,12 @@ class SaveSeriesRequest {
     description: json["description"],
     directorList: json["directorList"] == null ? [] : List<String>.from(json["directorList"]!.map((x) => x)),
     genreList: json["genreList"] == null ? [] : List<String>.from(json["genreList"]!.map((x) => x)),
+    aggrementDocument: json["aggrementDocument"],
+    isAggrement: json["isAggrement"],
     isDownloadable: json["isDownloadable"],
     isFeatured: json["isFeatured"],
+    isPaid: json["isPaid"],
+    isReadyForApproval: json["isReadyForApproval"],
     registrationFeePaid: json["registrationFeePaid"],
     registrationFeeDetails: json["registrationFeeDetails"],
     languageList: json["languageList"] == null ? [] : List<LanguageList>.from(json["languageList"]!.map((x) => LanguageList.fromJson(x))),
@@ -94,8 +106,12 @@ class SaveSeriesRequest {
     "description": description,
     "directorList": directorList == null ? [] : List<dynamic>.from(directorList!.map((x) => x)),
     "genreList": genreList == null ? [] : List<dynamic>.from(genreList!.map((x) => x)),
+    "aggrementDocument": aggrementDocument,
+    "isAggrement": isAggrement,
     "isDownloadable": isDownloadable,
     "isFeatured": isFeatured,
+    "isPaid": isPaid,
+    "isReadyForApproval": isReadyForApproval,
     "registrationFeePaid": registrationFeePaid,
     "registrationFeeDetails": registrationFeeDetails,
     "languageList": languageList == null ? [] : List<dynamic>.from(languageList!.map((x) => x.toJson())),

@@ -119,6 +119,11 @@ class ApiConstant {
   static String uploadImg = "${baseUrl}api/documents/upload";
   static String uploadContentImg = "${baseUrl}api/documents/upload";
   static String uploadVideo = "${baseUrl}api/video/upload";
+  static String uploadVideoMetadata = "${baseUrl}api/video-metadata/extract";
+  static String uploadSubtitle = "${baseUrl}api/video-metadata/subtitle/upload";
+  static String uploadAudioMetadata = "${baseUrl}api/metadata/audio/extract";
+  static String allLanguagesWithGrouping =
+      "http://ec2-43-205-217-79.ap-south-1.compute.amazonaws.com:8080/ott/api/all/withGrouping";
   static String dashboardCount = "${baseUrl}api/admin/dashboardCounts";
 
   static String resetPassword(mobile, password) =>
@@ -134,8 +139,8 @@ class ApiConstant {
       "${baseUrl}api/TicketRaised/getAllTicketRaised";
   static String getRaisedTicketByUserId(userId) =>
       "${baseUrl}api/TicketRaised/user/$userId";
-  static String getRaisedTicketByFlag(isResolved) =>
-      "${baseUrl}api/TicketRaised/getTicketRaisedForAdmin?isResolved=$isResolved";
+  static String getRaisedTicketByFlag(isResolved, userId) =>
+      "${baseUrl}api/TicketRaised/userIsResolved?userId=$userId&isResolved=$isResolved";
 
   static String weeklySettelementData(id) =>
       "${baseUrl}api/settelment/user/$id";

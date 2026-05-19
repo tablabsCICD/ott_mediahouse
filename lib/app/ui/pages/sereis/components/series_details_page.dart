@@ -285,7 +285,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
         const SizedBox(height: 14),
         _dashboardButton(
           theme,
-          label: "Rent Rs ${series.price}",
+          label: "Rent ${_formatPrice(series.price)}",
           icon: Icons.currency_rupee,
           backgroundColor: theme.primaryColor,
           onTap: () {
@@ -363,6 +363,17 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
             fontSize: 32,
             fontWeight: FontWeight.w800,
             height: 1.1,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _sectionLabel(theme, "Price / Rent"),
+        const SizedBox(height: 8),
+        Text(
+          _formatPrice(series.price),
+          style: TextStyle(
+            color: theme.canvasColor,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 10),
@@ -449,7 +460,11 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
           _analyticsCard(theme, Icons.movie_creation_outlined, "Total Episodes",
               "$totalEpisodes"),
           _analyticsCard(
-              theme, Icons.sell_outlined, "Price / Rent", "Rs ${series.price}"),
+            theme,
+            Icons.sell_outlined,
+            "Price / Rent",
+            _formatPrice(series.price),
+          ),
         ];
         final cardWidgets = cards
             .map((card) => SizedBox(
@@ -1468,7 +1483,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Price: Rs ${series.price}'),
+          Text('Price: ${_formatPrice(series.price)}'),
           const SizedBox(height: 10),
           const Text('Do you want to rent this series?'),
         ],
@@ -1488,6 +1503,12 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
         ),
       ],
     );
+  }
+
+  String _formatPrice(num? price) {
+    if (price == null) return 'N/A';
+    final value = price % 1 == 0 ? price.toInt().toString() : price.toString();
+    return 'Rs $value';
   }
 }
 

@@ -27,6 +27,9 @@ class Content {
   String? approvalStatus;
   String? type;
   String? sensorCertificate;
+  bool? isPaid;
+  bool? isAggrement;
+  String? aggrementDocument;
   bool? isFeatured;
   String? registrationFeePaid;
   String? registrationFeeDetails;
@@ -73,6 +76,9 @@ class Content {
     this.approvalStatus,
     this.type,
     this.sensorCertificate,
+    this.isPaid,
+    this.isAggrement,
+    this.aggrementDocument,
     this.isFeatured,
     this.registrationFeePaid,
     this.registrationFeeDetails,
@@ -120,6 +126,9 @@ class Content {
     approvalStatus: json["approvalStatus"],
     type: json["type"],
     sensorCertificate: json["sensorCertificate"],
+    isPaid: json["isPaid"],
+    isAggrement: json["isAggrement"],
+    aggrementDocument: json["aggrementDocument"],
     isFeatured: json["isFeatured"],
     registrationFeePaid: json["registrationFeePaid"],
     registrationFeeDetails: json["registrationFeeDetails"],
@@ -167,6 +176,9 @@ class Content {
     "approvalStatus": approvalStatus,
     "type": type,
     "sensorCertificate": sensorCertificate,
+    "isPaid": isPaid,
+    "isAggrement": isAggrement,
+    "aggrementDocument": aggrementDocument,
     "isFeatured": isFeatured,
     "registrationFeePaid": registrationFeePaid,
     "registrationFeeDetails": registrationFeeDetails,

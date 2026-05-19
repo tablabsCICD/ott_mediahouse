@@ -17,34 +17,6 @@ import '../../../../core/constant/api_constant.dart';
 import '../../../../core/utils/sharepreferences.dart';
 
 class AddShortMaster {
-  static const List<String> _languages = [
-    'Hindi',
-    'English',
-    'Bengali',
-    'Marathi',
-    'Telugu',
-    'Tamil',
-    'Gujarati',
-    'Urdu',
-    'Kannada',
-    'Odia',
-    'Malayalam',
-    'Punjabi',
-    'Assamese',
-    'Rajasthani',
-    'Bhojpuri',
-    'Sindhi',
-    'Konkani',
-    'Maithili',
-    'Santali',
-    'Manipuri',
-    'Kashmiri',
-    'Dogri',
-    'Tulu',
-    'Mizo',
-    'Bodo',
-  ];
-
   static const List<String> _rentalDurations = [
     "One Time",
     "One Day",
@@ -90,6 +62,7 @@ class AddShortMaster {
     String? crewImageUrl;
 
     final selectedLanguages = <String>[];
+    final otherLanguageCtrl = TextEditingController();
     final castList = <Map<String, String>>[];
     final crewList = <Map<String, String>>[];
 
@@ -464,28 +437,36 @@ class AddShortMaster {
       StateSetter setState,
     ) {
       Future<void> openLanguageDialog() async {
+        await provider.fetchGroupedLanguages();
+        if (!dialogContext.mounted) return;
         final draft = List<String>.from(selectedLanguages);
+        final languageOptions = provider.languageOptions;
+        final groupedOptions = provider.groupedLanguageOptions;
+        otherLanguageCtrl.text =
+            draft.where((item) => !languageOptions.contains(item)).join(', ');
         final result = await showDialog<List<String>>(
           context: dialogContext,
           builder: (context) {
             return StatefulBuilder(
               builder: (context, dialogSetState) {
-                return AlertDialog(
-                  backgroundColor: theme.cardColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  title: Text(
-                    "Select Languages",
-                    style: TextStyle(
-                      color: theme.primaryColor,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  content: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: _languages.map((language) {
+                List<Widget> languageTiles() {
+                  final entries = groupedOptions.isEmpty
+                      ? {'Languages': languageOptions}.entries
+                      : groupedOptions.entries;
+
+                  return entries.expand((entry) {
+                    return [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8, bottom: 4),
+                        child: Text(
+                          entry.key,
+                          style: TextStyle(
+                            color: theme.primaryColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      ...entry.value.map((language) {
                         final isSelected = draft.contains(language);
                         return CheckboxListTile(
                           value: isSelected,
@@ -506,7 +487,56 @@ class AddShortMaster {
                             });
                           },
                         );
-                      }).toList(),
+                      }),
+                    ];
+                  }).toList();
+                }
+
+                return AlertDialog(
+                  backgroundColor: theme.cardColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  title: Text(
+                    "Select Languages",
+                    style: TextStyle(
+                      color: theme.primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (provider.isLanguageOptionsLoading)
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: CircularProgressIndicator(
+                              color: theme.primaryColor,
+                            ),
+                          )
+                        else if (provider.languageOptionsError != null)
+                          Text(
+                            provider.languageOptionsError!,
+                            style: TextStyle(color: theme.colorScheme.error),
+                          )
+                        else
+                          ...languageTiles(),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: otherLanguageCtrl,
+                          style: TextStyle(color: theme.canvasColor),
+                          decoration: InputDecoration(
+                            labelText: "Other language",
+                            hintText: "Enter language name",
+                            labelStyle: TextStyle(color: theme.canvasColor),
+                            hintStyle: TextStyle(
+                              color: theme.canvasColor.withValues(alpha: 0.6),
+                            ),
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   actions: [
@@ -521,7 +551,21 @@ class AddShortMaster {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: theme.primaryColor,
                       ),
-                      onPressed: () => Navigator.pop(context, draft),
+                      onPressed: () {
+                        final result = draft
+                            .where((item) => languageOptions.contains(item))
+                            .toList();
+                        final customLanguages = otherLanguageCtrl.text
+                            .split(',')
+                            .map((item) => item.trim())
+                            .where((item) => item.isNotEmpty);
+                        for (final language in customLanguages) {
+                          if (!result.contains(language)) {
+                            result.add(language);
+                          }
+                        }
+                        Navigator.pop(context, result);
+                      },
                       child: const Text(
                         "Submit",
                         style: TextStyle(color: Colors.white),

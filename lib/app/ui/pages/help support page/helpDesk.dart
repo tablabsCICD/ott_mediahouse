@@ -365,57 +365,50 @@ class _HelpDeskPageState extends State<HelpDeskPage> {
                 Text(ticket.feedback ?? '',
                     style: const TextStyle(fontSize: 16)),
                 const Divider(height: 30),
-                Text("Respond", style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 10),
-                CustomTextField(
-                  textInputType: TextInputType.multiline,
-                  controller: _responseController,
-                  maxLine: 4,
-                  hintText: "Type your response here...",
-                  // decoration: InputDecoration(
-                  //   hintText: "Type your response here...",
-                  //   border: OutlineInputBorder(
-                  //       borderRadius: BorderRadius.circular(8)),
-                  // ),
-                ),
                 const SizedBox(height: 10),
                 Wrap(
                   spacing: 12,
                   runSpacing: 8,
                   children: [
-                    OutlinedButton.icon(
-                      onPressed: () async {
-                        await provider.updateRaiseTicket(
-                            ticket, true, _responseController.text);
-                        _responseController.clear();
-                      },
-                      icon: Icon(
-                        Icons.send,
-                        color: selectedThemeData.canvasColor,
-                      ),
-                      label: Text(
-                        "Send",
-                        style: TextStyle(
+                    Visibility(
+                      visible: false,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          await provider.updateRaiseTicket(
+                              ticket, true, _responseController.text);
+                          _responseController.clear();
+                        },
+                        icon: Icon(
+                          Icons.send,
                           color: selectedThemeData.canvasColor,
+                        ),
+                        label: Text(
+                          "Send",
+                          style: TextStyle(
+                            color: selectedThemeData.canvasColor,
+                          ),
                         ),
                       ),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        final provider = context.read<TicketProvider>();
-                        final index = provider.tickets.indexOf(ticket);
-                        if (index != -1) _toggleResolvedStatus(index);
-                      },
-                      icon: Icon(
-                        ticket.isResolved == true ? Icons.undo : Icons.check,
-                        color: selectedThemeData.canvasColor,
-                      ),
-                      label: Text(
-                        ticket.isResolved == true
-                            ? "Mark as Unsolved"
-                            : "Mark as Solved",
-                        style: TextStyle(
+                    Visibility(
+                      visible: false,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          final provider = context.read<TicketProvider>();
+                          final index = provider.tickets.indexOf(ticket);
+                          if (index != -1) _toggleResolvedStatus(index);
+                        },
+                        icon: Icon(
+                          ticket.isResolved == true ? Icons.undo : Icons.check,
                           color: selectedThemeData.canvasColor,
+                        ),
+                        label: Text(
+                          ticket.isResolved == true
+                              ? "Mark as Unsolved"
+                              : "Mark as Solved",
+                          style: TextStyle(
+                            color: selectedThemeData.canvasColor,
+                          ),
                         ),
                       ),
                     ),

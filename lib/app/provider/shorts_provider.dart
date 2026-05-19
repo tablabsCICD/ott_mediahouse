@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:media_house/app/core/constant/api_constant.dart';
 import 'package:media_house/data/models/shorts.dart';
+import 'package:media_house/data/models/response/language_group_response.dart';
 import 'package:universal_html/html.dart' as html;
 
 import '../../data/models/response/short_detail_response.dart';
@@ -26,6 +27,19 @@ class ShortProvider extends ChangeNotifier {
   bool _isUploading = false;
   bool _isMovieUploading = false;
   double movieUploadProgress = 0.0;
+  Map<String, List<String>> _groupedLanguageOptions = {};
+  Map<String, List<String>> get groupedLanguageOptions =>
+      Map.unmodifiable(_groupedLanguageOptions);
+  List<String> get languageOptions => _groupedLanguageOptions.values
+      .expand((items) => items)
+      .where((item) => item.trim().isNotEmpty)
+      .toSet()
+      .toList();
+  bool _isLanguageOptionsLoading = false;
+  bool get isLanguageOptionsLoading => _isLanguageOptionsLoading;
+  String? _languageOptionsError;
+  String? get languageOptionsError => _languageOptionsError;
+  Future<void>? _languageOptionsRequest;
 
   bool get isMovieUploading => _isMovieUploading;
 
@@ -307,6 +321,43 @@ class ShortProvider extends ChangeNotifier {
     final mm = date.month.toString().padLeft(2, '0');
     final yyyy = date.year.toString();
     return "$dd/$mm/$yyyy";
+  }
+
+  Future<void> fetchGroupedLanguages({bool force = false}) async {
+    if (_languageOptionsRequest != null) return _languageOptionsRequest!;
+    if (!force && _groupedLanguageOptions.isNotEmpty) return;
+
+    _isLanguageOptionsLoading = true;
+    _languageOptionsError = null;
+    notifyListeners();
+
+    _languageOptionsRequest = () async {
+      try {
+        final apiHelper = ApiHelper();
+        final response =
+            await apiHelper.getApi(ApiConstant.allLanguagesWithGrouping);
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw Exception(
+            'Language API failed with status ${response.statusCode}',
+          );
+        }
+        final decoded = jsonDecode(response.body);
+        if (decoded is! Map<String, dynamic>) {
+          throw Exception('Language API returned invalid data');
+        }
+        _groupedLanguageOptions =
+            LanguageGroupResponse.fromJson(decoded).toGroupedNames();
+      } catch (error) {
+        _languageOptionsError = 'Failed to load languages';
+        debugPrint('Short Language Fetch Error -> $error');
+      } finally {
+        _isLanguageOptionsLoading = false;
+        _languageOptionsRequest = null;
+        notifyListeners();
+      }
+    }();
+
+    return _languageOptionsRequest!;
   }
 
   Future<void> _fetchShortsFromUrl(String url) async {

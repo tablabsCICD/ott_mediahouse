@@ -61,10 +61,10 @@ class UploadFormHelpers {
           final lastDate = DateTime(9900);
           final selectedDate =
               DateTime.tryParse(provider.releaseDateController.text.trim());
-          final initialDate = selectedDate != null &&
-                  selectedDate.weekday == DateTime.friday
-              ? selectedDate
-              : _nextFriday(DateTime.now());
+          final initialDate =
+              selectedDate != null && selectedDate.weekday == DateTime.friday
+                  ? selectedDate
+                  : _nextFriday(DateTime.now());
 
           DateTime? pickedDate = await showDatePicker(
             context: context, // Use the passed context
@@ -175,11 +175,8 @@ class UploadFormHelpers {
   }
 
   static Widget buildModernMultiSelectDropdownField(
-    String label,
-    List<String> items,
-    BuildContext context,
-    ThemeData theme,
-  ) {
+      String label, List<String> items, BuildContext context, ThemeData theme,
+      {Map<String, List<String>> groupedItems = const {}}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -194,12 +191,26 @@ class UploadFormHelpers {
         const SizedBox(height: 8),
         GestureDetector(
           onTap: () async {
+            final provider = context.read<VideoProvider>();
+            final usesLanguageApi =
+                label == "Languages" || label == "Audio Languages";
+            if (usesLanguageApi && provider.languageOptions.isEmpty) {
+              await provider.fetchGroupedLanguages();
+              if (!context.mounted) return;
+            }
+            final dialogGroupedItems = usesLanguageApi
+                ? provider.groupedLanguageOptions
+                : groupedItems;
+            final dialogItems = dialogGroupedItems.isEmpty
+                ? items
+                : dialogGroupedItems.values.expand((value) => value).toList();
             await showDialog(
               context: context,
               builder: (BuildContext context) {
                 return MultiSelectDialog(
                   label: label,
-                  items: items,
+                  items: dialogItems,
+                  groupedItems: dialogGroupedItems,
                   theme: theme,
                 );
               },

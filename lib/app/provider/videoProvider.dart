@@ -8,7 +8,9 @@ import 'package:media_house/data/models/request/save_series_request.dart';
 import 'package:media_house/data/models/response/allContentResponse.dart';
 import 'package:media_house/data/models/response/content_image_upload_response.dart';
 import 'package:media_house/data/models/response/image_upload_response.dart';
+import 'package:media_house/data/models/response/language_group_response.dart';
 import 'package:media_house/data/models/response/video_upload_response.dart';
+import 'package:media_house/data/models/response/audio_upload_response.dart';
 import 'package:universal_html/html.dart' as html;
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
@@ -174,6 +176,19 @@ class VideoProvider extends ChangeNotifier {
   List<String> get selectedAudioFormat => _selectedAudioFormat;
   List<LanguageList> _selectedLanguages = [];
   List<LanguageList> get selectedLanguages => _selectedLanguages;
+  Map<String, List<String>> _groupedLanguageOptions = {};
+  Map<String, List<String>> get groupedLanguageOptions =>
+      Map.unmodifiable(_groupedLanguageOptions);
+  List<String> get languageOptions => _groupedLanguageOptions.values
+      .expand((items) => items)
+      .where((item) => item.trim().isNotEmpty)
+      .toSet()
+      .toList();
+  bool _isLanguageOptionsLoading = false;
+  bool get isLanguageOptionsLoading => _isLanguageOptionsLoading;
+  String? _languageOptionsError;
+  String? get languageOptionsError => _languageOptionsError;
+  Future<void>? _languageOptionsRequest;
   List<String> _selectedSubLanguages = [];
   List<String> get selectedSubLanguages => _selectedSubLanguages;
   List<String> _castList = [];
@@ -218,6 +233,13 @@ class VideoProvider extends ChangeNotifier {
   final Map<String, TextEditingController> audioControllers = {};
   final List<String> _audioLanguages = [];
   List<String> get audioLanguages => _audioLanguages;
+  final Map<String, Map<String, TextEditingController>>
+      _movieVariantControllers = {};
+  Map<String, Map<String, TextEditingController>> get movieVariantControllers =>
+      _movieVariantControllers;
+  final Map<String, int> _movieVariantDurations = {};
+  final Map<String, double> _movieVariantUploadProgress = {};
+  final Map<String, bool> _movieVariantUploading = {};
 
   // Specific upload statuses and progress for dynamic audio files
   final Map<String, double> _audioUploadProgress = {};
@@ -532,7 +554,7 @@ class VideoProvider extends ChangeNotifier {
       } else {
         selectedSubLanguages.add(item);
       }
-    } else if (label == "Languages") {
+    } else if (label == "Languages" || label == "Audio Languages") {
       final existingIndex = selectedLanguages
           .indexWhere((language) => (language.language ?? "") == item);
       if (existingIndex >= 0) {
@@ -540,6 +562,7 @@ class VideoProvider extends ChangeNotifier {
       } else {
         selectedLanguages.add(LanguageList(language: item, fileUrl: ''));
       }
+      _syncAudioLanguagesWithSelectedLanguages();
     }
     notifyListeners();
   }
@@ -1207,8 +1230,10 @@ class VideoProvider extends ChangeNotifier {
     saveContent.directorList = directorList;
     saveContent.description = descriptionController.text;
     saveContent.genersList = selectedGeners;
+    saveContent.isAggrement = hasUploadedAgreement;
     saveContent.isDownloadable = isDownloadable;
     saveContent.isFeatured = isFeatured;
+    saveContent.isPaid = isRegistrationFeePaid;
     saveContent.isReadyForApproval = hasCompletedAgreementWorkflow ? "Y" : "N";
     saveContent.registrationFeePaid = registrationFeePaidValue;
     saveContent.registrationFeeDetails = registrationFeeDetailsValue;
@@ -1224,6 +1249,7 @@ class VideoProvider extends ChangeNotifier {
     saveContent.ratingCount = 0;
     saveContent.reason = '';
     saveContent.releaseDate = releaseDateController.text;
+    saveContent.releaseTime = '';
     saveContent.rentlDuration = rentalDurationController.text.isNotEmpty
         ? rentalDurationController.text
         : rentlDurationController.text;
@@ -1297,8 +1323,12 @@ class VideoProvider extends ChangeNotifier {
     saveContent.availability = availability;
     saveContent.directorList = directorList;
     saveContent.description = descriptionController.text;
+    saveContent.aggrementDocument = agreementDocumentUrl;
+    saveContent.isAggrement = hasUploadedAgreement;
     saveContent.isDownloadable = isDownloadable;
     saveContent.isFeatured = isFeatured;
+    saveContent.isPaid = isRegistrationFeePaid;
+    saveContent.isReadyForApproval = hasCompletedAgreementWorkflow ? "Y" : "N";
     saveContent.registrationFeePaid = registrationFeePaidValue;
     saveContent.registrationFeeDetails = registrationFeeDetailsValue;
     saveContent.genreList = selectedGeners;
@@ -1390,8 +1420,10 @@ class VideoProvider extends ChangeNotifier {
       saveContent.directorList = directorList;
       saveContent.description = descriptionController.text;
       saveContent.genersList = selectedGeners;
+      saveContent.isAggrement = hasUploadedAgreement;
       saveContent.isDownloadable = isDownloadable;
       saveContent.isFeatured = isFeatured;
+      saveContent.isPaid = isRegistrationFeePaid;
       saveContent.isReadyForApproval =
           hasCompletedAgreementWorkflow ? "Y" : "N";
       saveContent.registrationFeePaid = registrationFeePaidValue;
@@ -1408,6 +1440,7 @@ class VideoProvider extends ChangeNotifier {
       saveContent.ratingCount = 0;
       saveContent.reason = '';
       saveContent.releaseDate = releaseDateController.text;
+      saveContent.releaseTime = '';
       saveContent.rentlDuration = rentalDurationController.text.isNotEmpty
           ? rentalDurationController.text
           : rentlDurationController.text;
@@ -1459,14 +1492,12 @@ class VideoProvider extends ChangeNotifier {
 
   bool get hasCastDraft =>
       castNameController.text.trim().isNotEmpty ||
-      castRoleController.text.trim().isNotEmpty ||
       castDescriptionController.text.trim().isNotEmpty ||
       castImageController.text.trim().isNotEmpty;
 
   bool get hasIncompleteCastDraft =>
       hasCastDraft &&
       (castNameController.text.trim().isEmpty ||
-          castRoleController.text.trim().isEmpty ||
           castImageController.text.trim().isEmpty);
 
   bool get hasAnyCastToSave => _pendingCasts.isNotEmpty || hasCastDraft;
@@ -1475,7 +1506,7 @@ class VideoProvider extends ChangeNotifier {
   Map<String, String> _buildCastFromControllers() {
     return {
       "name": castNameController.text.trim(),
-      "role": castRoleController.text.trim(),
+      "role": "Actor",
       "description": castDescriptionController.text.trim(),
       "image": castImageController.text.trim(),
     };
@@ -1483,11 +1514,9 @@ class VideoProvider extends ChangeNotifier {
 
   bool addCurrentCastToQueue() {
     final cast = _buildCastFromControllers();
-    if ((cast["name"] ?? "").isEmpty ||
-        (cast["role"] ?? "").isEmpty ||
-        (cast["image"] ?? "").isEmpty) {
+    if ((cast["name"] ?? "").isEmpty || (cast["image"] ?? "").isEmpty) {
       CustomToast.show(
-        "Please fill cast name, role and cast image.",
+        "Please fill cast name and cast image.",
         isSuccess: false,
       );
       return false;
@@ -1615,11 +1644,9 @@ class VideoProvider extends ChangeNotifier {
     }
 
     final cast = _buildCastFromControllers();
-    if ((cast["name"] ?? "").isEmpty ||
-        (cast["role"] ?? "").isEmpty ||
-        (cast["image"] ?? "").isEmpty) {
+    if ((cast["name"] ?? "").isEmpty || (cast["image"] ?? "").isEmpty) {
       CustomToast.show(
-        "Please fill cast name, role and cast image.",
+        "Please fill cast name and cast image.",
         isSuccess: false,
       );
       return false;
@@ -1800,7 +1827,16 @@ class VideoProvider extends ChangeNotifier {
       uploadInput.click();
       uploadInput.onChange.listen((event) async {
         if (uploadInput.files != null && uploadInput.files!.isNotEmpty) {
-          _webFile = uploadInput.files!.first;
+          final file = uploadInput.files!.first;
+          final error = _validateImageUpload(
+            file.name,
+            file.size,
+          );
+          if (error != null) {
+            CustomToast.show(error, isSuccess: false);
+            return;
+          }
+          _webFile = file;
           await uploadImage(label);
           notifyListeners();
         }
@@ -1809,11 +1845,31 @@ class VideoProvider extends ChangeNotifier {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
-        _imageFile = io.File(pickedFile.path);
+        final file = io.File(pickedFile.path);
+        final error = _validateImageUpload(
+          pickedFile.name,
+          await file.length(),
+        );
+        if (error != null) {
+          CustomToast.show(error, isSuccess: false);
+          return;
+        }
+        _imageFile = file;
         await uploadImage(label);
         notifyListeners();
       }
     }
+  }
+
+  String? _validateImageUpload(String fileName, int sizeInBytes) {
+    final extension = fileName.split('.').last.toLowerCase();
+    if (!const {'jpg', 'jpeg', 'png', 'webp'}.contains(extension)) {
+      return 'Image must be JPG, JPEG, PNG, or WEBP.';
+    }
+    if (sizeInBytes > 5 * 1024 * 1024) {
+      return 'Image must be 5 MB or smaller.';
+    }
+    return null;
   }
 
   Future<void> uploadImage(String label) async {
@@ -2071,11 +2127,20 @@ class VideoProvider extends ChangeNotifier {
     numberOfAttemptController.text = (movie.numberOfAttempt ?? 0).toString();
     fullAttemptController.text = (movie.fullAttempt ?? 0).toString();
     _selectedLanguages = movie.languageList ?? [];
+    _syncAudioLanguagesWithSelectedLanguages();
     _selectedSubLanguages = movie.subtitleLanguageList ?? [];
     _selectedAudioFormat = movie.audioFormatList ?? [];
     _selectedGeners = movie.genreList ?? [];
     _isDownloadable = movie.isDownloadable ?? false;
-    _isRegistrationFeePaid =
+    agreementDocumentUrlController.text = movie.aggrementDocument ?? '';
+    if ((movie.aggrementDocument ?? '').trim().isNotEmpty) {
+      final uri = Uri.tryParse(movie.aggrementDocument!.trim());
+      final segments = uri?.pathSegments ?? const <String>[];
+      _agreementFileName = segments.isEmpty
+          ? 'Agreement uploaded'
+          : Uri.decodeComponent(segments.last);
+    }
+    _isRegistrationFeePaid = movie.isPaid == true ||
         (movie.registrationFeePaid ?? '').toUpperCase() == 'Y';
     registrationFeeDetailsController.text = movie.registrationFeeDetails ?? '';
     _populateRegistrationFeeDetailsFields(movie.registrationFeeDetails ?? '');
@@ -2827,6 +2892,15 @@ class VideoProvider extends ChangeNotifier {
       controller.dispose();
     }
     audioControllers.clear();
+    for (final variant in _movieVariantControllers.values) {
+      for (final controller in variant.values) {
+        controller.dispose();
+      }
+    }
+    _movieVariantControllers.clear();
+    _movieVariantDurations.clear();
+    _movieVariantUploadProgress.clear();
+    _movieVariantUploading.clear();
 
     _isDownloadable = false;
     _isRegistrationFeePaid = false;
@@ -2850,29 +2924,103 @@ class VideoProvider extends ChangeNotifier {
   }
 
   Future<void> pickAudioFile(String label) async {
-    FilePickerResult? result =
-        await FilePicker.platform.pickFiles(type: FileType.audio);
-    if (result != null && result.files.single.path != null) {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['mp3', 'wav', 'aac', 'm4a'],
+      withData: kIsWeb,
+    );
+    if (result != null) {
       final language = label.replaceAll(" Audio", "");
       _isAudioUploading[language] = true;
       _audioUploadProgress[language] = 0.0;
       notifyListeners();
 
-      double currentProgress = 0.0;
-      while (currentProgress < 1.0) {
-        await Future.delayed(const Duration(milliseconds: 100));
-        currentProgress += 0.1;
-        _audioUploadProgress[language] = currentProgress;
+      try {
+        final pickedFile = result.files.single;
+        final extension = (pickedFile.extension ?? '').toLowerCase();
+        final sizeInMb = pickedFile.size / (1024 * 1024);
+        if (!const {'mp3', 'wav', 'aac', 'm4a'}.contains(extension)) {
+          CustomToast.show(
+            'Audio must be MP3, WAV, AAC, or M4A.',
+            isSuccess: false,
+          );
+          return;
+        }
+        if (sizeInMb > 100) {
+          CustomToast.show('Audio must be 100 MB or smaller.',
+              isSuccess: false);
+          return;
+        }
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse(ApiConstant.uploadAudioMetadata),
+        );
+
+        if (kIsWeb) {
+          final bytes = pickedFile.bytes;
+          if (bytes == null) {
+            throw Exception('Unable to read selected audio file.');
+          }
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'file',
+              bytes,
+              filename: pickedFile.name,
+            ),
+          );
+        } else {
+          final path = pickedFile.path;
+          if (path == null || path.isEmpty) {
+            throw Exception('Unable to read selected audio file.');
+          }
+          request.files.add(await http.MultipartFile.fromPath('file', path));
+        }
+
+        _audioUploadProgress[language] = 0.45;
+        notifyListeners();
+
+        final response = await request.send();
+        final responseBody = await response.stream.bytesToString();
+        final decoded = jsonDecode(responseBody) as Map<String, dynamic>;
+        final uploadResponse = AudioUploadResponse.fromJson(decoded);
+        if (response.statusCode != 200 &&
+            response.statusCode != 201 &&
+            response.statusCode != 202) {
+          throw Exception(
+            uploadResponse.message?.trim().isNotEmpty == true
+                ? uploadResponse.message!.trim()
+                : 'Audio upload failed with ${response.statusCode}.',
+          );
+        }
+        if (uploadResponse.success != true) {
+          throw Exception(
+            uploadResponse.message?.trim().isNotEmpty == true
+                ? uploadResponse.message!.trim()
+                : 'Audio upload failed.',
+          );
+        }
+
+        final audioUrl = uploadResponse.data?.fullUrl?.trim();
+        if (audioUrl == null || audioUrl.isEmpty) {
+          throw Exception('Audio upload response did not include a URL.');
+        }
+
+        audioControllers[language]?.text = audioUrl;
+        _setLanguageAudioUrl(language, audioUrl);
+        _audioUploadProgress[language] = 1.0;
+        CustomToast.show(
+          uploadResponse.message?.trim().isNotEmpty == true
+              ? uploadResponse.message!.trim()
+              : "$label uploaded successfully!",
+          isSuccess: true,
+        );
+      } catch (error) {
+        _audioUploadProgress[language] = 0.0;
+        CustomToast.show("Audio upload failed: $error", isSuccess: false);
+      } finally {
+        _isAudioUploading[language] = false;
         notifyListeners();
       }
-
-      final audioUrl =
-          "https://example.com/${language.toLowerCase()}_audio_${DateTime.now().millisecondsSinceEpoch}.mp3";
-      audioControllers[language]?.text = audioUrl;
-
-      _isAudioUploading[language] = false;
-      notifyListeners();
-      CustomToast.show("$label uploaded successfully!", isSuccess: true);
     } else {
       CustomToast.show("Audio picking cancelled or failed.", isSuccess: false);
     }
@@ -2896,6 +3044,7 @@ class VideoProvider extends ChangeNotifier {
     audioControllers.remove(language);
     _isAudioUploading.remove(language);
     _audioUploadProgress.remove(language);
+    _selectedLanguages.removeWhere((item) => item.language == language);
     notifyListeners();
   }
 
@@ -2914,12 +3063,527 @@ class VideoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> fetchGroupedLanguages({bool force = false}) async {
+    if (_languageOptionsRequest != null) return _languageOptionsRequest!;
+    if (!force && _groupedLanguageOptions.isNotEmpty) return;
+
+    _isLanguageOptionsLoading = true;
+    _languageOptionsError = null;
+    notifyListeners();
+
+    _languageOptionsRequest = () async {
+      try {
+        final apiHelper = ApiHelper();
+        final response =
+            await apiHelper.getApi(ApiConstant.allLanguagesWithGrouping);
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          throw Exception(
+            'Language API failed with status ${response.statusCode}',
+          );
+        }
+        final decoded = jsonDecode(response.body);
+        if (decoded is! Map<String, dynamic>) {
+          throw Exception('Language API returned invalid data');
+        }
+        _groupedLanguageOptions =
+            LanguageGroupResponse.fromJson(decoded).toGroupedNames();
+      } catch (error) {
+        _languageOptionsError = 'Failed to load languages';
+        debugPrint('Language Fetch Error -> $error');
+      } finally {
+        _isLanguageOptionsLoading = false;
+        _languageOptionsRequest = null;
+        notifyListeners();
+      }
+    }();
+
+    return _languageOptionsRequest!;
+  }
+
   void setSelectedLanguages(List<String> items) {
+    final existingUrls = {
+      for (final language in _selectedLanguages)
+        if ((language.language ?? '').trim().isNotEmpty)
+          language.language!: language.fileUrl ?? '',
+    };
     _selectedLanguages = items
         .where((item) => item.trim().isNotEmpty)
-        .map((item) => LanguageList(language: item, fileUrl: ''))
+        .map(
+          (item) => LanguageList(
+            language: item,
+            fileUrl: existingUrls[item] ?? '',
+          ),
+        )
         .toList();
+    _syncAudioLanguagesWithSelectedLanguages();
     notifyListeners();
+  }
+
+  void clearAudioFile(String language) {
+    audioControllers[language]?.clear();
+    _setLanguageAudioUrl(language, '');
+    notifyListeners();
+  }
+
+  void _setLanguageAudioUrl(String language, String audioUrl) {
+    final index = _selectedLanguages.indexWhere(
+      (item) => item.language == language,
+    );
+    if (index < 0) return;
+    _selectedLanguages[index].fileUrl = audioUrl;
+  }
+
+  void _syncAudioLanguagesWithSelectedLanguages() {
+    final selectedLanguageNames = _selectedLanguages
+        .map((item) => (item.language ?? '').trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    final removedLanguages = _audioLanguages
+        .where((language) => !selectedLanguageNames.contains(language))
+        .toList();
+    for (final language in removedLanguages) {
+      _audioLanguages.remove(language);
+      audioControllers[language]?.dispose();
+      audioControllers.remove(language);
+      _isAudioUploading.remove(language);
+      _audioUploadProgress.remove(language);
+    }
+
+    for (final language in selectedLanguageNames) {
+      if (!_audioLanguages.contains(language)) {
+        _audioLanguages.add(language);
+        audioControllers[language] = TextEditingController(
+          text: _selectedLanguages
+                  .firstWhere((item) => item.language == language)
+                  .fileUrl ??
+              '',
+        );
+        _isAudioUploading[language] = false;
+        _audioUploadProgress[language] = 0.0;
+      } else {
+        audioControllers[language]?.text = _selectedLanguages
+                .firstWhere((item) => item.language == language)
+                .fileUrl ??
+            '';
+      }
+      _movieVariantControllers.putIfAbsent(language, () {
+        return {
+          'poster1': TextEditingController(),
+          'poster2': TextEditingController(),
+          'poster3': TextEditingController(),
+          'teaser': TextEditingController(),
+          'trailer': TextEditingController(),
+          'movie': TextEditingController(),
+          'subtitle': TextEditingController(),
+        };
+      });
+    }
+
+    final removedVariants = _movieVariantControllers.keys
+        .where((language) => !selectedLanguageNames.contains(language))
+        .toList();
+    for (final language in removedVariants) {
+      for (final controller in _movieVariantControllers[language]!.values) {
+        controller.dispose();
+      }
+      _movieVariantControllers.remove(language);
+      _movieVariantDurations.remove(language);
+      for (final field in const [
+        'poster1',
+        'poster2',
+        'poster3',
+        'teaser',
+        'trailer',
+        'movie',
+        'subtitle',
+      ]) {
+        _movieVariantUploadProgress.remove(_movieVariantKey(language, field));
+        _movieVariantUploading.remove(_movieVariantKey(language, field));
+      }
+    }
+  }
+
+  TextEditingController movieVariantController(
+    String language,
+    String field,
+  ) {
+    _movieVariantControllers.putIfAbsent(language, () {
+      return {
+        'poster1': TextEditingController(),
+        'poster2': TextEditingController(),
+        'poster3': TextEditingController(),
+        'teaser': TextEditingController(),
+        'trailer': TextEditingController(),
+        'movie': TextEditingController(),
+        'subtitle': TextEditingController(),
+      };
+    });
+    return _movieVariantControllers[language]![field]!;
+  }
+
+  String _movieVariantKey(String language, String field) => '$language::$field';
+
+  double movieVariantUploadProgress(String language, String field) =>
+      _movieVariantUploadProgress[_movieVariantKey(language, field)] ?? 0.0;
+
+  bool isMovieVariantUploading(String language, String field) =>
+      _movieVariantUploading[_movieVariantKey(language, field)] ?? false;
+
+  Future<void> pickMovieVariantFile(
+    String language,
+    String field, {
+    required bool isVideo,
+  }) async {
+    final isSubtitle = field == 'subtitle';
+    final isImage = field.startsWith('poster');
+    final result = await FilePicker.platform.pickFiles(
+      type: isVideo ? FileType.video : FileType.custom,
+      allowedExtensions: isVideo
+          ? null
+          : isSubtitle
+              ? const ['srt', 'vtt']
+              : const ['jpg', 'jpeg', 'png', 'webp'],
+      withData: kIsWeb,
+    );
+    if (result == null) return;
+
+    try {
+      final variantKey = _movieVariantKey(language, field);
+      _movieVariantUploading[variantKey] = true;
+      _movieVariantUploadProgress[variantKey] = 0.05;
+      notifyListeners();
+
+      final pickedFile = result.files.single;
+      final validationError = _validateMovieVariantFile(
+        pickedFile,
+        isVideo: isVideo,
+        isImage: isImage,
+        isSubtitle: isSubtitle,
+      );
+      if (validationError != null) {
+        CustomToast.show(validationError, isSuccess: false);
+        return;
+      }
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+          isVideo
+              ? ApiConstant.uploadVideoMetadata
+              : isSubtitle
+                  ? ApiConstant.uploadSubtitle
+                  : ApiConstant.uploadImg,
+        ),
+      );
+
+      if (kIsWeb) {
+        final bytes = pickedFile.bytes;
+        if (bytes == null) throw Exception('Unable to read selected file.');
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            bytes,
+            filename: pickedFile.name,
+          ),
+        );
+      } else {
+        final path = pickedFile.path;
+        if (path == null || path.isEmpty) {
+          throw Exception('Unable to read selected file.');
+        }
+        request.files.add(await http.MultipartFile.fromPath('file', path));
+      }
+
+      _movieVariantUploadProgress[variantKey] = 0.35;
+      notifyListeners();
+
+      final response = await request.send();
+      _movieVariantUploadProgress[variantKey] = 0.8;
+      notifyListeners();
+      final body = await response.stream.bytesToString();
+      if (response.statusCode != 200 &&
+          response.statusCode != 201 &&
+          response.statusCode != 202) {
+        throw Exception(
+          _extractUploadErrorMessage(
+            body,
+            fallback: isSubtitle
+                ? 'Subtitle upload failed with ${response.statusCode}.'
+                : 'Upload failed with ${response.statusCode}.',
+          ),
+        );
+      }
+
+      final decoded = jsonDecode(body);
+      final videoResponse =
+          isVideo ? VideoUploadResponse.fromJson(decoded) : null;
+      String? url;
+      if (isVideo) {
+        url = videoResponse?.data?.videoUrl;
+      } else if (isSubtitle) {
+        url = decoded['data']?['fileUrl']?.toString();
+      } else {
+        url = ContentImageUploadResponse.fromJson(decoded).data?.fileUrl;
+      }
+
+      if (url == null || url.trim().isEmpty) {
+        throw Exception(
+          isSubtitle
+              ? 'Subtitle uploaded, but the server did not return a file URL.'
+              : 'Upload response did not include a URL.',
+        );
+      }
+      movieVariantController(language, field).text = url.trim();
+      if (field == 'movie') {
+        final durationInSeconds = videoResponse?.data?.duration ?? 0;
+        _movieVariantDurations[language] = durationInSeconds;
+        // Keep the shared controller in sync for agreement generation and any
+        // older flows that still read the runtime value.
+        runTimeController.text = durationInSeconds.toString();
+      }
+      _movieVariantUploadProgress[variantKey] = 1.0;
+      notifyListeners();
+      if (isSubtitle) {
+        CustomToast.show(
+          (decoded['message']?.toString().trim().isNotEmpty ?? false)
+              ? decoded['message'].toString().trim()
+              : 'Subtitle uploaded successfully.',
+          isSuccess: true,
+        );
+      }
+    } catch (error) {
+      _movieVariantUploadProgress[_movieVariantKey(language, field)] = 0.0;
+      final message =
+          error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+      CustomToast.show(message, isSuccess: false);
+    } finally {
+      _movieVariantUploading[_movieVariantKey(language, field)] = false;
+      notifyListeners();
+    }
+  }
+
+  String _extractUploadErrorMessage(
+    String body, {
+    required String fallback,
+  }) {
+    if (body.trim().isEmpty) return fallback;
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        for (final key in const ['message', 'error', 'details']) {
+          final value = decoded[key]?.toString().trim();
+          if (value != null && value.isNotEmpty) return value;
+        }
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
+  String? _validateMovieVariantFile(
+    PlatformFile file, {
+    required bool isVideo,
+    required bool isImage,
+    required bool isSubtitle,
+  }) {
+    final extension = (file.extension ?? '').toLowerCase();
+    final sizeInMb = file.size / (1024 * 1024);
+
+    if (isVideo) {
+      const allowed = {'mp4', 'mov', 'm4v', 'webm'};
+      if (!allowed.contains(extension)) {
+        return 'Video must be MP4, MOV, M4V, or WEBM.';
+      }
+      if (sizeInMb > 2048) return 'Video must be 2 GB or smaller.';
+      return null;
+    }
+
+    if (isImage) {
+      const allowed = {'jpg', 'jpeg', 'png', 'webp'};
+      if (!allowed.contains(extension)) {
+        return 'Image must be JPG, JPEG, PNG, or WEBP.';
+      }
+      if (sizeInMb > 5) return 'Image must be 5 MB or smaller.';
+      return null;
+    }
+
+    if (isSubtitle) {
+      const allowed = {'srt', 'vtt'};
+      if (!allowed.contains(extension)) {
+        return 'Subtitle must be SRT or VTT.';
+      }
+      if (sizeInMb > 2) return 'Subtitle file must be 2 MB or smaller.';
+    }
+    return null;
+  }
+
+  Future<Map<String, bool>> uploadMovieVariants(BuildContext context) async {
+    final localSharePreferences = LocalSharePreferences();
+    final mediaHouse = await localSharePreferences.getMediaHouse();
+    if (mediaHouse == null) {
+      CustomToast.show("Production house not found.", isSuccess: false);
+      return {};
+    }
+
+    if (hasIncompleteCastDraft) {
+      CustomToast.show(
+        "Please complete current cast details before submit.",
+        isSuccess: false,
+      );
+      return {
+        for (final language in selectedLanguages)
+          if ((language.language ?? '').trim().isNotEmpty)
+            (language.language ?? '').trim(): false,
+      };
+    }
+
+    final castPayloads = List<Map<String, String>>.from(_pendingCasts);
+    if (hasCastDraft) {
+      castPayloads.add(_buildCastFromControllers());
+    }
+
+    final crewPayloads = List<Map<String, String>>.from(_pendingCrews);
+    if (hasCrewDraft) {
+      final crewDraft = _buildCrewFromControllers();
+      if ((crewDraft["name"] ?? "").isEmpty ||
+          (crewDraft["role"] ?? "").isEmpty ||
+          (crewDraft["image"] ?? "").isEmpty) {
+        CustomToast.show(
+          "Please complete crew name, role and image before submit.",
+          isSuccess: false,
+        );
+        return {
+          for (final language in selectedLanguages)
+            if ((language.language ?? '').trim().isNotEmpty)
+              (language.language ?? '').trim(): false,
+        };
+      }
+      crewPayloads.add(crewDraft);
+    }
+
+    final results = <String, bool>{};
+    for (final language in selectedLanguages) {
+      final name = (language.language ?? '').trim();
+      if (name.isEmpty) continue;
+      final variant = _movieVariantControllers[name];
+      if (variant == null) {
+        results[name] = false;
+        continue;
+      }
+
+      final saveContent = SaveContentRequest()
+        ..id = 0
+        ..ageRating = ageRatingController.text
+        ..aggrementDocument = agreementDocumentUrl
+        ..approvalStatus = derivedApprovalStatus
+        ..approvedDateTime = ''
+        ..audioFormatList = selectedAudioFormat
+        ..availability = Availability()
+        ..castList = castList
+        ..contentUrl = variant['movie']!.text
+        ..directorList = directorList
+        ..description = descriptionController.text
+        ..genersList = selectedGeners
+        ..isAggrement = hasUploadedAgreement
+        ..isDownloadable = isDownloadable
+        ..isFeatured = isFeatured
+        ..isPaid = isRegistrationFeePaid
+        ..isReadyForApproval = hasCompletedAgreementWorkflow ? "Y" : "N"
+        ..registrationFeePaid = registrationFeePaidValue
+        ..registrationFeeDetails = registrationFeeDetailsValue
+        ..languageList = [
+          LanguageList(language: name, fileUrl: language.fileUrl ?? ''),
+        ]
+        ..mediaHouseId = mediaHouse.id!
+        ..price = double.tryParse(priceController.text) ?? 0.0
+        ..posterUrlList = [
+          variant['poster1']!.text,
+          variant['poster2']!.text,
+          variant['poster3']!.text,
+        ]
+        ..ratings = 0
+        ..ratingCount = 0
+        ..reason = ''
+        ..releaseDate = releaseDateController.text
+        ..releaseTime = ''
+        ..rentlDuration = rentalDurationController.text.isNotEmpty
+            ? rentalDurationController.text
+            : rentlDurationController.text
+        ..totalRevenue = 0
+        ..runtime = (_movieVariantDurations[name] ?? 0).toDouble()
+        ..numberOfAttempt =
+            int.tryParse(numberOfAttemptController.text.trim()) ?? 0
+        ..fullAttempt = int.tryParse(fullAttemptController.text.trim()) ?? 0
+        ..subtitleLanguageList =
+            variant['subtitle']!.text.isEmpty ? [] : [variant['subtitle']!.text]
+        ..sensorCertificate = censorCertificateController.text
+        ..type = typeController.text
+        ..title = titleController.text
+        ..teaserUrl = variant['teaser']!.text
+        ..trailerUrl = variant['trailer']!.text
+        ..uploadDateTime = DateTime.now().toUtc().toIso8601String()
+        ..views = 0;
+
+      try {
+        final response = await ApiHelper()
+            .postApiWithBody(ApiConstant.saveVideo, saveContent.toJson());
+        if (response.statusCode == 200) {
+          final parsed = AddVideoResponse.fromJson(jsonDecode(response.body));
+          var saved = parsed.isSuccess == true;
+          final contentId = parsed.data?.id;
+          if (saved && contentId != null) {
+            saved = await _saveCastAndCrewPayloadsForContent(
+              contentId: contentId,
+              casts: castPayloads,
+              crews: crewPayloads,
+            );
+          } else if (saved) {
+            saved = false;
+          }
+          results[name] = saved;
+        } else {
+          results[name] = false;
+        }
+      } catch (_) {
+        results[name] = false;
+      }
+    }
+
+    if (results.values.any((success) => success)) {
+      fetchMoviesByStatusAndMediaHouseId("All", mediaHouse.id!);
+    }
+    notifyListeners();
+    return results;
+  }
+
+  Future<bool> _saveCastAndCrewPayloadsForContent({
+    required int contentId,
+    required List<Map<String, String>> casts,
+    required List<Map<String, String>> crews,
+  }) async {
+    for (final cast in casts) {
+      final saved = await _saveSingleCastPayload(
+        contentId: contentId,
+        seasonId: 0,
+        cast: cast,
+      );
+      if (!saved) return false;
+    }
+
+    for (final crew in crews) {
+      final payload = {
+        "name": (crew["name"] ?? "").trim(),
+        "role": (crew["role"] ?? "").trim(),
+        "image": (crew["image"] ?? "").trim(),
+        "description": "",
+      };
+      final saved = await _saveSingleCastPayload(
+        contentId: contentId,
+        seasonId: 0,
+        cast: payload,
+      );
+      if (!saved) return false;
+    }
+    return true;
   }
 
   @override

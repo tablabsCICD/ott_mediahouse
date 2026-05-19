@@ -495,9 +495,8 @@ class _AllContentPageState extends State<AllContentPage> {
           return _buildLoadMore(theme);
         }
         final item = items[index];
-        final isAgreementPending =
-            (item.approvalStatus ?? '').toLowerCase() == 'pending';
-        return isAgreementPending
+        final needsAgreement = item.isAggrement != true;
+        return needsAgreement
             ? AgreementMovieCard(movie: item, theme: theme)
             : MovieCardHorizontal(movie: item);
       },

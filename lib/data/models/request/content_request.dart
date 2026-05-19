@@ -15,8 +15,10 @@ class SaveContentRequest {
   String? description;
   List<String>? directorList;
   List<String>? genersList;
+  bool? isAggrement;
   bool? isDownloadable;
   bool? isFeatured;
+  bool? isPaid;
   String? isReadyForApproval;
   String? registrationFeePaid;
   String? registrationFeeDetails;
@@ -28,6 +30,7 @@ class SaveContentRequest {
   double? ratings;
   String? reason;
   String? releaseDate;
+  String? releaseTime;
   String? rentlDuration;
   double? runtime;
   int? numberOfAttempt;
@@ -56,8 +59,10 @@ class SaveContentRequest {
     this.description,
     this.directorList,
     this.genersList,
+    this.isAggrement,
     this.isDownloadable,
     this.isFeatured,
+    this.isPaid,
     this.isReadyForApproval,
     this.registrationFeePaid,
     this.registrationFeeDetails,
@@ -69,6 +74,7 @@ class SaveContentRequest {
     this.ratings,
     this.reason,
     this.releaseDate,
+    this.releaseTime,
     this.rentlDuration,
     this.runtime,
     this.numberOfAttempt,
@@ -97,8 +103,10 @@ class SaveContentRequest {
     description: json["description"],
     directorList: json["directorList"] == null ? [] : List<String>.from(json["directorList"]!.map((x) => x)),
     genersList: json["genersList"] == null ? [] : List<String>.from(json["genersList"]!.map((x) => x)),
+    isAggrement: json["isAggrement"],
     isDownloadable: json["isDownloadable"],
     isFeatured: json["isFeatured"],
+    isPaid: json["isPaid"],
     registrationFeePaid: json["registrationFeePaid"],
     registrationFeeDetails: json["registrationFeeDetails"],
     isReadyForApproval: json["isReadyForApproval"],
@@ -113,6 +121,7 @@ class SaveContentRequest {
     ratings: json["ratings"],
     reason: json["reason"],
     releaseDate: json["releaseDate"],
+    releaseTime: json["releaseTime"],
     rentlDuration: json["rentlDuration"],
     runtime: json["runtime"],
     numberOfAttempt: json["numberOfAttempt"],
@@ -141,8 +150,10 @@ class SaveContentRequest {
     "description": description,
     "directorList": directorList == null ? [] : List<dynamic>.from(directorList!.map((x) => x)),
     "genersList": genersList == null ? [] : List<dynamic>.from(genersList!.map((x) => x)),
+    "isAggrement": isAggrement,
     "isDownloadable": isDownloadable,
     "isFeatured": isFeatured,
+    "isPaid": isPaid,
     "isReadyForApproval": isReadyForApproval,
     "registrationFeePaid": registrationFeePaid,
     "registrationFeeDetails": registrationFeeDetails,
@@ -156,6 +167,7 @@ class SaveContentRequest {
     "ratings": ratings,
     "reason": reason,
     "releaseDate": releaseDate,
+    "releaseTime": releaseTime,
     "rentlDuration": rentlDuration,
     "runtime": runtime,
     "numberOfAttempt": numberOfAttempt,

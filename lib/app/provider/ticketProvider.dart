@@ -214,7 +214,8 @@ class TicketProvider extends ChangeNotifier {
   }
 
   Future<Map<String, Object>> getAllRaisedTicketByFlag(bool isResolved) async {
-    String apiUrl = ApiConstant.getRaisedTicketByFlag(isResolved);
+    User? user = await LocalSharePreferences.localSharePreferences.getUser();
+    String apiUrl = ApiConstant.getRaisedTicketByFlag(isResolved, user!.id);
 
     ApiHelper apiHelper = ApiHelper();
 
@@ -339,7 +340,8 @@ class TicketProvider extends ChangeNotifier {
 
         if (response.statusCode == 200) {
           final responseBody = await response.stream.bytesToString();
-          ImageUploadResponse imageUploadResponse = ImageUploadResponse.fromJson(jsonDecode(responseBody));
+          ImageUploadResponse imageUploadResponse =
+              ImageUploadResponse.fromJson(jsonDecode(responseBody));
           _uploadedImageUrl = imageUploadResponse.data!.fileUrl;
           imgUrl = _uploadedImageUrl!;
           notifyListeners();

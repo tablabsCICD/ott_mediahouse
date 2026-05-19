@@ -136,10 +136,13 @@ class _TrailerPageState extends State<TrailerPage> {
                   icon: Icon(Icons.forward_10, color: Colors.blue),
                   onPressed: _seekForward,
                 ),
-                ElevatedButton.icon(
-                  onPressed: _downloadVideo,
-                  icon: Icon(Icons.download),
-                  label: Text("Download"),
+                Visibility(
+                  visible: false,
+                  child: ElevatedButton.icon(
+                    onPressed: _downloadVideo,
+                    icon: Icon(Icons.download),
+                    label: Text("Download"),
+                  ),
                 ),
                 DropdownButton<double>(
                   value: _videoPlayerController.value.playbackSpeed,

@@ -24,18 +24,6 @@ class _ShortsPageState extends State<ShortsPage> {
   DateTime? _toDate;
   String _sortBy = 'newest';
   String? _trendingLanguage;
-  static const List<String> _trendingLanguages = [
-    'Marathi',
-    'Hindi',
-    'English',
-    'Gujarati',
-    'Tamil',
-    'Telugu',
-    'Kannada',
-    'Malayalam',
-    'Punjabi',
-    'Bengali',
-  ];
 
   @override
   void initState() {
@@ -49,6 +37,7 @@ class _ShortsPageState extends State<ShortsPage> {
       });
     });
     context.read<ShortProvider>().fetchShorts(page: 0, size: 10);
+    context.read<ShortProvider>().fetchGroupedLanguages();
   }
 
   Future<void> _loadShortsFromFilters() async {
@@ -82,6 +71,10 @@ class _ShortsPageState extends State<ShortsPage> {
 
   Future<void> _pickTrendingLanguagePopup() async {
     const allValue = '__ALL__';
+    final provider = context.read<ShortProvider>();
+    await provider.fetchGroupedLanguages();
+    if (!mounted) return;
+    final languageOptions = provider.languageOptions;
     final picked = await showDialog<String>(
       context: context,
       builder: (dialogContext) {
@@ -119,7 +112,7 @@ class _ShortsPageState extends State<ShortsPage> {
                   label: 'All Languages',
                   selected: activeLanguage == null,
                 ),
-                ..._trendingLanguages.map(
+                ...languageOptions.map(
                   (language) => buildOption(
                     value: language,
                     label: language,

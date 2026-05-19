@@ -1,4 +1,4 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 
 import 'dart:async';
 
@@ -315,6 +315,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
               _statusPill(_displayValue(movie.approvalStatus)),
               _metaPill(Icons.category_outlined, _displayValue(movie.type)),
               _metaPill(Icons.schedule, _displayValue(movie.runtime)),
+              _metaPill(Icons.currency_rupee, _formatPrice(movie.price)),
               _metaPill(Icons.workspace_premium_outlined,
                   _displayValue(movie.ageRating)),
             ],
@@ -452,13 +453,18 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
     final selectedThemeData = Provider.of<ThemeProvider>(context).getTheme;
     final movie = Provider.of<VideoProvider>(context, listen: false).content;
     final normalizedStatus = (movie?.approvalStatus ?? '').toLowerCase();
-    final showAgreementTab = normalizedStatus == 'agreement_pending' ||
+    final showAgreementTab = movie?.isAggrement != null ||
+        normalizedStatus == 'agreement_pending' ||
         normalizedStatus == 'pending';
     final tabs = [
       ('Overview', _overviewTab),
       ('Trailers & More', _trailersTab),
       ('User Reviews', _reviewsTab),
-      if (showAgreementTab) ('Pending Agreement', _agreementTab),
+      if (showAgreementTab)
+        (
+          movie?.isAggrement == true ? 'Agreement' : 'Pending Agreement',
+          _agreementTab
+        ),
     ];
 
     return _surfaceCard(
@@ -1075,6 +1081,7 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
                 _tableRow('Age Rating', movie.ageRating ?? 'N/A'),
                 _tableRow(
                     'Production House', _displayValue(movie.mediaHouseName)),
+                _tableRow('Price', _formatPrice(movie.price)),
                 _tableRow(
                     'Rental Duration', _displayValue(movie.rentlDuration)),
                 _tableRow(
@@ -1577,6 +1584,14 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
     final text = value.toString().trim();
     if (text.isEmpty || text.toLowerCase() == 'null') return 'N/A';
     return text;
+  }
+
+  String _formatPrice(num? price) {
+    if (price == null) return 'N/A';
+    final formatted = price % 1 == 0
+        ? NumberFormat.decimalPattern('en_IN').format(price.toInt())
+        : NumberFormat.decimalPattern('en_IN').format(price);
+    return 'Rs $formatted';
   }
 
   String _boolLabel(dynamic value) {

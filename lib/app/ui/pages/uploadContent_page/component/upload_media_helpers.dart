@@ -485,60 +485,22 @@ class UploadMediaHelpers {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Add Audio Language Button
-            Container(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () => UploadMediaHelpers.showAddAudioLanguageDialog(context, provider, themeData),
-                icon: Icon(
-                  Icons.add,
-                  color: themeData.primaryColor,
-                  size: 20,
-                ),
-                label: Text(
-                  'Add Audio Language',
-                  style: TextStyle(
-                    color: themeData.primaryColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                  side: BorderSide(color: themeData.primaryColor),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+            if (provider.audioLanguages.isEmpty)
+              Text(
+                'Select languages above to create audio upload sections.',
+                style: TextStyle(
+                  color: themeData.canvasColor.withOpacity(0.7),
+                  fontSize: 13,
                 ),
               ),
-            ),
-            // Dynamic Audio Language List
             if (provider.audioLanguages.isNotEmpty) ...[
-              const SizedBox(height: 16),
               ...provider.audioLanguages.map((language) {
                 return Column(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: UploadMediaHelpers.buildAudioUploadSection("$language Audio", themeData, context), // Pass context
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          onPressed: () => provider.removeAudioLanguage(language),
-                          icon: Icon(
-                            Icons.delete_outline,
-                            color: Colors.red,
-                            size: 20,
-                          ),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.red.withOpacity(0.1),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ],
+                    UploadMediaHelpers.buildAudioUploadSection(
+                      "$language Audio",
+                      themeData,
+                      context,
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -836,9 +798,8 @@ class UploadMediaHelpers {
                       // Logic to clear the uploaded audio file
                       if (label.endsWith(" Audio")) {
                         final language = label.replaceAll(" Audio", "");
-                        provider.audioControllers[language]?.clear();
+                        provider.clearAudioFile(language);
                       }
-                      provider.notifyListeners(); // Notify to update UI
                     },
                     icon: Icon(
                       Icons.close,

@@ -8,6 +8,7 @@ import 'package:media_house/app/ui/pages/document_page/documentpage.dart';
 import 'package:media_house/app/ui/pages/released_content_page/released_content.dart';
 import 'package:media_house/app/ui/pages/allContent_page/allContent.dart';
 import 'package:media_house/app/ui/pages/profile%20page/ProfilePage.dart';
+import 'package:media_house/app/ui/pages/settings_page/settings_page.dart';
 import 'package:media_house/app/ui/pages/settlemet_page/SettlementPage.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/select_upload_type.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
@@ -35,7 +36,7 @@ class _NavigationPageState extends State<NavigationPage> {
     PageData(title: 'Documents', page: DocumentsPage()),
     PageData(title: 'Settlement', page: SettlementPage()),
     PageData(title: 'Profile', page: ProfilePage()),
-    PageData(title: 'Setting', page: ProfilePage()),
+    PageData(title: 'Setting', page: ProductionSettingsPage()),
   ];
 
   final List<IconData> _icons = [
@@ -86,20 +87,6 @@ class _NavigationPageState extends State<NavigationPage> {
                   },
                 ),
                 actions: [
-                  // IconButton(
-                  //   onPressed: () async {
-                  //     final localSharePreferences = LocalSharePreferences();
-                  //     await localSharePreferences.logOut();
-                  //     Navigator.pushReplacement(
-                  //       context,
-                  //       MaterialPageRoute(builder: (context) => SignInPage()),
-                  //     );
-                  //   },
-                  //   icon: Icon(
-                  //     Icons.logout,
-                  //     color: Colors.white,
-                  //   ),
-                  // ),
                   IconButton(
                     highlightColor: selectedThemeData.primaryColor,
                     tooltip: "Upload Content",

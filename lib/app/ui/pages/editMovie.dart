@@ -1,18 +1,13 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:media_house/app/ui/pages/uploadContent_page/component/multiselect_dialog.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/component/upload_form_helpers.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/component/upload_media_helpers.dart';
 import 'package:media_house/app/widget/custom_textfield.dart';
-import 'package:media_house/domain/entities/mediaHouse.dart';
 import 'package:provider/provider.dart';
 import '../../../../../device/utils/ResponsiveWidget.dart';
-import '../../../../../domain/entities/user.dart';
 import '../../../domain/entities/content.dart';
 import '../../provider/themeProvider.dart';
 import '../../provider/videoProvider.dart';
 import '../../widget/show_toast.dart';
-import 'movie details page/component/setPercentageDialog.dart';
 import 'uploadContent_page/upload_video.dart';
 
 class EditVideoMovie extends StatefulWidget {
@@ -27,6 +22,7 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
   final PageController _pageController = PageController();
 
   int _currentPage = 0;
+  bool _isSubmitting = false;
   int get _totalSteps => _isApproved ? 2 : 3;
   int get _lastPageIndex => _totalSteps - 1;
   bool get _isMobile => ResponsiveWidget.isMobile(context);
@@ -69,8 +65,9 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
   }
 
   void getMediaHouse() async {
-    await Provider.of<VideoProvider>(context, listen: false)
-        .getContentById(widget.movie.id!);
+    final provider = Provider.of<VideoProvider>(context, listen: false);
+    await provider.fetchGroupedLanguages();
+    await provider.getContentById(widget.movie.id!);
   }
 
   @override
@@ -153,13 +150,6 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
           UploadFormHelpers.buildSectionCard(
             "Language & Basic Details",
             [
-              UploadFormHelpers.buildModernMultiSelectDropdownField(
-                'Languages',
-                languages,
-                context,
-                theme,
-              ),
-              const SizedBox(height: 16),
               _isApproved
                   ? SizedBox.shrink()
                   : CustomTextField(
@@ -237,9 +227,10 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
             [
               UploadFormHelpers.buildModernMultiSelectDropdownField(
                 'Languages',
-                languages,
+                provider.languageOptions,
                 context,
                 theme,
+                groupedItems: provider.groupedLanguageOptions,
               ),
               const SizedBox(height: 16),
               _isApproved
@@ -310,14 +301,12 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
           UploadFormHelpers.buildSectionCard(
             "Release & Pricing",
             [
-              _isApproved
-                  ? SizedBox.shrink()
-                  : UploadFormHelpers.buildModernDateField(
-                      context,
-                      provider,
-                      theme,
-                      (pickedDate) => provider.setDate(pickedDate),
-                    ),
+              UploadFormHelpers.buildModernDateField(
+                context,
+                provider,
+                theme,
+                (pickedDate) => provider.setDate(pickedDate),
+              ),
               const SizedBox(height: 16),
               CustomTextField(
                 controller: provider.priceController,
@@ -332,15 +321,6 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
                 provider,
                 theme,
               ),
-              const SizedBox(height: 16),
-              _isApproved
-                  ? UploadFormHelpers.buildModernMultiSelectDropdownField(
-                      'Languages',
-                      languages,
-                      context,
-                      theme,
-                    )
-                  : SizedBox.shrink(),
               const SizedBox(height: 16),
               isMovie == 1
                   ? CustomTextField(
@@ -383,15 +363,11 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
               UploadMediaHelpers.buildEnhancedUploadSection(
                   "Teaser File", theme, context),
               const SizedBox(height: 16),
-              _isApproved
-                  ? SizedBox.shrink()
-                  : UploadMediaHelpers.buildEnhancedUploadSection(
-                      "Trailer File", theme, context),
+              UploadMediaHelpers.buildEnhancedUploadSection(
+                  "Trailer File", theme, context),
               const SizedBox(height: 16),
-              _isApproved
-                  ? SizedBox.shrink()
-                  : UploadMediaHelpers.buildEnhancedUploadSection(
-                      "Movie File", theme, context),
+              UploadMediaHelpers.buildEnhancedUploadSection(
+                  "Movie File", theme, context),
               const SizedBox(height: 16),
             ],
             theme,
@@ -474,7 +450,8 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
                 label: const Text("Add Cast"),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: theme.primaryColor,
-                  side: BorderSide(color: theme.primaryColor.withOpacity(0.4)),
+                  side: BorderSide(
+                      color: theme.primaryColor.withValues(alpha: 0.4)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
@@ -487,7 +464,7 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
                 label: const Text("Clear Draft"),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
-                  side: BorderSide(color: Colors.red.withOpacity(0.4)),
+                  side: BorderSide(color: Colors.red.withValues(alpha: 0.4)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
@@ -513,7 +490,7 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                color: theme.cardColor.withOpacity(0.5),
+                color: theme.cardColor.withValues(alpha: 0.5),
                 border: Border.all(color: theme.dividerColor),
               ),
               child: Row(
@@ -575,7 +552,8 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
                 label: const Text("Add Crew"),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: theme.primaryColor,
-                  side: BorderSide(color: theme.primaryColor.withOpacity(0.4)),
+                  side: BorderSide(
+                      color: theme.primaryColor.withValues(alpha: 0.4)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
@@ -588,7 +566,7 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
                 label: const Text("Clear Draft"),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: Colors.red,
-                  side: BorderSide(color: Colors.red.withOpacity(0.4)),
+                  side: BorderSide(color: Colors.red.withValues(alpha: 0.4)),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
@@ -614,7 +592,7 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                color: theme.cardColor.withOpacity(0.5),
+                color: theme.cardColor.withValues(alpha: 0.5),
                 border: Border.all(color: theme.dividerColor),
               ),
               child: Row(
@@ -658,7 +636,7 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
             const SizedBox(height: 16),
             UploadFormHelpers.buildModernMultiSelectDropdownField(
               'Subtitle Languages',
-              languages,
+              provider.languageOptions,
               context,
               theme,
             ),
@@ -852,7 +830,9 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
           if (_currentPage > 0) const SizedBox(width: 16),
           Expanded(
             child: ElevatedButton(
-              onPressed: () => _handleButtonPress(provider, themeData),
+              onPressed: _isSubmitting
+                  ? null
+                  : () => _handleButtonPress(provider, themeData),
               style: ElevatedButton.styleFrom(
                 backgroundColor: themeData.primaryColor,
                 foregroundColor: Colors.white,
@@ -861,7 +841,16 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: Text(_currentPage == _lastPageIndex ? "Submit" : "Next"),
+              child: _isSubmitting && _currentPage == _lastPageIndex
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(_currentPage == _lastPageIndex ? "Submit" : "Next"),
             ),
           ),
         ],
@@ -924,11 +913,6 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
   }
 
   bool _validatePageTwo(VideoProvider provider) {
-    final releaseDate = provider.releaseDateController.text.trim();
-    final priceText = provider.priceController.text.trim();
-    final rentalDuration = provider.rentalDurationController.text.trim();
-    final price = double.tryParse(priceText);
-
     /*  if (releaseDate.isEmpty) {
       CustomToast.show("Please select release date", isSuccess: false);
       return false;
@@ -1001,19 +985,25 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
     }
   }
 
-  MediaHouse? _selectedMediaHouse;
-
   Future<void> _handleAdd(
       VideoProvider provider, ThemeData selectedThemeDat, int movieId) async {
-    Content? content = await provider.editContent(context, movieId);
-    if (content != null) {
-      Navigator.of(context).pop();
-      Navigator.of(context).pop();
-    } else {
-      CustomToast.show(
-        "Failed to update content.",
-        isSuccess: false,
-      );
+    setState(() => _isSubmitting = true);
+    try {
+      Content? content = await provider.editContent(context, movieId);
+      if (!mounted) return;
+      if (content != null) {
+        Navigator.of(context).pop();
+        Navigator.of(context).pop();
+      } else {
+        CustomToast.show(
+          "Failed to update content.",
+          isSuccess: false,
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 }

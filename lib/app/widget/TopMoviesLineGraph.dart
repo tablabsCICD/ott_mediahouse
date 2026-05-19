@@ -114,7 +114,7 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
     return Row(
       children: [
         Text(
-          widget.isRevenue ? 'Top Performing Movies' : 'Top Rated Movies',
+          widget.isRevenue ? 'Top Performing Content' : 'Top Rated Content',
           style: TextStyle(
             color: theme.primaryColor,
             fontSize: 22,
@@ -164,7 +164,7 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
               width: 0,
               label: "Type",
               value: provider.selectedContentType,
-              items: const ["ALL", "MOVIE", "SERIES", "SHORTS"],
+              items: const ["ALL", "MOVIE", "SERIES", "MINI SERIES"],
               onChanged: (value) {
                 provider.setContentTypeFilter(value ?? "ALL");
                 _getData();
