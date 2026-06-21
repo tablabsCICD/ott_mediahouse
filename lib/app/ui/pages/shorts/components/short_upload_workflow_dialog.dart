@@ -6,7 +6,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:media_house/app/core/auth/auth_service.dart';
 import 'package:media_house/app/core/constant/api_constant.dart';
+import 'package:media_house/app/core/network/api_helper.dart';
+import 'package:media_house/app/core/utils/image_validation_service.dart';
 import 'package:media_house/app/core/utils/sharepreferences.dart';
 import 'package:media_house/app/provider/shorts_provider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
@@ -48,6 +51,7 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
   bool _isSubmitting = false;
   bool _isPickingBulkVideos = false;
   bool _isUploadingMasterThumb = false;
+  String? _lastUploadError;
   Uint8List? _masterThumbPreview;
   String? _masterThumbUrl;
   List<_BulkShortEntry> _bulkEntries = <_BulkShortEntry>[];
@@ -130,7 +134,8 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
       }
     });
     if (url == null) {
-      CustomToast.show('Failed to upload ${file.name}', isSuccess: false);
+      CustomToast.show(context, 'Failed to upload ${file.name}',
+          isSuccess: false);
     }
   }
 
@@ -151,6 +156,13 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
         entry.thumbnailPreview = upload.preview;
       }
     });
+    if (upload == null) {
+      CustomToast.show(
+        context,
+        _lastUploadError ?? 'Failed to upload thumbnail',
+        isSuccess: false,
+      );
+    }
   }
 
   Future<void> _pickMasterThumbnail() async {
@@ -169,6 +181,12 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
           _masterThumbUrl = upload.url;
           _masterThumbPreview = upload.preview;
         });
+      } else {
+        CustomToast.show(
+          context,
+          _lastUploadError ?? 'Failed to upload thumbnail',
+          isSuccess: false,
+        );
       }
     } finally {
       if (mounted) {
@@ -215,6 +233,13 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
         part.thumbnailPreview = upload.preview;
       }
     });
+    if (upload == null) {
+      CustomToast.show(
+        context,
+        _lastUploadError ?? 'Failed to upload thumbnail',
+        isSuccess: false,
+      );
+    }
   }
 
   Future<String?> _uploadVideoFile(PlatformFile file) async {
@@ -223,7 +248,10 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
       if (bytes == null) return null;
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse(ApiConstant.uploadVideo),
+        Uri.parse(ApiConstant.uploadVideoMetadata),
+      );
+      request.headers.addAll(
+        await AuthService.authHeaders(includeJson: false),
       );
       request.files.add(
         http.MultipartFile.fromBytes('file', bytes, filename: file.name),
@@ -265,7 +293,7 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
       if (dataUrl != null) return dataUrl;
 
       final parsed = VideoUploadResponse.fromJson(decoded);
-      return parsed.data?.videoUrl?.trim();
+      return parsed.data?.fullUrl?.trim();
     }
 
     return null;
@@ -284,6 +312,16 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
     try {
       final bytes = await _resolveFileBytes(file);
       if (bytes == null) return null;
+      final validation = await ImageValidationService.validateBytes(
+        bytes: bytes,
+        fileName: file.name,
+        sizeInBytes: file.size,
+        type: ImageValidationType.thumbnail,
+      );
+      if (!validation.isValid) {
+        _lastUploadError = validation.message;
+        return null;
+      }
       final request = http.MultipartRequest(
         'POST',
         Uri.parse(ApiConstant.uploadContentImg),
@@ -340,11 +378,8 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
 
   Future<int?> _createMaster(Map<String, dynamic> body) async {
     try {
-      final response = await http.post(
-        Uri.parse(ApiConstant.addShortMaster),
-        headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
+      final response =
+          await ApiHelper().postApiWithBody(ApiConstant.addShortMaster, body);
       final decoded = jsonDecode(response.body);
       if (decoded is Map<String, dynamic> &&
           decoded['success'] == true &&
@@ -357,11 +392,8 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
 
   Future<bool> _createPart(Map<String, dynamic> body) async {
     try {
-      final response = await http.post(
-        Uri.parse(ApiConstant.createShortPart),
-        headers: const {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
+      final response =
+          await ApiHelper().postApiWithBody(ApiConstant.createShortPart, body);
       if (response.statusCode == 200 ||
           response.statusCode == 201 ||
           response.statusCode == 202) {
@@ -377,7 +409,7 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
 
   Future<void> _submitBulk() async {
     if (_bulkEntries.isEmpty) {
-      CustomToast.show('Select videos for bulk upload first.',
+      CustomToast.show(context, 'Select videos for bulk upload first.',
           isSuccess: false);
       return;
     }
@@ -386,6 +418,7 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
           entry.descCtrl.text.trim().isEmpty ||
           (entry.videoUrl?.trim().isEmpty ?? true)) {
         CustomToast.show(
+          context,
           'Each bulk item needs title, description, and video upload.',
           isSuccess: false,
         );
@@ -396,7 +429,8 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
     final localPrefs = LocalSharePreferences();
     final mediaHouse = await localPrefs.getMediaHouse();
     if (mediaHouse?.id == null) {
-      CustomToast.show('Production house not found.', isSuccess: false);
+      CustomToast.show(context, 'Production house not found.',
+          isSuccess: false);
       return;
     }
 
@@ -420,13 +454,16 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
           throw Exception('Failed to create short master');
         }
         final created = await _createPart({
+          'audioFileUrl': '',
           'coins': 0,
           'description': entry.descCtrl.text.trim(),
           'durationSec': 0,
+          'id': 0,
           'isFreePreview': false,
           'likes': 0,
           'partNumber': 1,
           'shortId': masterId,
+          'subtitleFileUrl': '',
           'thumbnail': entry.thumbnailUrl,
           'title': entry.titleCtrl.text.trim(),
           'videoUrl': entry.videoUrl,
@@ -438,10 +475,11 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
       }
       if (!mounted) return;
       await context.read<ShortProvider>().fetchShorts();
-      CustomToast.show('Bulk short upload completed.', isSuccess: true);
+      CustomToast.show(context, 'Bulk short upload completed.',
+          isSuccess: true);
       Navigator.of(context).pop();
     } catch (error) {
-      CustomToast.show('Bulk upload failed: $error', isSuccess: false);
+      CustomToast.show(context, 'Bulk upload failed: $error', isSuccess: false);
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -455,11 +493,13 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
 
     final totalParts = int.tryParse(_partsCountCtrl.text.trim()) ?? 0;
     if (totalParts <= 0) {
-      CustomToast.show('Enter a valid number of parts.', isSuccess: false);
+      CustomToast.show(context, 'Enter a valid number of parts.',
+          isSuccess: false);
       return;
     }
     if (_partDrafts.length != totalParts) {
       CustomToast.show(
+        context,
         'Generated parts do not match the Number of Parts value.',
         isSuccess: false,
       );
@@ -471,6 +511,7 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
         (part.videoUrl?.trim().isEmpty ?? true));
     if (missing) {
       CustomToast.show(
+        context,
         'Every part needs title, description, and uploaded video.',
         isSuccess: false,
       );
@@ -480,7 +521,8 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
     final localPrefs = LocalSharePreferences();
     final mediaHouse = await localPrefs.getMediaHouse();
     if (mediaHouse?.id == null) {
-      CustomToast.show('Production house not found.', isSuccess: false);
+      CustomToast.show(context, 'Production house not found.',
+          isSuccess: false);
       return;
     }
 
@@ -505,13 +547,16 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
 
       for (final part in _partDrafts) {
         final created = await _createPart({
+          'audioFileUrl': '',
           'coins': 0,
           'description': part.descCtrl.text.trim(),
           'durationSec': 0,
+          'id': 0,
           'isFreePreview': part.isFreePreview,
           'likes': 0,
           'partNumber': part.partNumber,
           'shortId': masterId,
+          'subtitleFileUrl': '',
           'thumbnail': part.thumbnailUrl,
           'title': part.titleCtrl.text.trim(),
           'videoUrl': part.videoUrl,
@@ -524,10 +569,11 @@ class _ShortUploadWorkflowDialogState extends State<ShortUploadWorkflowDialog> {
 
       if (!mounted) return;
       await context.read<ShortProvider>().fetchShorts();
-      CustomToast.show('Short created successfully.', isSuccess: true);
+      CustomToast.show(context, 'Short created successfully.', isSuccess: true);
       Navigator.of(context).pop();
     } catch (error) {
-      CustomToast.show('Short upload failed: $error', isSuccess: false);
+      CustomToast.show(context, 'Short upload failed: $error',
+          isSuccess: false);
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);

@@ -5,6 +5,7 @@ import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/ui/pages/analytics_page/analyticsPage.dart';
 import 'package:media_house/app/ui/pages/dashboard_page/dashboardpage.dart';
 import 'package:media_house/app/ui/pages/document_page/documentpage.dart';
+import 'package:media_house/app/ui/pages/notification_page/notifications_screen.dart';
 import 'package:media_house/app/ui/pages/released_content_page/released_content.dart';
 import 'package:media_house/app/ui/pages/allContent_page/allContent.dart';
 import 'package:media_house/app/ui/pages/profile%20page/ProfilePage.dart';
@@ -35,8 +36,9 @@ class _NavigationPageState extends State<NavigationPage> {
     PageData(title: 'Analytics', page: AnalyticsPage()),
     PageData(title: 'Documents', page: DocumentsPage()),
     PageData(title: 'Settlement', page: SettlementPage()),
+    PageData(title: 'Notifications', page: NotificationsScreen()),
     PageData(title: 'Profile', page: ProfilePage()),
-    PageData(title: 'Setting', page: ProductionSettingsPage()),
+    PageData(title: 'Settings', page: ProductionSettingsPage()),
   ];
 
   final List<IconData> _icons = [
@@ -48,6 +50,7 @@ class _NavigationPageState extends State<NavigationPage> {
     Icons.bar_chart_sharp,
     Icons.document_scanner_outlined,
     Icons.transform_sharp,
+    Icons.notifications_active_outlined,
     Icons.person,
     Icons.settings
   ];
@@ -104,9 +107,7 @@ class _NavigationPageState extends State<NavigationPage> {
                   ),
                   IconButton(
                     onPressed: () {
-                      setState(() {
-                        _selectedIndex = 8;
-                      });
+                      _selectPageByTitle('Profile');
                     },
                     icon: Icon(
                       Icons.account_circle_sharp,
@@ -150,6 +151,14 @@ class _NavigationPageState extends State<NavigationPage> {
     if (shouldExit == true) {
       SystemNavigator.pop();
     }
+  }
+
+  void _selectPageByTitle(String title) {
+    final index = _pages.indexWhere((page) => page.title == title);
+    if (index < 0) return;
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   Future<bool?> _showExitAppDialog() {

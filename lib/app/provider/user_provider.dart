@@ -5,13 +5,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:media_house/data/models/response/addUserResponse.dart';
 import 'package:media_house/data/models/response/updateUserResponse.dart';
 import 'dart:convert';
-import '../../data/models/request/user_request.dart';
 import '../../data/models/response/getAllUserResponse.dart';
 import '../../data/models/response/getMediaHouseResponse.dart';
 import '../../domain/entities/mediaHouse.dart';
 import '../../domain/entities/user.dart';
 import '../core/constant/api_constant.dart';
 import '../core/constant/prefrense_constant.dart';
+import '../core/auth/auth_service.dart';
 import '../core/network/api_helper.dart';
 import '../core/utils/sharepreferences.dart';
 
@@ -51,13 +51,13 @@ class UserProvider extends ChangeNotifier {
   void filterUsers() {
     _filteredUsers = _users.where((user) {
       final query = searchController.text.toLowerCase();
-      return user.firstName!.toLowerCase().contains(query) ||
-          user.lastName!.toLowerCase().contains(query) ||
-          user.mobileNumber!.toLowerCase().contains(query) ||
-          (user.emailId!.toLowerCase().contains(query) ?? false) ||
-          (user.location!.state!.toLowerCase().contains(query) ?? false) ||
-          (user.location!.district!.toLowerCase().contains(query) ?? false) ||
-          (user.location!.taluka!.toLowerCase().contains(query) ?? false);
+      return (user.firstName ?? '').toLowerCase().contains(query) ||
+          (user.lastName ?? '').toLowerCase().contains(query) ||
+          (user.mobileNumber ?? '').toLowerCase().contains(query) ||
+          (user.emailId ?? '').toLowerCase().contains(query) ||
+          (user.location?.state ?? '').toLowerCase().contains(query) ||
+          (user.location?.district ?? '').toLowerCase().contains(query) ||
+          (user.location?.taluka ?? '').toLowerCase().contains(query);
     }).toList();
     notifyListeners();
   }
@@ -318,7 +318,7 @@ class UserProvider extends ChangeNotifier {
             debugPrint("No data found: ${getAllMediaHouseResponse.message}");
           }
         } else {
-          CustomToast.show(getAllMediaHouseResponse.message ?? "",
+          CustomToast.show(context, getAllMediaHouseResponse.message ?? "",
               isSuccess: getAllMediaHouseResponse.success!);
         }
       } else {
@@ -402,51 +402,95 @@ class UserProvider extends ChangeNotifier {
       return {'success': false, 'message': 'Password is required'};
     }
 
-    // The current backend endpoint sends the OTP to the registered mobile
-    // number. Keep password required in the login step while preserving the
-    // existing OTP verification contract.
-    return loginWithMobile(username, context);
+    final apiHelper = ApiHelper();
+    final payload = {
+      'username': username,
+      'password': password,
+    };
+
+    try {
+      debugPrint('OTP Requested');
+      final response = await apiHelper.postApiWithoutBodyAndToken(
+        ApiConstant.twoStepLogin,
+        payload,
+      );
+      final responseBody = json.decode(response.body);
+      final addUserResponse = AddUserResponse.fromJson(responseBody);
+
+      if (response.statusCode == 200 && addUserResponse.success == true) {
+        return {
+          'success': true,
+          'message': addUserResponse.message ?? 'OTP sent successfully',
+          'data': responseBody['data'],
+        };
+      }
+
+      debugPrint('Login Failed: ${addUserResponse.message}');
+      return {
+        'success': false,
+        'message': addUserResponse.message ?? 'Unable to send OTP'
+      };
+    } catch (error) {
+      debugPrint('Login Failed: $error');
+      return {
+        'success': false,
+        'message': 'Network error while requesting OTP: $error'
+      };
+    }
   }
 
   Future<Map<String, dynamic>> verifyOtp(
       String mobile, String otp, BuildContext context) async {
-    String apiUrl = ApiConstant.verifyOtp(mobile, otp);
-
-    ApiHelper apiHelper = ApiHelper();
+    final apiHelper = ApiHelper();
 
     try {
-      var response = await apiHelper.postApi(apiUrl);
+      final payload = await AuthService.buildDevicePayload(
+        username: mobile,
+        otp: otp,
+      );
+      final response = await apiHelper.postApiWithoutBodyAndToken(
+        ApiConstant.twoStepVerifyOtp,
+        payload,
+      );
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
         AddUserResponse addUserResponse =
             AddUserResponse.fromJson(responseBody);
 
-        debugPrint("data: ${addUserResponse.message}");
+        debugPrint("OTP Verified: ${addUserResponse.message}");
         if (addUserResponse.success == true) {
           if (addUserResponse.data != null) {
-            if (addUserResponse.data?.user?.role?.any(
-                    (role) => role == "MediaHouse" || role == "Director") ??
-                false) {
+            final loginUser = addUserResponse.data!.user;
+            final accessToken = addUserResponse.data!.token ??
+                addUserResponse.data!.accessToken;
+
+            if (loginUser != null &&
+                AuthService.hasProductionHouseAccess(loginUser)) {
+              if (accessToken == null || accessToken.trim().isEmpty) {
+                debugPrint('Login Failed: JWT missing in verify OTP response');
+                return {
+                  'success': false,
+                  'message': 'Login failed: access token missing'
+                };
+              }
+
               user = addUserResponse.data!.user!;
-              print("before SEtData ${user.firstName}");
-              LocalSharePreferences localSharePreferences =
-                  LocalSharePreferences();
-              localSharePreferences.setBool(
-                  SharedPreferencesConstant.isLogin, true);
-              print(
-                  "check  SEtLogin ${await localSharePreferences.getBool(SharedPreferencesConstant.isLogin)}");
-              localSharePreferences.setString(
-                  SharedPreferencesConstant.currentUser,
-                  jsonEncode(addUserResponse.data!.user));
-              print(
-                  "after SEtData ${await localSharePreferences.getString(SharedPreferencesConstant.currentUser)}");
+              await AuthService.saveLoginSession(
+                accessToken: accessToken,
+                refreshToken: addUserResponse.data!.refreshToken,
+                sessionId: addUserResponse.data!.sessionId,
+                user: user,
+                permissions: addUserResponse.data!.permissions,
+              );
               await fetchMediaHouseByUserId(
                   addUserResponse.data!.user!.id!, context);
 
               notifyListeners();
+              debugPrint('Login Success');
               return {'success': true, 'message': 'logged in successfully'};
             } else {
-              CustomToast.show(
+              debugPrint('Login Failed: Unauthorized role');
+              CustomToast.show(context,
                   "You are not Production house user..try with Production house user credentials...",
                   isSuccess: false);
               notifyListeners();
@@ -457,14 +501,14 @@ class UserProvider extends ChangeNotifier {
               };
             }
           } else {
-            debugPrint("Empty data: ${addUserResponse.message}");
+            debugPrint("Login Failed: ${addUserResponse.message}");
             return {
               'success': false,
               'message': addUserResponse.message ?? 'No data returned'
             };
           }
         } else {
-          debugPrint("Error: ${addUserResponse.message}");
+          debugPrint("Login Failed: ${addUserResponse.message}");
           return {
             'success': false,
             'message': addUserResponse.message ?? 'Error in response'
@@ -474,7 +518,7 @@ class UserProvider extends ChangeNotifier {
         Map<String, dynamic> responseBody = json.decode(response.body);
         AddUserResponse addUserResponse =
             AddUserResponse.fromJson(responseBody);
-        debugPrint("Error: ${addUserResponse.message}");
+        debugPrint("Login Failed: ${addUserResponse.message}");
         return {
           'success': false,
           'message': addUserResponse.message ?? 'Error in response'
@@ -483,7 +527,7 @@ class UserProvider extends ChangeNotifier {
         return {'failure': true, 'message': 'Something went wrong!'};
       }
     } catch (error) {
-      debugPrint("Error: $error");
+      debugPrint("Login Failed: $error");
       return {
         'success': false,
         'message': 'An error occurred while logging user: $error'

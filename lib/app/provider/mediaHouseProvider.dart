@@ -105,7 +105,7 @@ class MediaHouseProvider extends ChangeNotifier {
   bool get isUploading => _isUploading;
 
   // Pick Image
-  Future<void> pickImage(String label) async {
+  Future<void> pickImage(context, String label) async {
     if (kIsWeb) {
       // Web file picker
       final html.FileUploadInputElement uploadInput =
@@ -116,7 +116,7 @@ class MediaHouseProvider extends ChangeNotifier {
       uploadInput.onChange.listen((event) async {
         if (uploadInput.files != null && uploadInput.files!.isNotEmpty) {
           _webFile = uploadInput.files!.first;
-          await uploadImage(label);
+          await uploadImage(context, label);
           notifyListeners();
         }
       });
@@ -126,9 +126,7 @@ class MediaHouseProvider extends ChangeNotifier {
       final pickedFile = await picker.pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
         _imageFile = io.File(pickedFile.path);
-        if (kIsWeb && _webFile != null) {
-          await uploadImage(label);
-        }
+        await uploadImage(context, label);
         notifyListeners();
       }
     }
@@ -159,7 +157,7 @@ class MediaHouseProvider extends ChangeNotifier {
   }
 
   // Upload Image
-  Future<void> uploadImage(String lable) async {
+  Future<void> uploadImage(context, String lable) async {
     if ((!kIsWeb && _imageFile == null) || (kIsWeb && _webFile == null)) {
       return; // No file selected
     }
@@ -271,7 +269,9 @@ class MediaHouseProvider extends ChangeNotifier {
             profileController.text = _uploadedImageUrl!;
             print(lable + selectedImage.toString());
           }
-          await updateMediaHouseDocument();
+          if (_isDocumentUploadLabel(lable)) {
+            await updateMediaHouseDocument();
+          }
           notifyListeners();
         }
       } else if (!kIsWeb && _imageFile != null) {
@@ -369,16 +369,32 @@ class MediaHouseProvider extends ChangeNotifier {
             profileController.text = _uploadedImageUrl!;
             print(lable + selectedImage.toString());
           }
-          await updateMediaHouseDocument();
+          if (_isDocumentUploadLabel(lable)) {
+            await updateMediaHouseDocument();
+          }
           notifyListeners();
         }
       }
     } catch (e) {
       print('Error uploading image: $e');
+      CustomToast.show(context, 'Image upload failed', isSuccess: false);
     } finally {
       _isUploading = false;
       notifyListeners();
     }
+  }
+
+  bool _isDocumentUploadLabel(String label) {
+    return const {
+      'Aadhaar Card',
+      'Pan Card',
+      'Shop Act',
+      'GST Certificate',
+      'Registration Certificate',
+      'Bank Proof',
+      'Identity Proof',
+      'Address Proof',
+    }.contains(label);
   }
 
   Map<String, Map<String, dynamic>> uploadedDocuments = {};
@@ -492,7 +508,7 @@ class MediaHouseProvider extends ChangeNotifier {
     try {
       var response = await apiHelper.deleteApi(apiUrl);
       if (response.statusCode == 200 || response.statusCode == 500) {
-        CustomToast.show("Deleted Successfully", isSuccess: true);
+        CustomToast.show(context, "Deleted Successfully", isSuccess: true);
         notifyListeners();
         Navigator.pop(context);
       } else {
@@ -512,7 +528,7 @@ class MediaHouseProvider extends ChangeNotifier {
     Map<String, dynamic> data = {
       "email": emailController.text,
       "mediaHouseName": mediaHouseNameController.text,
-      "id": mediaHouse!.id,
+      "id": mediaHouse.id,
       "discription": descriptionController.text,
       "logo": profileController.text.isEmpty
           ? mediaHouse.logo
@@ -649,7 +665,7 @@ class MediaHouseProvider extends ChangeNotifier {
   }
 
   void setValue(MediaHouse mediaHouse) {
-    print("SEtData${mediaHouse!.mediaHouseName}");
+    print("SEtData${mediaHouse.mediaHouseName}");
     mediaHouseNameController.text = mediaHouse.mediaHouseName ?? "";
     mobileController.text = mediaHouse.contactNumber ?? "";
     emailController.text = mediaHouse.email ?? "";
@@ -846,6 +862,7 @@ class MediaHouseProvider extends ChangeNotifier {
   }
 
   Future<void> releaseMovieCountGraph(
+    context,
     int selectedTimeRange,
     String startDate,
     String endDate, {
@@ -905,7 +922,7 @@ class MediaHouseProvider extends ChangeNotifier {
         _setNormalizedGraphData(chartResponse.data);
         notifyListeners();
       } else {
-        CustomToast.show(chartResponse.message.toString());
+        CustomToast.show(context, chartResponse.message.toString());
       }
     } catch (error) {
       debugPrint("Error occurred while fetching graph data: $error");
@@ -914,6 +931,7 @@ class MediaHouseProvider extends ChangeNotifier {
   }
 
   Future<void> viewsCountGraph(
+    context,
     int selectedTimeRange,
     String startDate,
     String endDate, {
@@ -973,7 +991,7 @@ class MediaHouseProvider extends ChangeNotifier {
         _setNormalizedGraphData(chartResponse.data);
         notifyListeners();
       } else {
-        CustomToast.show(chartResponse.message.toString());
+        CustomToast.show(context, chartResponse.message.toString());
       }
     } catch (error) {
       debugPrint("Error occurred while fetching graph data: $error");
@@ -983,6 +1001,7 @@ class MediaHouseProvider extends ChangeNotifier {
 
   // List<Map<String, dynamic>>? revenueCountList = [];
   Future<void> revenueGraphByMediaHouse(
+    context,
     int selectedTimeRange,
     String startDate,
     String endDate, {
@@ -1044,7 +1063,7 @@ class MediaHouseProvider extends ChangeNotifier {
         _setNormalizedGraphData(chartResponse.data);
         notifyListeners();
       } else {
-        CustomToast.show(chartResponse.message.toString(),
+        CustomToast.show(context, chartResponse.message.toString(),
             isSuccess: chartResponse.success!);
       }
     } catch (error) {

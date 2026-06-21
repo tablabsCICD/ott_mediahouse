@@ -11,6 +11,7 @@ import 'package:universal_html/html.dart' as html;
 import '../../../../../data/models/response/content_image_upload_response.dart';
 import '../../../../../data/models/response/short_detail_response.dart';
 import '../../../../core/constant/api_constant.dart';
+import '../../../../core/utils/image_validation_service.dart';
 import '../../../../provider/shorts_provider.dart';
 
 class EditSeasonDialog extends StatefulWidget {
@@ -504,7 +505,28 @@ class _EditSeasonDialogState extends State<EditSeasonDialog> {
       final input = html.FileUploadInputElement()..accept = 'image/*';
       input.click();
       input.onChange.listen((_) async {
-        webFile = input.files!.first;
+        if (input.files == null || input.files!.isEmpty) return;
+        final file = input.files!.first;
+        final reader = html.FileReader();
+        reader.readAsArrayBuffer(file);
+        await reader.onLoad.first;
+        final bytes = Uint8List.fromList((reader.result as List).cast<int>());
+        final validation = await ImageValidationService.validateBytes(
+          bytes: bytes,
+          fileName: file.name,
+          sizeInBytes: file.size,
+          type: ImageValidationType.thumbnail,
+        );
+        if (!validation.isValid) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(validation.message ?? "Invalid image")),
+            );
+          }
+          return;
+        }
+        webFile = file;
+        previewBytes = bytes;
         await uploadImage(setState);
         setState(() {});
       });
@@ -512,7 +534,23 @@ class _EditSeasonDialogState extends State<EditSeasonDialog> {
       final picker = ImagePicker();
       final file = await picker.pickImage(source: ImageSource.gallery);
       if (file != null) {
+        final bytes = await file.readAsBytes();
+        final validation = await ImageValidationService.validateBytes(
+          bytes: bytes,
+          fileName: file.name,
+          sizeInBytes: bytes.lengthInBytes,
+          type: ImageValidationType.thumbnail,
+        );
+        if (!validation.isValid) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(validation.message ?? "Invalid image")),
+            );
+          }
+          return;
+        }
         imageFile = io.File(file.path);
+        previewBytes = bytes;
         await uploadImage(setState);
         setState(() {});
       }

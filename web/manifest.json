@@ -1,11 +1,11 @@
 {
-    "name": "media_house",
-    "short_name": "media_house",
+    "name": "Production House",
+    "short_name": "Production House",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Production House",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

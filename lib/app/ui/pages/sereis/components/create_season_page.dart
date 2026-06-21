@@ -8,23 +8,26 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:media_house/main.dart';
-import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 import 'package:universal_html/html.dart' as html;
 
 import '../../../../../data/models/response/content_image_upload_response.dart';
 import '../../../../core/constant/api_constant.dart';
+import '../../../../core/navigation/app_navigator.dart';
+import '../../../../core/network/api_helper.dart';
+import '../../../../core/utils/image_validation_service.dart';
 import '../../../../provider/series_provider.dart';
 import '../../../../provider/themeProvider.dart';
 
 class AddSeasonDialog extends StatefulWidget {
   final int seriesId;
+  final String seriesLanguage;
   final VoidCallback onSuccess;
 
   const AddSeasonDialog({
     super.key,
     required this.seriesId,
+    required this.seriesLanguage,
     required this.onSuccess,
   });
 
@@ -162,7 +165,24 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         final input = html.FileUploadInputElement()..accept = 'image/*';
         input.click();
         input.onChange.listen((_) async {
-          webFile = input.files!.first;
+          if (input.files == null || input.files!.isEmpty) return;
+          final file = input.files!.first;
+          final reader = html.FileReader();
+          reader.readAsArrayBuffer(file);
+          await reader.onLoad.first;
+          final bytes = Uint8List.fromList((reader.result as List).cast<int>());
+          final validation = await ImageValidationService.validateBytes(
+            bytes: bytes,
+            fileName: file.name,
+            sizeInBytes: file.size,
+            type: ImageValidationType.poster,
+          );
+          if (!validation.isValid) {
+            showGlobalSnack(validation.message ?? "Invalid image");
+            return;
+          }
+          webFile = file;
+          previewBytes = bytes;
           await uploadImage(setState);
           setState(() {});
         });
@@ -170,8 +190,19 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
         final picker = ImagePicker();
         final file = await picker.pickImage(source: ImageSource.gallery);
         if (file != null) {
+          final bytes = await file.readAsBytes();
+          final validation = await ImageValidationService.validateBytes(
+            bytes: bytes,
+            fileName: file.name,
+            sizeInBytes: bytes.lengthInBytes,
+            type: ImageValidationType.poster,
+          );
+          if (!validation.isValid) {
+            showGlobalSnack(validation.message ?? "Invalid image");
+            return;
+          }
           imageFile = io.File(file.path);
-          previewBytes = await file.readAsBytes();
+          previewBytes = bytes;
           await uploadImage(setState);
           setState(() {});
         }
@@ -331,6 +362,56 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
     return 0;
   }
 
+  String _responseMessage(String body, String fallback) {
+    if (body.trim().isEmpty) return fallback;
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        for (final key in const ['message', 'error', 'details']) {
+          final value = decoded[key]?.toString().trim();
+          if (value != null && value.isNotEmpty) return value;
+        }
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
+  Future<void> _showResultDialog({
+    required bool success,
+    required String message,
+  }) {
+    final theme = Theme.of(context);
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: theme.cardColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(
+                success ? Icons.check_circle_outline : Icons.error_outline,
+                color: success ? Colors.green : Colors.red,
+              ),
+              const SizedBox(width: 10),
+              Text(success ? "Season Added" : "Season Failed"),
+            ],
+          ),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (selectedDate == null) {
@@ -349,29 +430,49 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
       showGlobalSnack("Please upload season poster");
       return;
     }
+    final amount = int.tryParse(amountCtrl.text.trim());
+    if (amount == null) {
+      showGlobalSnack("Please enter a valid season price");
+      return;
+    }
+    final episodeCount = int.tryParse(episodeCountCtrl.text.trim());
+    if (episodeCount == null) {
+      showGlobalSnack("Please enter a valid episode count");
+      return;
+    }
+    final seasonNumber = int.tryParse(seasonNoCtrl.text.trim());
+    if (seasonNumber == null) {
+      showGlobalSnack("Please enter a valid season number");
+      return;
+    }
 
     setState(() => isLoading = true);
 
     try {
       final url = '${ApiConstant.baseUrl}series/${widget.seriesId}/season/add';
       final body = {
-        "amount": amountCtrl.text.trim(),
-        "title": titleCtrl.text.trim(),
-        "episodeCount": episodeCountCtrl.text.trim(),
+        "amount": amount,
+        "castIds": [0],
         "description": descCtrl.text.trim(),
+        "episodeCount": episodeCount,
         "posterUrl": uploadedImageUrl,
-        "releaseDate": selectedDate!.toIso8601String(),
-        "seasonNumber": int.parse(seasonNoCtrl.text.trim()),
+        "releaseDate": DateTime.utc(
+          selectedDate!.year,
+          selectedDate!.month,
+          selectedDate!.day,
+        ).toIso8601String(),
+        "seasonNumber": seasonNumber,
+        "title": titleCtrl.text.trim(),
       };
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
+      final response = await ApiHelper().postApiWithBody(url, body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final parsed = jsonDecode(response.body);
         final seasonId = _extractSeasonId(parsed);
+        var resultMessage = _responseMessage(
+          response.body,
+          "Season added successfully.",
+        );
 
         if (seasonId > 0 &&
             (_castMembers.isNotEmpty || _crewMembers.isNotEmpty)) {
@@ -392,18 +493,33 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
                 .toList(growable: false),
           );
           if (!castSaved) {
-            showGlobalSnack("Season created, but cast/crew save failed");
+            resultMessage = "Season created, but cast/crew save failed.";
           }
         }
 
+        if (mounted) setState(() => isLoading = false);
+        if (!mounted) return;
+        await _showResultDialog(success: true, message: resultMessage);
+        if (!mounted) return;
         widget.onSuccess();
-        if (mounted) Navigator.of(context).pop();
+        Navigator.of(context).pop();
       } else {
-        throw Exception(response.body);
+        final message = _responseMessage(
+          response.body,
+          "Failed to create season.",
+        );
+        if (mounted) setState(() => isLoading = false);
+        if (!mounted) return;
+        await _showResultDialog(success: false, message: message);
       }
     } catch (e) {
       debugPrint("Failed: $e");
-      showGlobalSnack("Failed to create season");
+      if (mounted) setState(() => isLoading = false);
+      if (!mounted) return;
+      await _showResultDialog(
+        success: false,
+        message: "Failed to create season.",
+      );
     } finally {
       if (mounted) setState(() => isLoading = false);
     }
@@ -417,7 +533,7 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
       backgroundColor: theme.cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Text(
-        "Add New Season",
+        "Add New Season - ${widget.seriesLanguage}",
         style: TextStyle(
           color: theme.primaryColor,
           fontWeight: FontWeight.bold,
@@ -449,7 +565,12 @@ class _AddSeasonDialogState extends State<AddSeasonDialog> {
                               : null,
                         ),
                         child: previewBytes == null
-                            ? const Center(child: Text("Upload Poster"))
+                            ? Center(
+                                child: Text(
+                                  "Upload Poster\n${ImageValidationService.guidelineFor(ImageValidationType.poster)}",
+                                  textAlign: TextAlign.center,
+                                ),
+                              )
                             : null,
                       ),
                     );

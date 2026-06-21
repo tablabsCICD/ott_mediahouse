@@ -40,7 +40,8 @@ class ContentUploadCard extends StatelessWidget {
               //       );
               //     },
               //   )
-              : CustomToast.show("First you need to get approval from admin",
+              : CustomToast.show(
+                  context, "First you need to get approval from admin",
                   isSuccess: false);
         },
         child: Padding(

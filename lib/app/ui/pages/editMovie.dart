@@ -53,9 +53,9 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
     }
   }
 
-  bool get _isMovie => widget.movie.type!.toLowerCase() == "movie";
+  bool get _isMovie => (widget.movie.type ?? "MOVIE").toLowerCase() == "movie";
   bool get _isApproved =>
-      widget.movie.approvalStatus!.toLowerCase() == "approved";
+      (widget.movie.approvalStatus ?? '').toLowerCase() == "approved";
   @override
   void initState() {
     // TODO: implement initState
@@ -66,8 +66,14 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
 
   void getMediaHouse() async {
     final provider = Provider.of<VideoProvider>(context, listen: false);
+    provider.disposeData();
+    provider.setValu(widget.movie);
     await provider.fetchGroupedLanguages();
-    await provider.getContentById(widget.movie.id!);
+    final content = await provider.getContentById(widget.movie.id!);
+    if (!mounted) return;
+    if (content != null) {
+      provider.setValu(content);
+    }
   }
 
   @override
@@ -150,6 +156,16 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
           UploadFormHelpers.buildSectionCard(
             "Language & Basic Details",
             [
+              _isApproved
+                  ? SizedBox.shrink()
+                  : UploadFormHelpers.buildModernMultiSelectDropdownField(
+                      'Languages',
+                      provider.languageOptions,
+                      context,
+                      theme,
+                      groupedItems: provider.groupedLanguageOptions,
+                    ),
+              _isApproved ? SizedBox.shrink() : const SizedBox(height: 16),
               _isApproved
                   ? SizedBox.shrink()
                   : CustomTextField(
@@ -445,7 +461,9 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: provider.addCurrentCastToQueue,
+                onPressed: () {
+                  provider.addCurrentCastToQueue(context);
+                },
                 icon: const Icon(Icons.add),
                 label: const Text("Add Cast"),
                 style: OutlinedButton.styleFrom(
@@ -547,7 +565,9 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: provider.addCurrentCrewToQueue,
+                onPressed: () {
+                  provider.addCurrentCrewToQueue(context);
+                },
                 icon: const Icon(Icons.add),
                 label: const Text("Add Crew"),
                 style: OutlinedButton.styleFrom(
@@ -663,6 +683,7 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
               provider.isFeatured,
               (value) {
                 CustomToast.show(
+                  context,
                   provider.isFeatured
                       ? "Featured content is enabled for upcoming releases."
                       : "Featured content is disabled for already released content.",
@@ -714,7 +735,7 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
             children: [
               const SizedBox(height: 12),
               Text(
-                "Edit Movie",
+                _isMovie ? "Edit Movie" : "Edit Series",
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -952,14 +973,14 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
 
     final trailerUrl = provider.trailerUrlController.text.trim();
     if (trailerUrl.isEmpty) {
-      CustomToast.show("Please upload trailer file", isSuccess: false);
+      CustomToast.show(context, "Please upload trailer file", isSuccess: false);
       return false;
     }
 
     if (_isMovie) {
       final movieUrl = provider.movieUrlController.text.trim();
       if (movieUrl.isEmpty) {
-        CustomToast.show("Please upload movie file", isSuccess: false);
+        CustomToast.show(context, "Please upload movie file", isSuccess: false);
         return false;
       }
     }
@@ -980,7 +1001,8 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
       final targetDate = DateTime.parse(releaseDate);
       provider.toggleFeatured(targetDate.isAfter(DateTime.now()));
     } catch (_) {
-      CustomToast.show("Invalid release date format. Please correct it.",
+      CustomToast.show(
+          context, "Invalid release date format. Please correct it.",
           isSuccess: false);
     }
   }
@@ -992,10 +1014,24 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
       Content? content = await provider.editContent(context, movieId);
       if (!mounted) return;
       if (content != null) {
+        final contentId = content.id ?? movieId;
+        if (provider.hasAnyCastToSave) {
+          final castSaved = await provider.saveAllCastsForContent(context,
+              contentId: contentId);
+          if (!mounted) return;
+          if (!castSaved) return;
+        }
+        if (provider.hasAnyCrewToSave) {
+          final crewSaved = await provider.saveAllCrewsForContent(context,
+              contentId: contentId);
+          if (!mounted) return;
+          if (!crewSaved) return;
+        }
         Navigator.of(context).pop();
         Navigator.of(context).pop();
       } else {
         CustomToast.show(
+          context,
           "Failed to update content.",
           isSuccess: false,
         );

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
-import 'package:media_house/app/provider/user_provider.dart';
 import 'package:media_house/app/widget/custom_textfield.dart';
 import 'package:media_house/app/widget/show_toast.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
@@ -32,7 +31,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final mediaHouse = await localSharePreferences.getMediaHouse();
     final user = await localSharePreferences.getUser();
 
-    if (mediaHouse != null) {
+    if (mediaHouse != null && user?.id != null) {
       if (mounted) {
         await Provider.of<MediaHouseProvider>(context, listen: false)
             .fetchMediaHouseByUserId(user!.id!);
@@ -48,17 +47,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
       final provider = Provider.of<MediaHouseProvider>(context, listen: false);
+      if (provider.isUploading) {
+        CustomToast.show(context, "Please wait for image upload to finish.",
+            isSuccess: false);
+        return;
+      }
       var result = await provider.updateMediaHouse();
       if (result['success'] == true) {
         print(result['message']);
-        CustomToast.show("Profile updated successfully!", isSuccess: true);
+        CustomToast.show(context, "Profile updated successfully!",
+            isSuccess: true);
+        if (!mounted) return;
         Navigator.of(context).pop();
       } else {
         print('Failure: ${result['message']}');
-        CustomToast.show(result['message'].toString(), isSuccess: false);
+        CustomToast.show(context, result['message'].toString(),
+            isSuccess: false);
       }
     } else {
-      CustomToast.show("Fill All Data", isSuccess: false);
+      CustomToast.show(context, "Fill All Data", isSuccess: false);
     }
   }
 
@@ -69,7 +76,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Consumer<MediaHouseProvider>(builder: (context, provider, child) {
       final mediaHouse = provider.mediaHouse;
 
-      if (mediaHouse == null) {
+      if (mediaHouse.id == null) {
         return Center(
             child: CircularProgressIndicator(
                 color: selectedThemeData.primaryColor));
@@ -109,7 +116,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           // Edit icon
                           InkWell(
                             onTap: () {
-                              provider.pickImage("profile");
+                              provider.pickImage(context, "profile");
                             },
                             child: Container(
                               decoration: BoxDecoration(

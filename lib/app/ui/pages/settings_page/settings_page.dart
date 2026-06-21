@@ -135,38 +135,55 @@ class _NotificationSettingsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: NotificationRecipientType.values.map((type) {
-              final selected = settings.recipientType == type;
-              return ChoiceChip(
-                selected: selected,
-                label: Text(type.label),
-                avatar: selected
-                    ? Icon(
-                        Icons.check_rounded,
-                        size: 18,
-                        color: theme.colorScheme.onPrimary,
-                      )
-                    : null,
-                selectedColor: theme.colorScheme.primary,
-                backgroundColor: theme.colorScheme.surface,
-                side: BorderSide(
-                  color: selected
-                      ? theme.colorScheme.primary
-                      : theme.dividerColor.withOpacity(0.35),
+          DropdownButtonFormField<NotificationRecipientType>(
+            initialValue: settings.recipientType,
+            isExpanded: true,
+            dropdownColor: theme.cardColor,
+            iconEnabledColor: theme.colorScheme.primary,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: InputDecoration(
+              labelText: 'Send Notification To',
+              labelStyle: TextStyle(
+                color: theme.colorScheme.onSurface.withOpacity(0.68),
+              ),
+              prefixIcon: Icon(
+                Icons.groups_2_outlined,
+                color: theme.canvasColor,
+              ),
+              filled: true,
+              fillColor: theme.colorScheme.surface,
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(
+                  color: theme.dividerColor.withOpacity(0.35),
                 ),
-                labelStyle: TextStyle(
-                  color: selected
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.onSurface.withOpacity(0.78),
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderSide: BorderSide(
+                  color: theme.colorScheme.primary,
+                  width: 1.4,
                 ),
-                showCheckmark: false,
-                onSelected: (_) => provider.updateRecipientType(type),
+              ),
+            ),
+            items: NotificationRecipientType.values.map((type) {
+              return DropdownMenuItem<NotificationRecipientType>(
+                value: type,
+                child: Text(
+                  type.label,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               );
             }).toList(),
+            onChanged: (type) {
+              if (type != null) {
+                provider.updateRecipientType(type);
+              }
+            },
           ),
           const SizedBox(height: 16),
           AnimatedSwitcher(
@@ -388,7 +405,10 @@ class _MessageComposerSection extends StatelessWidget {
                   label: const Text('Preview Message'),
                 ),
                 FilledButton.icon(
-                  onPressed: provider.isSending ? null : () => _send(context),
+                  onPressed:
+                      provider.isSending || provider.isAttachmentUploading
+                          ? null
+                          : () => _send(context),
                   icon: provider.isSending
                       ? const SizedBox(
                           height: 16,
@@ -400,7 +420,9 @@ class _MessageComposerSection extends StatelessWidget {
                 ),
                 FilledButton.tonalIcon(
                   onPressed:
-                      provider.isSending ? null : () => _schedule(context),
+                      provider.isSending || provider.isAttachmentUploading
+                          ? null
+                          : () => _schedule(context),
                   icon: const Icon(Icons.schedule_send_outlined),
                   label: const Text('Schedule Notification'),
                 ),
@@ -476,16 +498,58 @@ class _MessageComposerSection extends StatelessWidget {
 
   Future<void> _schedule(BuildContext context) async {
     final provider = context.read<NotificationSettingsProvider>();
-    final message = await provider.sendNow(
-      scheduledAt: DateTime.now().add(const Duration(hours: 3)),
-    );
+    final scheduledAt = await _pickScheduleDateTime(context);
     if (!context.mounted) return;
+    if (scheduledAt == null) return;
+
+    final message = await provider.scheduleNotification(scheduledAt);
+    if (!context.mounted) return;
+    final localizations = MaterialLocalizations.of(context);
+    final scheduledLabel =
+        '${localizations.formatFullDate(scheduledAt)} at ${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(scheduledAt))}';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message ?? 'Notification scheduled for later today.'),
+        content: Text(message ?? 'Notification scheduled for $scheduledLabel.'),
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  Future<DateTime?> _pickScheduleDateTime(BuildContext context) async {
+    final now = DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: now.add(const Duration(minutes: 15)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+    );
+    if (!context.mounted || date == null) return null;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(now.add(const Duration(minutes: 15))),
+    );
+    if (time == null) return null;
+
+    final scheduledAt = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    if (!scheduledAt.isAfter(DateTime.now())) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Choose a future date and time for scheduling.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return null;
+    }
+    return scheduledAt;
   }
 }
 
@@ -505,17 +569,32 @@ class _AttachmentPicker extends StatelessWidget {
           const Icon(Icons.attach_file_rounded),
           const SizedBox(width: 10),
           Expanded(
-            child:
-                Text(provider.attachmentName ?? 'Optional Attachment Upload'),
+            child: Text(
+              provider.isAttachmentUploading
+                  ? 'Uploading ${provider.attachmentName ?? 'attachment'}...'
+                  : provider.attachmentName ?? 'Optional Attachment Upload',
+            ),
           ),
+          if (provider.isAttachmentUploading)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
           if (provider.attachmentName != null)
             IconButton(
               tooltip: 'Remove attachment',
-              onPressed: provider.clearAttachment,
+              onPressed: provider.isAttachmentUploading
+                  ? null
+                  : provider.clearAttachment,
               icon: const Icon(Icons.close_rounded),
             ),
           OutlinedButton(
-            onPressed: provider.pickAttachment,
+            onPressed:
+                provider.isAttachmentUploading ? null : provider.pickAttachment,
             child: const Text('Upload'),
           ),
         ],
@@ -634,7 +713,7 @@ class _NotificationHistorySection extends StatelessWidget {
                 return NotificationCard(
                   notification: notification,
                   onViewDetails: () => _showDetails(context, notification),
-                  onResend: () => provider.resend(notification),
+                  onResend: () => _resend(context, notification),
                   onDelete: () => provider.deleteNotification(notification.id),
                 );
               },
@@ -673,6 +752,21 @@ class _NotificationHistorySection extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _resend(
+    BuildContext context,
+    NotificationModel notification,
+  ) async {
+    final provider = context.read<NotificationSettingsProvider>();
+    final message = await provider.resend(notification);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message ?? 'Notification resent successfully.'),
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }

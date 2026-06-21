@@ -187,22 +187,23 @@ class GraphProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> applyTopMoviesFilters(bool isRevenue) async {
+  Future<void> applyTopMoviesFilters(context, bool isRevenue) async {
     if (activeButton == "Month") {
-      await _fetchByTimeRangeIndex(1, isRevenue);
+      await _fetchByTimeRangeIndex(context, 1, isRevenue);
       return;
     }
     if (activeButton == "Year") {
-      await _fetchByTimeRangeIndex(2, isRevenue);
+      await _fetchByTimeRangeIndex(context, 2, isRevenue);
       return;
     }
-    await _fetchByTimeRangeIndex(0, isRevenue);
+    await _fetchByTimeRangeIndex(context, 0, isRevenue);
   }
 
-  Future<void> _fetchByTimeRangeIndex(int selectedTimeRange, bool isRevenue) {
+  Future<void> _fetchByTimeRangeIndex(
+      context, int selectedTimeRange, bool isRevenue) {
     return isRevenue
-        ? fetchTopPerformingMovieGraph(selectedTimeRange)
-        : fetchTopRatedMovieGraph(selectedTimeRange);
+        ? fetchTopPerformingMovieGraph(context, selectedTimeRange)
+        : fetchTopRatedMovieGraph(context, selectedTimeRange);
   }
 
   String? _normalizeFilter(String value, {bool allAsNull = false}) {
@@ -218,7 +219,8 @@ class GraphProvider extends ChangeNotifier {
     isWeek = false;
   }
 
-  Future<void> fetchTopPerformingMovieGraph(int selectedTimeRange) async {
+  Future<void> fetchTopPerformingMovieGraph(
+      context, int selectedTimeRange) async {
     if (startDate == null || endDate == null) return;
 
     final start = DateFormat('yyyy-MM-dd').format(startDate!);
@@ -276,6 +278,7 @@ class GraphProvider extends ChangeNotifier {
         }
       } else {
         CustomToast.show(
+          context,
           topRevenueMovie.message.toString(),
           isSuccess: topRevenueMovie.success ?? false,
         );
@@ -289,7 +292,7 @@ class GraphProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchTopRatedMovieGraph(int selectedTimeRange) async {
+  Future<void> fetchTopRatedMovieGraph(context, int selectedTimeRange) async {
     if (startDate == null || endDate == null) return;
 
     final start = DateFormat('yyyy-MM-dd').format(startDate!);
@@ -347,6 +350,7 @@ class GraphProvider extends ChangeNotifier {
         }
       } else {
         CustomToast.show(
+          context,
           topRatedMovie.message.toString(),
           isSuccess: topRatedMovie.success ?? false,
         );
@@ -371,13 +375,13 @@ class GraphProvider extends ChangeNotifier {
       selectedDateRange = DateTimeRange(start: startDate!, end: endDate!);
 
       if (label == "Week") {
-        _fetchByTimeRangeIndex(0, isRevenue);
+        _fetchByTimeRangeIndex(context, 0, isRevenue);
       } else if (label == "Month") {
-        _fetchByTimeRangeIndex(1, isRevenue);
+        _fetchByTimeRangeIndex(context, 1, isRevenue);
       } else if (label == "Year") {
-        _fetchByTimeRangeIndex(2, isRevenue);
+        _fetchByTimeRangeIndex(context, 2, isRevenue);
       } else {
-        _fetchByTimeRangeIndex(0, isRevenue);
+        _fetchByTimeRangeIndex(context, 0, isRevenue);
       }
 
       notifyListeners();
@@ -413,7 +417,7 @@ class GraphProvider extends ChangeNotifier {
       activeButton = 'Custom Dates';
       startDate = picked.start;
       endDate = picked.end;
-      _fetchByTimeRangeIndex(0, isRevenue);
+      _fetchByTimeRangeIndex(context, 0, isRevenue);
       notifyListeners();
     }
   }
@@ -428,6 +432,8 @@ class GraphProvider extends ChangeNotifier {
     String? city,
     DateTime? startDate,
     DateTime? endDate,
+    String? ageGroup,
+    String? gender,
   }) async {
     final localSharePreferences = LocalSharePreferences();
     final mediaHouse = await localSharePreferences.getMediaHouse();
@@ -452,6 +458,8 @@ class GraphProvider extends ChangeNotifier {
       city: _normalizeFilter(city ?? ""),
       startDate: start,
       endDate: end,
+      ageGroup: _normalizeFilter(ageGroup ?? "", allAsNull: true),
+      gender: _normalizeFilter(gender ?? "", allAsNull: true),
     );
     final apiHelper = ApiHelper();
     debugPrint(apiUrl);
@@ -464,6 +472,7 @@ class GraphProvider extends ChangeNotifier {
       if (response.statusCode < 200 || response.statusCode >= 300) {
         _reportAndDataList = [];
         CustomToast.show(
+          context,
           "Failed to load reports (status ${response.statusCode}).",
           isSuccess: false,
         );
@@ -479,6 +488,7 @@ class GraphProvider extends ChangeNotifier {
         _reportAndDataList = List<ReportAndDataObject>.from(items);
       } else {
         CustomToast.show(
+          context,
           reportAndDataResponse.message.toString(),
           isSuccess: reportAndDataResponse.success ?? false,
         );
@@ -488,6 +498,7 @@ class GraphProvider extends ChangeNotifier {
       _reportAndDataList.clear();
       debugPrint("Error occurred while fetching graph data: $error");
       CustomToast.show(
+        context,
         "Unable to load report data right now.",
         isSuccess: false,
       );

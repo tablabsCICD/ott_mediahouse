@@ -147,6 +147,7 @@ class SelectUploadTypeDialog extends StatelessWidget {
             ? AddShortMaster.show(context)
             : showDialog(
                 context: context,
+                barrierDismissible: false,
                 builder: (BuildContext context) {
                   final uploadType = title == "Upload Movie"
                       ? UploadContentType.movie

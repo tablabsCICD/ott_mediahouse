@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:media_house/app/provider/content_provider.dart';
 import 'package:media_house/app/provider/graphProvider.dart';
 import 'package:media_house/app/provider/mediaHouseProvider.dart';
+import 'package:media_house/app/provider/notification_provider.dart';
 import 'package:media_house/app/provider/notification_settings_provider.dart';
 import 'package:media_house/app/provider/series_provider.dart';
 import 'package:media_house/app/provider/sign_up_provider.dart';
@@ -11,15 +12,15 @@ import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/provider/ticketProvider.dart';
 import 'package:media_house/app/provider/user_provider.dart';
 import 'package:media_house/app/provider/videoProvider.dart';
+import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'app/core/navigation/app_navigator.dart';
 import 'app/config/routes/routes.dart';
-
-final GlobalKey<ScaffoldMessengerState> globalMessengerKey =
-    GlobalKey<ScaffoldMessengerState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
 
   // Initialize SharedPreferences
   final prefs = await SharedPreferences.getInstance();
@@ -47,14 +48,13 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (_) => ShortProvider()),
         ChangeNotifierProvider(create: (_) => SeriesProvider()),
         ChangeNotifierProvider(create: (_) => SignUpProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => NotificationSettingsProvider()),
       ],
       child: MyApp(),
     ),
   );
 }
-
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class MyApp extends StatelessWidget {
   const MyApp({
@@ -67,7 +67,7 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       scaffoldMessengerKey: globalMessengerKey,
-      title: 'OTT Production House',
+      title: 'Production House',
       theme: themeProvider.getTheme,
       debugShowCheckedModeBanner: false,
       navigatorKey: navigatorKey,

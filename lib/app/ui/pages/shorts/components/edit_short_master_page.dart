@@ -11,6 +11,7 @@ import 'package:universal_html/html.dart' as html;
 import '../../../../../data/models/response/content_image_upload_response.dart';
 import '../../../../../data/models/response/short_detail_response.dart';
 import '../../../../core/constant/api_constant.dart';
+import '../../../../core/utils/image_validation_service.dart';
 import '../../../../core/utils/sharepreferences.dart';
 import '../../../../provider/shorts_provider.dart';
 import '../../../../widget/show_toast.dart';
@@ -473,12 +474,12 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
     if (!mounted) return;
 
     if (success) {
-      CustomToast.show("Short updated successfully", isSuccess: true);
+      CustomToast.show(context, "Short updated successfully", isSuccess: true);
       Navigator.pop(context, true);
       return;
     }
 
-    CustomToast.show("Failed to update short. Please try again.",
+    CustomToast.show(context, "Failed to update short. Please try again.",
         isSuccess: false);
   }
 
@@ -554,7 +555,25 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
       final input = html.FileUploadInputElement()..accept = 'image/*';
       input.click();
       input.onChange.listen((_) async {
-        webFile = input.files!.first;
+        if (input.files == null || input.files!.isEmpty) return;
+        final file = input.files!.first;
+        final reader = html.FileReader();
+        reader.readAsArrayBuffer(file);
+        await reader.onLoad.first;
+        final bytes = Uint8List.fromList((reader.result as List).cast<int>());
+        final validation = await ImageValidationService.validateBytes(
+          bytes: bytes,
+          fileName: file.name,
+          sizeInBytes: file.size,
+          type: ImageValidationType.thumbnail,
+        );
+        if (!validation.isValid) {
+          CustomToast.show(context, validation.message ?? "Invalid image",
+              isSuccess: false);
+          return;
+        }
+        webFile = file;
+        previewBytes = bytes;
         await uploadImage(setState);
         setState(() {});
       });
@@ -562,7 +581,20 @@ class _EditShortMasterDialogState extends State<EditShortMasterDialog> {
       final picker = ImagePicker();
       final file = await picker.pickImage(source: ImageSource.gallery);
       if (file != null) {
+        final bytes = await file.readAsBytes();
+        final validation = await ImageValidationService.validateBytes(
+          bytes: bytes,
+          fileName: file.name,
+          sizeInBytes: bytes.lengthInBytes,
+          type: ImageValidationType.thumbnail,
+        );
+        if (!validation.isValid) {
+          CustomToast.show(context, validation.message ?? "Invalid image",
+              isSuccess: false);
+          return;
+        }
         imageFile = io.File(file.path);
+        previewBytes = bytes;
         await uploadImage(setState);
         setState(() {});
       }

@@ -1,5 +1,11 @@
 class ApiConstant {
-  static const String baseUrl = "https://filmytell.in/ott/";
+  //static const String baseUrl = "https://filmytell.in/ott/";
+  static const String baseUrl =
+      "http://ec2-13-201-5-93.ap-south-1.compute.amazonaws.com:8080/ott/";
+
+  static String twoStepLogin = "${baseUrl}auth/two-step/login";
+  static String twoStepVerifyOtp = "${baseUrl}auth/two-step/verify-otp";
+  static String refreshAuthToken = "${baseUrl}auth/refresh-token";
 
   static String login(mobileNumber) =>
       "${baseUrl}user/forgotPassword/findUserAndSendOTP?mobileNumber=$mobileNumber";
@@ -28,6 +34,13 @@ class ApiConstant {
       "${baseUrl}api/ApproveMediaHouseBy?mediaHouseId=$id&status=$status";
   static String getMediaHouseDashboardCount(id) =>
       "${baseUrl}api/admin/mediaHouseDashboardApi?mediaHouseId=$id";
+  static String productionHouseNotifications({
+    required int userId,
+    required int mediaHouseId,
+    required int pageNo,
+    required int pageSize,
+  }) =>
+      "${baseUrl}api/notifications/user/$userId/push?mediaHouseId=$mediaHouseId&pageNo=$pageNo&pageSize=$pageSize";
 
   static String saveVideo = '${baseUrl}api/addContent';
   static String saveCast = '${baseUrl}api/saveCast';
@@ -118,13 +131,56 @@ class ApiConstant {
 
   static String uploadImg = "${baseUrl}api/documents/upload";
   static String uploadContentImg = "${baseUrl}api/documents/upload";
+  static String uploadDocument = "${baseUrl}api/documents/upload";
   static String uploadVideo = "${baseUrl}api/video/upload";
   static String uploadVideoMetadata = "${baseUrl}api/video-metadata/extract";
   static String uploadSubtitle = "${baseUrl}api/video-metadata/subtitle/upload";
-  static String uploadAudioMetadata = "${baseUrl}api/metadata/audio/extract";
-  static String allLanguagesWithGrouping =
-      "http://ec2-43-205-217-79.ap-south-1.compute.amazonaws.com:8080/ott/api/all/withGrouping";
+  static String uploadAudioMetadata =
+      "${baseUrl}api/video-metadata/audio/extract";
+  static String allLanguagesWithGrouping = "${baseUrl}api/all/withGrouping";
+  static String sendNotification = "${baseUrl}api/notifications/send";
+  static String scheduleNotification = "${baseUrl}api/notifications/schedule";
+  static String resendNotification(id) =>
+      "${baseUrl}api/notifications/$id/resend";
+  static String notificationAnalytics({
+    required int mediaHouseId,
+    String timeRange = "",
+  }) =>
+      "${baseUrl}api/notifications/analytics/show?mediaHouseId=$mediaHouseId";
+  static String notificationsByMediaHouse({
+    required int mediaHouseId,
+    required int page,
+    required int size,
+    String sortBy = "createdDate",
+    String sortDir = "desc",
+    String? startDate,
+    String? endDate,
+  }) {
+    final params = <String, String>{
+      "mediaHouseId": "$mediaHouseId",
+      "page": "$page",
+      "size": "$size",
+      "sortBy": sortBy,
+      "sortDir": sortDir,
+    };
+    if (startDate != null && startDate.trim().isNotEmpty) {
+      params["startDate"] = startDate.trim();
+    }
+    if (endDate != null && endDate.trim().isNotEmpty) {
+      params["endDate"] = endDate.trim();
+    }
+    final query = params.entries
+        .map((entry) => "${entry.key}=${Uri.encodeQueryComponent(entry.value)}")
+        .join("&");
+    return "${baseUrl}api/notifications/analytics/by-media-house?$query";
+  }
+
   static String dashboardCount = "${baseUrl}api/admin/dashboardCounts";
+  static String activeRegistrationFeeRule({
+    required String contentType,
+    String audienceScope = "INDIA",
+  }) =>
+      "${baseUrl}api/admin/registration-fee-rule/getActiveRule?contentType=${Uri.encodeQueryComponent(contentType)}&audienceScope=${Uri.encodeQueryComponent(audienceScope)}";
 
   static String resetPassword(mobile, password) =>
       "${baseUrl}user/resetPassword?mobileNumber=$mobile&password=$password";
@@ -282,6 +338,8 @@ class ApiConstant {
     String? city,
     String? startDate,
     String? endDate,
+    String? ageGroup,
+    String? gender,
   }) {
     final params = <String, String>{
       'id': '$id',
@@ -301,6 +359,8 @@ class ApiConstant {
     putIfNotBlank('city', city);
     putIfNotBlank('startDate', startDate);
     putIfNotBlank('endDate', endDate);
+    putIfNotBlank('ageGroup', ageGroup);
+    putIfNotBlank('gender', gender);
 
     final query = params.entries
         .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')

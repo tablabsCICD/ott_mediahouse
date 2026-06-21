@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:media_house/app/provider/graphProvider.dart';
+import 'package:media_house/app/provider/mediaHouseProvider.dart';
 import 'package:media_house/app/ui/pages/movie%20details%20page/MovieDetailsPage.dart';
 import 'package:media_house/app/widget/TopMoviesLineGraph.dart';
 import 'package:media_house/app/widget/show_toast.dart';
 import 'package:media_house/data/models/response/reportAndDataResponse.dart';
 import 'package:provider/provider.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
+
+import '../../../core/utils/sharepreferences.dart';
 
 class AnalyticsPage extends StatefulWidget {
   const AnalyticsPage({super.key});
@@ -22,12 +25,34 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   String _reportContentType = 'ALL';
   String _reportCountry = '';
   String _reportState = '';
+  String _reportAgeGroup = 'ALL';
+  String _reportGender = 'ALL';
   final TextEditingController _districtController = TextEditingController();
   final TextEditingController _talukaController = TextEditingController();
   final TextEditingController _cityController = TextEditingController();
   DateTimeRange? _reportDateRange;
 
-  static const List<String> _contentTypeOptions = ['ALL', 'MOVIE', 'SERIES'];
+  static const List<String> _contentTypeOptions = [
+    'ALL',
+    'MOVIE',
+    'SERIES',
+    'MINI SERIES'
+  ];
+  static const List<String> _ageGroupOptions = [
+    'ALL',
+    '13-17',
+    '18-24',
+    '25-34',
+    '35-44',
+    '45-54',
+    '55+',
+  ];
+  static const List<String> _genderOptions = [
+    'ALL',
+    'male',
+    'female',
+    'other',
+  ];
 
   void _toggleSortOrder() {
     setState(() {
@@ -136,87 +161,293 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          alignment: WrapAlignment.end,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            OutlinedButton.icon(
-              onPressed: _toggleSortCriteria,
-              icon: const Icon(Icons.swap_horiz),
-              label: Text(_sortByRevenue ? "Sort: Revenue" : "Sort: Name"),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Content Performance",
+                    style: TextStyle(
+                      color: selectedThemeData.primaryColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "${movies.length} records found",
+                    style: TextStyle(
+                      color:
+                          selectedThemeData.canvasColor.withValues(alpha: 0.62),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            OutlinedButton.icon(
-              onPressed: _toggleSortOrder,
-              icon: Icon(_isAscending
-                  ? Icons.arrow_upward_rounded
-                  : Icons.arrow_downward_rounded),
-              label: Text(_isAscending ? "Ascending" : "Descending"),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _toggleSortCriteria,
+                  icon: const Icon(Icons.swap_horiz),
+                  label: Text(_sortByRevenue ? "Sort: Revenue" : "Sort: Name"),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _toggleSortOrder,
+                  icon: Icon(_isAscending
+                      ? Icons.arrow_upward_rounded
+                      : Icons.arrow_downward_rounded),
+                  label: Text(_isAscending ? "Ascending" : "Descending"),
+                ),
+              ],
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
         LayoutBuilder(
           builder: (context, constraints) {
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                child: DataTable(
-                  headingTextStyle: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: selectedThemeData.primaryColor,
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: selectedThemeData.scaffoldBackgroundColor
+                      .withValues(alpha: 0.38),
+                  border: Border.all(
+                    color:
+                        selectedThemeData.dividerColor.withValues(alpha: 0.4),
                   ),
-                  columns: const [
-                    DataColumn(label: Text("Content")),
-                    DataColumn(label: Text("Release Date")),
-                    DataColumn(label: Text("Views"), numeric: true),
-                    DataColumn(label: Text("Revenue"), numeric: true),
-                    DataColumn(label: Text("Commission %"), numeric: true),
-                    DataColumn(label: Text("Net Revenue"), numeric: true),
-                    DataColumn(label: Text("Details")),
-                  ],
-                  rows: movies
-                      .map(
-                        (movie) => DataRow(
-                          cells: [
-                            DataCell(Text(movie.movieName ?? '-')),
-                            DataCell(Text("${movie.releasedDate ?? '-'}")),
-                            DataCell(Text(_formatNumber(_toInt(movie.views)))),
-                            DataCell(
-                                Text(_formatNumber(_toDouble(movie.revenue)))),
-                            DataCell(
-                                Text("${movie.percentageMediaHouse ?? 0}%")),
-                            DataCell(
-                                Text(_formatNumber(_toInt(movie.netRevenue)))),
-                            DataCell(
-                              TextButton(
-                                onPressed: movie.views == null
-                                    ? null
-                                    : () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (context) =>
-                                                MovieDetailsPage(
-                                              movieId: movie.views!,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                child: const Text("Open"),
-                              ),
-                            ),
-                          ],
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTableTheme(
+                      data: DataTableThemeData(
+                        headingRowColor: WidgetStatePropertyAll(
+                          selectedThemeData.primaryColor.withValues(alpha: 0.1),
                         ),
-                      )
-                      .toList(),
+                        dataRowColor: WidgetStateProperty.resolveWith((states) {
+                          if (states.contains(WidgetState.hovered)) {
+                            return selectedThemeData.primaryColor
+                                .withValues(alpha: 0.05);
+                          }
+                          return Colors.transparent;
+                        }),
+                        dividerThickness: 0.6,
+                      ),
+                      child: DataTable(
+                        columnSpacing: 28,
+                        horizontalMargin: 16,
+                        headingRowHeight: 48,
+                        dataRowMinHeight: 58,
+                        dataRowMaxHeight: 68,
+                        headingTextStyle: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: selectedThemeData.primaryColor,
+                          fontSize: 12,
+                        ),
+                        dataTextStyle: TextStyle(
+                          color: selectedThemeData.canvasColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        columns: [
+                          DataColumn(label: _tableHeader("Content")),
+                          DataColumn(label: _tableHeader("Release Date")),
+                          DataColumn(
+                            label: _tableHeader("Views"),
+                            numeric: true,
+                          ),
+                          DataColumn(
+                            label: _tableHeader("Price"),
+                            numeric: true,
+                          ),
+                          DataColumn(
+                            label: _tableHeader("Revenue"),
+                            numeric: true,
+                          ),
+                          DataColumn(
+                            label: _tableHeader("Net Revenue"),
+                            numeric: true,
+                          ),
+                          DataColumn(label: _tableHeader("Details")),
+                        ],
+                        rows: movies.asMap().entries.map(
+                          (entry) {
+                            final index = entry.key;
+                            final movie = entry.value;
+                            return DataRow(
+                              color: WidgetStateProperty.resolveWith((states) {
+                                if (states.contains(WidgetState.hovered)) {
+                                  return selectedThemeData.primaryColor
+                                      .withValues(alpha: 0.06);
+                                }
+                                return index.isEven
+                                    ? selectedThemeData.cardColor
+                                        .withValues(alpha: 0.32)
+                                    : Colors.transparent;
+                              }),
+                              cells: [
+                                DataCell(
+                                    _contentCell(movie, selectedThemeData)),
+                                DataCell(_tableText(
+                                  movie.releasedDate == null
+                                      ? '-'
+                                      : DateFormat('dd MMM yyyy')
+                                          .format(movie.releasedDate!),
+                                )),
+                                DataCell(_metricCell(
+                                  _formatNumber(_toInt(movie.views)),
+                                  Icons.visibility_outlined,
+                                  selectedThemeData,
+                                )),
+                                DataCell(_moneyCell(
+                                  "${movie.price ?? 0}",
+                                  selectedThemeData,
+                                )),
+                                DataCell(_moneyCell(
+                                  _formatNumber(_toDouble(movie.revenue)),
+                                  selectedThemeData,
+                                )),
+                                DataCell(_moneyCell(
+                                  _formatNumber(_toDouble(movie.netRevenue)),
+                                  selectedThemeData,
+                                )),
+                                DataCell(
+                                  TextButton.icon(
+                                    onPressed: movie.views == null
+                                        ? null
+                                        : () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    MovieDetailsPage(
+                                                  movieId: movie.views!,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                    icon: const Icon(
+                                      Icons.open_in_new_rounded,
+                                      size: 15,
+                                    ),
+                                    label: const Text("Open"),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ).toList(),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             );
           },
         ),
       ],
+    );
+  }
+
+  Widget _tableHeader(String label) {
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _tableText(String value) {
+    return Text(
+      value,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _contentCell(
+    ReportAndDataObject movie,
+    ThemeData selectedThemeData,
+  ) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 210, maxWidth: 320),
+      child: Row(
+        children: [
+          Container(
+            height: 36,
+            width: 36,
+            decoration: BoxDecoration(
+              color: selectedThemeData.primaryColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.movie_creation_outlined,
+              color: selectedThemeData.primaryColor,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              movie.movieName ?? '-',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: selectedThemeData.canvasColor,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metricCell(
+    String value,
+    IconData icon,
+    ThemeData selectedThemeData,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 15, color: selectedThemeData.primaryColor),
+        const SizedBox(width: 5),
+        Text(
+          value,
+          style: TextStyle(
+            color: selectedThemeData.canvasColor,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _moneyCell(String value, ThemeData selectedThemeData) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.green.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        value,
+        style: const TextStyle(
+          color: Colors.green,
+          fontWeight: FontWeight.w800,
+          fontSize: 12,
+        ),
+      ),
     );
   }
 
@@ -239,8 +470,19 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
   Future<void> _initData() async {
     final provider = Provider.of<GraphProvider>(context, listen: false);
+    await _fetchDashboardSummary();
     await provider.fetchCountriesIfNeeded();
     await _applyReportFilters();
+  }
+
+  Future<void> _fetchDashboardSummary() async {
+    final mediaHouse = await LocalSharePreferences().getMediaHouse();
+    final mediaHouseId = mediaHouse?.id;
+    if (mediaHouseId == null || mediaHouseId == 0) return;
+    if (!mounted) return;
+    await context
+        .read<MediaHouseProvider>()
+        .fetchMediaHouseDashboardData(mediaHouseId);
   }
 
   Future<void> _applyReportFilters() async {
@@ -253,20 +495,22 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             district.isNotEmpty ||
             taluka.isNotEmpty ||
             city.isNotEmpty)) {
-      CustomToast.show("Select country first.", isSuccess: false);
+      CustomToast.show(context, "Select country first.", isSuccess: false);
       return;
     }
     if (_reportState.isEmpty &&
         (district.isNotEmpty || taluka.isNotEmpty || city.isNotEmpty)) {
-      CustomToast.show("Select state after country.", isSuccess: false);
+      CustomToast.show(context, "Select state after country.",
+          isSuccess: false);
       return;
     }
     if (district.isEmpty && (taluka.isNotEmpty || city.isNotEmpty)) {
-      CustomToast.show("Enter district before taluka/city.", isSuccess: false);
+      CustomToast.show(context, "Enter district before taluka/city.",
+          isSuccess: false);
       return;
     }
     if (taluka.isEmpty && city.isNotEmpty) {
-      CustomToast.show("Enter taluka before city.", isSuccess: false);
+      CustomToast.show(context, "Enter taluka before city.", isSuccess: false);
       return;
     }
 
@@ -281,6 +525,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       city: city,
       startDate: _reportDateRange?.start,
       endDate: _reportDateRange?.end,
+      ageGroup: _reportAgeGroup,
+      gender: _reportGender,
     );
   }
 
@@ -290,6 +536,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
       _reportContentType = 'ALL';
       _reportCountry = '';
       _reportState = '';
+      _reportAgeGroup = 'ALL';
+      _reportGender = 'ALL';
       _districtController.clear();
       _talukaController.clear();
       _cityController.clear();
@@ -497,7 +745,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                   canvasColor: theme.cardColor,
                 ),
                 child: DropdownButtonFormField<String>(
-                  value: _reportContentType,
+                  initialValue: _reportContentType,
                   dropdownColor: theme.cardColor,
                   style: TextStyle(color: theme.canvasColor),
                   decoration: InputDecoration(
@@ -672,6 +920,88 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
             ),
             SizedBox(
               width: itemWidth,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  canvasColor: theme.cardColor,
+                ),
+                child: DropdownButtonFormField<String>(
+                  initialValue: _reportAgeGroup,
+                  dropdownColor: theme.cardColor,
+                  style: TextStyle(color: theme.canvasColor),
+                  decoration: InputDecoration(
+                    labelText: "Age Group",
+                    labelStyle: TextStyle(
+                      color: theme.primaryColor.withValues(alpha: 0.75),
+                    ),
+                    border: const OutlineInputBorder(),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: theme.dividerColor.withValues(alpha: 0.55),
+                      ),
+                    ),
+                  ),
+                  items: _ageGroupOptions
+                      .map(
+                        (ageGroup) => DropdownMenuItem<String>(
+                          value: ageGroup,
+                          child: Text(
+                            ageGroup,
+                            style: TextStyle(color: theme.canvasColor),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _reportAgeGroup = value);
+                  },
+                ),
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  canvasColor: theme.cardColor,
+                ),
+                child: DropdownButtonFormField<String>(
+                  initialValue: _reportGender,
+                  dropdownColor: theme.cardColor,
+                  style: TextStyle(color: theme.canvasColor),
+                  decoration: InputDecoration(
+                    labelText: "Gender",
+                    labelStyle: TextStyle(
+                      color: theme.primaryColor.withValues(alpha: 0.75),
+                    ),
+                    border: const OutlineInputBorder(),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        color: theme.dividerColor.withValues(alpha: 0.55),
+                      ),
+                    ),
+                  ),
+                  items: _genderOptions
+                      .map(
+                        (gender) => DropdownMenuItem<String>(
+                          value: gender,
+                          child: Text(
+                            gender == 'ALL'
+                                ? gender
+                                : "${gender[0].toUpperCase()}${gender.substring(1)}",
+                            style: TextStyle(color: theme.canvasColor),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _reportGender = value);
+                  },
+                ),
+              ),
+            ),
+            SizedBox(
+              width: itemWidth,
               child: OutlinedButton.icon(
                 onPressed: _pickReportDateRange,
                 icon: const Icon(Icons.date_range),
@@ -717,6 +1047,200 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
     return Column(
       children: movies
           .map(
+            (movie) => Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: selectedThemeData.scaffoldBackgroundColor
+                    .withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: selectedThemeData.dividerColor.withValues(alpha: 0.36),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 40,
+                        width: 40,
+                        decoration: BoxDecoration(
+                          color: selectedThemeData.primaryColor
+                              .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.movie_creation_outlined,
+                          color: selectedThemeData.primaryColor,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          movie.movieName ?? '-',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: selectedThemeData.primaryColor,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: movie.views == null
+                            ? null
+                            : () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MovieDetailsPage(
+                                      movieId: movie.views!,
+                                    ),
+                                  ),
+                                );
+                              },
+                        child: const Text("Open"),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _compactReportChip(
+                        selectedThemeData,
+                        Icons.event_outlined,
+                        "Release",
+                        movie.releasedDate == null
+                            ? '-'
+                            : DateFormat('dd MMM yyyy')
+                                .format(movie.releasedDate!),
+                      ),
+                      _compactReportChip(
+                        selectedThemeData,
+                        Icons.visibility_outlined,
+                        "Views",
+                        _formatNumber(_toInt(movie.views)),
+                      ),
+                      _compactReportChip(
+                        selectedThemeData,
+                        Icons.currency_rupee_rounded,
+                        "Revenue",
+                        _formatNumber(_toDouble(movie.revenue)),
+                      ),
+                      _compactReportChip(
+                        selectedThemeData,
+                        Icons.percent_rounded,
+                        "Commission",
+                        "${movie.price ?? 0}%",
+                      ),
+                      _compactReportChip(
+                        selectedThemeData,
+                        Icons.account_balance_wallet_outlined,
+                        "Net Revenue",
+                        _formatNumber(_toDouble(movie.netRevenue)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _compactReportChip(
+    ThemeData theme,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: theme.primaryColor),
+          const SizedBox(width: 6),
+          Text(
+            "$label: ",
+            style: TextStyle(
+              color: theme.canvasColor.withValues(alpha: 0.62),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: theme.canvasColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportTotalChip(
+    ThemeData theme,
+    IconData icon,
+    String label,
+    String value,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor.withValues(alpha: 0.32)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 17, color: theme.primaryColor),
+          const SizedBox(width: 8),
+          Text(
+            "$label: ",
+            style: TextStyle(
+              color: theme.canvasColor.withValues(alpha: 0.62),
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: theme.primaryColor,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /*
+  Widget _legacyCompactReportList(
+      List<ReportAndDataObject> movies, ThemeData selectedThemeData) {
+    return Column(
+      children: movies
+          .map(
             (movie) => Card(
               margin: const EdgeInsets.only(bottom: 10),
               color: selectedThemeData.scaffoldBackgroundColor,
@@ -736,7 +1260,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     Text("Release: ${movie.releasedDate ?? '-'}"),
                     Text("Views: ${_formatNumber(_toInt(movie.views))}"),
                     Text("Revenue: ${_formatNumber(_toDouble(movie.revenue))}"),
-                    Text("Commission: ${movie.percentageMediaHouse ?? 0}%"),
+                    Text("Commission: ${movie.price ?? 0}%"),
                     Text(
                         "Net Revenue: ${_formatNumber(_toInt(movie.netRevenue))}"),
                     const SizedBox(height: 6),
@@ -766,6 +1290,102 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
           .toList(),
     );
   }
+  */
+
+  Widget _buildDashboardCards(
+    MediaHouseProvider mediaHouseProvider,
+    ThemeData theme,
+  ) {
+    final data = mediaHouseProvider.mediaHouseDashboardData;
+    final approved = data.approvedContent ?? 0;
+    final upcoming = data.upcomingContentCount ?? 0;
+    final pending = data.pendingContentCount ?? 0;
+    final rejected = data.rejectedContentCount ?? 0;
+    final totalContent = approved + upcoming + pending + rejected;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final cardWidth = width > 1180
+            ? (width - 36) / 4
+            : width > 760
+                ? (width - 24) / 3
+                : width > 520
+                    ? (width - 12) / 2
+                    : width;
+
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            SizedBox(
+              width: cardWidth,
+              child: _buildSummaryCard(
+                title: "Total Content",
+                value: _formatNumber(totalContent),
+                icon: Icons.video_library_outlined,
+                color: Colors.blue,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _buildSummaryCard(
+                title: "Approved Content",
+                value: _formatNumber(approved),
+                icon: Icons.verified_outlined,
+                color: Colors.green,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _buildSummaryCard(
+                title: "Pending Content",
+                value: _formatNumber(pending),
+                icon: Icons.pending_actions_outlined,
+                color: Colors.orange,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _buildSummaryCard(
+                title: "Upcoming Content",
+                value: _formatNumber(upcoming),
+                icon: Icons.upcoming_outlined,
+                color: Colors.indigo,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _buildSummaryCard(
+                title: "Rejected Content",
+                value: _formatNumber(rejected),
+                icon: Icons.cancel_outlined,
+                color: Colors.red,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _buildSummaryCard(
+                title: "Total Views",
+                value: _formatNumber(data.totalViews ?? 0),
+                icon: Icons.visibility_outlined,
+                color: Colors.deepPurple,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
+              child: _buildSummaryCard(
+                title: "View Revenue",
+                value: "₹${_formatNumber(data.viewRevenue ?? 0)}",
+                icon: Icons.currency_rupee_rounded,
+                color: Colors.teal,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -774,8 +1394,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
 
     return Scaffold(
       backgroundColor: selectedThemeData.scaffoldBackgroundColor,
-      body: Consumer<GraphProvider>(
-        builder: (context, provider, child) {
+      body: Consumer2<GraphProvider, MediaHouseProvider>(
+        builder: (context, provider, mediaHouseProvider, child) {
           final isCompact = MediaQuery.of(context).size.width < 820;
           final sortedMovies = getSortedMovies(provider);
           final totalViews = sortedMovies.fold<int>(
@@ -816,49 +1436,8 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth > 900;
-                      final cardWidth = isWide
-                          ? (constraints.maxWidth - 24) / 3
-                          : constraints.maxWidth;
-
-                      return Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        children: [
-                          SizedBox(
-                            width: cardWidth,
-                            child: _buildSummaryCard(
-                              title: "Total Content",
-                              value: "${sortedMovies.length}",
-                              icon: Icons.movie_creation_outlined,
-                              color: Colors.blue,
-                            ),
-                          ),
-                          SizedBox(
-                            width: cardWidth,
-                            child: _buildSummaryCard(
-                              title: "Total Views",
-                              value: _formatNumber(totalViews),
-                              icon: Icons.visibility_outlined,
-                              color: Colors.orange,
-                            ),
-                          ),
-                          SizedBox(
-                            width: cardWidth,
-                            child: _buildSummaryCard(
-                              title: "Total Revenue",
-                              value: _formatNumber(totalRevenue),
-                              icon: Icons.attach_money_rounded,
-                              color: Colors.green,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
+                  _buildDashboardCards(mediaHouseProvider, selectedThemeData),
+                  const SizedBox(height: 14),
                   Text(
                     "Performance Overview",
                     style: TextStyle(
@@ -896,6 +1475,31 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                       padding: const EdgeInsets.all(12),
                       child: _buildReportFilters(provider, selectedThemeData),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      _reportTotalChip(
+                        selectedThemeData,
+                        Icons.filter_list_rounded,
+                        "Filtered Items",
+                        "${sortedMovies.length}",
+                      ),
+                      _reportTotalChip(
+                        selectedThemeData,
+                        Icons.visibility_outlined,
+                        "Filtered Views",
+                        _formatNumber(totalViews),
+                      ),
+                      _reportTotalChip(
+                        selectedThemeData,
+                        Icons.currency_rupee_rounded,
+                        "Filtered Revenue",
+                        _formatNumber(totalRevenue),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 20),
                   Card(

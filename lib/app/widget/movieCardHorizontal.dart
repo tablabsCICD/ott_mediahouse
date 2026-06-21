@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
+import 'package:media_house/app/ui/pages/shorts/components/short_master_page.dart';
 import 'package:media_house/app/widget/show_toast.dart';
 import 'package:provider/provider.dart';
 
@@ -12,9 +13,9 @@ class MovieCardHorizontal extends StatelessWidget {
   final Content movie;
 
   const MovieCardHorizontal({
-    Key? key,
+    super.key,
     required this.movie,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -73,16 +74,26 @@ class MovieCardHorizontal extends StatelessWidget {
       );
       return;
     }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SeriesDetailsPage(
-          seriesId: movie.id!,
-          content: movie,
+    if (movie.type == "SERIES") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SeriesDetailsPage(
+            seriesId: movie.id!,
+            content: movie,
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ShortMasterPage(
+            shortId: movie.id!,
+          ),
+        ),
+      );
+    }
   }
 
   Widget _poster() {
@@ -141,7 +152,12 @@ class MovieCardHorizontal extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            _contentTypeBadge(theme),
+            if (_languageLabel().isNotEmpty) ...[
+              const SizedBox(width: 8),
+              _languageBadge(theme),
+            ],
+            /*   const SizedBox(width: 8),
+            _contentTypeBadge(theme), */
           ],
         ),
         const SizedBox(height: 4),
@@ -176,6 +192,28 @@ class MovieCardHorizontal extends StatelessWidget {
           fontSize: 11,
           fontWeight: FontWeight.w600,
           color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _languageBadge(ThemeData theme) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 96),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.primaryColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: theme.primaryColor.withValues(alpha: 0.32)),
+      ),
+      child: Text(
+        _languageLabel(),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: theme.primaryColor,
         ),
       ),
     );
@@ -320,7 +358,9 @@ class MovieCardHorizontal extends StatelessWidget {
                     ),
                   ),
                   TextSpan(
-                    text: reason.isEmpty ? 'No reason provided by admin.' : reason,
+                    text: reason.isEmpty
+                        ? 'No reason provided by admin.'
+                        : reason,
                   ),
                 ],
               ),
@@ -395,6 +435,17 @@ class MovieCardHorizontal extends StatelessWidget {
     return list.join(', ');
   }
 
+  String _languageLabel() {
+    final languages = movie.languageList
+            ?.map((item) => (item.language ?? '').trim())
+            .where((item) => item.isNotEmpty)
+            .toList() ??
+        [];
+    if (languages.isEmpty) return '';
+    if (languages.length == 1) return languages.first;
+    return '${languages.first} +${languages.length - 1}';
+  }
+
   showSetPercentageDialog(BuildContext context, Content content) async {
     final double? result = await showDialog<double>(
       context: context,
@@ -406,6 +457,7 @@ class MovieCardHorizontal extends StatelessWidget {
     if (result != null) {
       debugPrint("Selected Percentage: ${result.toInt()}%");
       CustomToast.show(
+        context,
         'Selected Percentage : ${result.toInt()}%',
         isSuccess: false,
       );

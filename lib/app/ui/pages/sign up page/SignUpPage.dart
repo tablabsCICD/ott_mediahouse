@@ -791,6 +791,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
       if (_requiredUploadFields.contains(invalidKey)) {
         CustomToast.show(
+          context,
           '${_labels[invalidKey] ?? invalidKey} is required',
           isSuccess: false,
         );
@@ -807,6 +808,7 @@ class _SignUpPageState extends State<SignUpPage> {
     final success = result['success'] == true;
 
     CustomToast.show(
+      context,
       result['message']?.toString() ?? (success ? 'Success' : 'Failed'),
       isSuccess: success,
     );

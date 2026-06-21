@@ -1,71 +1,45 @@
 import 'package:flutter/material.dart';
 
-import '../../main.dart';
-
 class CustomToast {
-  static final List<OverlayEntry> _overlayEntries = <OverlayEntry>[];
-
   static void show(
-      String message, {
-        bool isSuccess = true,
-        bool isWarning = false,
-        Duration duration = const Duration(seconds: 3),
-      }) {
-    final context = navigatorKey.currentState?.overlay?.context;
-    final overlay = navigatorKey.currentState?.overlay;
-
-    Color backgroundColor;
-
-    // Determine the background color
-    if (isWarning) {
-      backgroundColor = Colors.orange;
-    } else {
-      backgroundColor = isSuccess ? Colors.green : Color(0xFFE50914);
-    }
-    if (overlay == null || context == null) return;
-
-    final overlayEntry = OverlayEntry(
+    BuildContext context,
+    String message, {
+    bool isSuccess = true,
+    bool isWarning = false,
+    Duration duration = const Duration(seconds: 3),
+  }) {
+    final overlay = Overlay.of(context);
+    final entry = OverlayEntry(
       builder: (context) => Positioned(
-        top: 20,
-        right: 10,
+        top: 50,
+        right: 16,
         child: _ToastWidget(
           message: message,
-          backgroundColor: backgroundColor,
-          textColor: Colors.white,
           isSuccess: isSuccess,
         ),
       ),
     );
 
-    _overlayEntries.add(overlayEntry);
-    overlay.insert(overlayEntry);
+    overlay.insert(entry);
 
+    // Remove the toast after the specified duration
     Future.delayed(duration, () {
-      overlayEntry.remove();
-      _overlayEntries.remove(overlayEntry);
+      entry.remove();
     });
   }
 }
 
 class _ToastWidget extends StatefulWidget {
   final String message;
-  final Color backgroundColor;
-  final Color textColor;
   final bool isSuccess;
 
-  const _ToastWidget({
-    Key? key,
-    required this.message,
-    required this.backgroundColor,
-    required this.textColor,
-    required this.isSuccess,
-  }) : super(key: key);
+  const _ToastWidget({required this.message, required this.isSuccess});
 
   @override
-  State<_ToastWidget> createState() => _ToastWidgetState();
+  __ToastWidgetState createState() => __ToastWidgetState();
 }
 
-class _ToastWidgetState extends State<_ToastWidget>
+class __ToastWidgetState extends State<_ToastWidget>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
@@ -73,9 +47,14 @@ class _ToastWidgetState extends State<_ToastWidget>
   @override
   void initState() {
     super.initState();
-    _controller =
-        AnimationController(vsync: this, duration: Duration(milliseconds: 300));
-    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    );
     _controller.forward();
   }
 
@@ -92,14 +71,17 @@ class _ToastWidgetState extends State<_ToastWidget>
       child: Material(
         color: Colors.transparent,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          margin: const EdgeInsets.only(bottom: 8),
           decoration: BoxDecoration(
-            color: widget.backgroundColor,
-            borderRadius: BorderRadius.circular(5),
-            boxShadow: const [
+            color: widget.isSuccess ? Colors.green : Colors.red,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
               BoxShadow(
-                  color: Colors.black26, blurRadius: 4, offset: Offset(2, 2)),
+                color: Colors.black26,
+                blurRadius: 6,
+                offset: Offset(2, 2),
+              ),
             ],
           ),
           child: Row(
@@ -107,13 +89,12 @@ class _ToastWidgetState extends State<_ToastWidget>
             children: [
               Icon(
                 widget.isSuccess ? Icons.check_circle : Icons.error,
-                color: widget.textColor,
+                color: Colors.white,
               ),
               const SizedBox(width: 8),
               Text(
                 widget.message,
-                style: TextStyle(color: widget.textColor, fontSize: 16),
-                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
               ),
             ],
           ),

@@ -12,6 +12,7 @@ import 'package:universal_html/html.dart' as html;
 
 import '../../data/models/response/short_detail_response.dart';
 import '../../data/models/response/video_upload_response.dart';
+import '../core/auth/auth_service.dart';
 import '../core/network/api_helper.dart';
 import '../core/utils/sharepreferences.dart';
 
@@ -50,7 +51,7 @@ class ShortProvider extends ChangeNotifier {
     uploadInput.accept = 'video/*';
     uploadInput.click();
 
-    uploadInput.onChange.listen((event) {
+    uploadInput.onChange.listen((event) async {
       final file = uploadInput.files?.first;
       if (file == null) return;
 
@@ -76,8 +77,7 @@ class ShortProvider extends ChangeNotifier {
           final response = json.decode(xhr.responseText!);
           VideoUploadResponse contentImageUploadResponse =
               VideoUploadResponse.fromJson(response);
-          final encryptedUrl =
-              contentImageUploadResponse.data?.videoUrl?.trim();
+          final encryptedUrl = contentImageUploadResponse.data?.fullUrl?.trim();
           if (encryptedUrl == null || encryptedUrl.isEmpty) {
             _resetVideoUploadState();
             return;
@@ -102,7 +102,9 @@ class ShortProvider extends ChangeNotifier {
         notifyListeners();
       });
 
-      xhr.open('POST', ApiConstant.uploadVideo);
+      xhr.open('POST', ApiConstant.uploadVideoMetadata);
+      final headers = await AuthService.authHeaders(includeJson: false);
+      headers.forEach(xhr.setRequestHeader);
       xhr.send(formData);
 
       _isMovieUploading = true;
@@ -112,7 +114,7 @@ class ShortProvider extends ChangeNotifier {
   }
 
   Future<void> uploadVideo(bool isTrailer) async {
-    final Uri uploadUri = Uri.parse(ApiConstant.uploadVideo);
+    final Uri uploadUri = Uri.parse(ApiConstant.uploadVideoMetadata);
 
     // Reset progress at start and set uploading status
 
@@ -172,6 +174,9 @@ class ShortProvider extends ChangeNotifier {
 
           // Create the multipart request
           final request = http.MultipartRequest('POST', uploadUri);
+          request.headers.addAll(
+            await AuthService.authHeaders(includeJson: false),
+          );
 
           // Add the file with progress tracking
           request.files.add(http.MultipartFile(
@@ -190,7 +195,7 @@ class ShortProvider extends ChangeNotifier {
             VideoUploadResponse contentImageUploadResponse =
                 VideoUploadResponse.fromJson(responseJson);
             final encryptedUrl =
-                contentImageUploadResponse.data?.videoUrl?.trim();
+                contentImageUploadResponse.data?.fullUrl?.trim();
             if (encryptedUrl == null || encryptedUrl.isEmpty) {
               print("Video upload response did not include a videoUrl");
               movieUploadProgress = 0.0;

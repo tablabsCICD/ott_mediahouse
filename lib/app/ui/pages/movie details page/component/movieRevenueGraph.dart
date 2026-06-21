@@ -464,15 +464,18 @@ class _MovieRevenueGraphState extends State<MovieRevenueGraph> {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _chip(
-                  theme, 'Revenue Total: ${_revenueTotal.toStringAsFixed(0)}'),
-              _chip(theme, 'Views Total: ${_viewsTotal.toStringAsFixed(0)}'),
-              _chip(theme, 'Likes Total: ${_likesTotal.toStringAsFixed(0)}'),
-            ],
+          Visibility(
+            visible: false,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _chip(theme,
+                    'Revenue Total: ${_revenueTotal.toStringAsFixed(0)}'),
+                _chip(theme, 'Views Total: ${_viewsTotal.toStringAsFixed(0)}'),
+                _chip(theme, 'Likes Total: ${_likesTotal.toStringAsFixed(0)}'),
+              ],
+            ),
           ),
           const SizedBox(height: 10),
           Container(
@@ -547,8 +550,9 @@ class _MovieRevenueGraphState extends State<MovieRevenueGraph> {
                       final shouldShow = index == 0 ||
                           index == lastIndex ||
                           (index % labelStep == 0);
-                      final label =
-                          shouldShow ? (indexedPoints[index].value.label ?? '') : '';
+                      final label = shouldShow
+                          ? (indexedPoints[index].value.label ?? '')
+                          : '';
                       return ChartAxisLabel(label, details.textStyle);
                     },
                   ),

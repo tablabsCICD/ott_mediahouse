@@ -170,7 +170,7 @@ class _DocumentsPageState extends State<DocumentsPage> {
                                 if (isUploaded) {
                                   await viewDocument(fileUrl);
                                 } else {
-                                  await provider.pickImage(docType);
+                                  await provider.pickImage(context, docType);
                                 }
                               },
                               child: Padding(
@@ -242,8 +242,8 @@ class _DocumentsPageState extends State<DocumentsPage> {
                                               if (isUploaded) {
                                                 await viewDocument(fileUrl);
                                               } else {
-                                                await provider
-                                                    .pickImage(docType);
+                                                await provider.pickImage(
+                                                    context, docType);
                                               }
                                             },
                                             icon: Icon(isUploaded

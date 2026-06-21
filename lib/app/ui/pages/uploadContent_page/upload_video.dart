@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:media_house/app/core/constant/app_constant.dart';
 import 'package:media_house/app/core/utils/agreement_download_helper.dart';
 import 'package:media_house/app/core/utils/agreement_template.dart';
+import 'package:media_house/app/core/utils/image_validation_service.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/app/core/utils/sharepreferences.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/component/upload_form_helpers.dart';
@@ -35,7 +36,6 @@ class UploadVideoWidget extends StatefulWidget {
 class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   final PageController _pageController = PageController();
   static const String _razorpayKeyId = AppConstant.razorpayKeyId;
-  static const double _defaultRegistrationAmount = 499.0;
   static const String _defaultRegistrationPlan = 'Basic';
   static const String _defaultRegistrationValidity = '1 Year';
 
@@ -44,7 +44,9 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   bool _isDownloadingAgreement = false;
 
   bool get _isMovie => widget.uploadType == UploadContentType.movie;
-  int get _totalSteps => _isMovie ? 4 : 3;
+  String get _uploadContentType => _isMovie ? "MOVIE" : "SERIES";
+  String get _registrationFeeContentType => _isMovie ? "MOVIES" : "SERIES";
+  int get _totalSteps => 4;
   int get _lastPageIndex => _totalSteps - 1;
   bool get _isMobile => ResponsiveWidget.isMobile(context);
   bool get _supportsNativeRazorpay =>
@@ -59,10 +61,12 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     _initRazorpay();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context
-          .read<VideoProvider>()
-          .prepareUploadForm(_isMovie ? "MOVIE" : "SERIES");
-      context.read<VideoProvider>().fetchGroupedLanguages();
+      final provider = context.read<VideoProvider>();
+      provider.prepareUploadForm(_uploadContentType);
+      provider.fetchActiveRegistrationFeeRule(
+        contentType: _registrationFeeContentType,
+      );
+      provider.fetchGroupedLanguages();
     });
   }
 
@@ -84,6 +88,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   Future<void> _startRegistrationPayment(VideoProvider provider) async {
     if (!kIsWeb && !_supportsNativeRazorpay) {
       CustomToast.show(
+        context,
         "Razorpay checkout is available on Android, iOS, and web.",
         isSuccess: false,
       );
@@ -91,23 +96,44 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     }
 
     if (!kIsWeb && _razorpay == null) {
-      CustomToast.show("Payment gateway not initialized.", isSuccess: false);
+      CustomToast.show(context, "Payment gateway not initialized.",
+          isSuccess: false);
       return;
     }
 
     if (_razorpayKeyId.isEmpty) {
       CustomToast.show(
+        context,
         "Razorpay key is missing. Configure --dart-define=RAZORPAY_KEY_ID=...",
         isSuccess: false,
       );
       return;
     }
 
-    final enteredAmount =
+    if (provider.isRegistrationFeeLoading) {
+      CustomToast.show(
+        context,
+        "Registration fee is still loading. Please wait.",
+        isWarning: true,
+      );
+      return;
+    }
+
+    if (provider.activeRegistrationFee == null) {
+      CustomToast.show(
+        context,
+        provider.registrationFeeError ?? "Registration fee is not available.",
+        isSuccess: false,
+      );
+      return;
+    }
+
+    final enteredAmount = provider.activeRegistrationFee ??
         double.tryParse(provider.registrationAmountPaidController.text.trim());
     if (enteredAmount == null || enteredAmount <= 0) {
       CustomToast.show(
-        "Please enter a valid Onboarding fee amount before payment.",
+        context,
+        "Please fetch a valid registration fee before payment.",
         isSuccess: false,
       );
       return;
@@ -123,7 +149,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       'key': _razorpayKeyId,
       'amount': amountInPaise,
       'name': AppConstant.razorpayMerchantName,
-      'description': 'Onboarding Fee',
+      'description': 'Registration Fee',
       'image': _razorpayLogoUrl,
       'prefill': {
         'contact': user?.mobileNumber ?? '',
@@ -138,7 +164,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
         keyId: _razorpayKeyId,
         amountInPaise: amountInPaise,
         merchantName: AppConstant.razorpayMerchantName,
-        description: 'Onboarding Fee',
+        description: 'Registration Fee',
         prefillContact: user?.mobileNumber ?? '',
         prefillEmail: user?.emailId ?? '',
         prefillName: userName,
@@ -147,9 +173,11 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
           paymentId: paymentId,
           paymentMethod: 'Razorpay (Web)',
         ),
-        onError: (message) => CustomToast.show(message, isSuccess: false),
-        onExternalWallet: (wallet) =>
-            CustomToast.show("Payment switched to $wallet.", isWarning: true),
+        onError: (message) =>
+            CustomToast.show(context, message, isSuccess: false),
+        onExternalWallet: (wallet) => CustomToast.show(
+            context, "Payment switched to $wallet.",
+            isWarning: true),
       );
       return;
     }
@@ -157,7 +185,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     try {
       _razorpay!.open(options);
     } catch (error) {
-      CustomToast.show("Unable to open payment gateway: $error",
+      CustomToast.show(context, "Unable to open payment gateway: $error",
           isSuccess: false);
     }
   }
@@ -173,12 +201,12 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
 
   void _handlePaymentError(PaymentFailureResponse response) {
     final errorMessage = response.message ?? "Payment failed.";
-    CustomToast.show(errorMessage, isSuccess: false);
+    CustomToast.show(context, errorMessage, isSuccess: false);
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
     final wallet = response.walletName ?? "external wallet";
-    CustomToast.show("Payment switched to $wallet.", isWarning: true);
+    CustomToast.show(context, "Payment switched to $wallet.", isWarning: true);
   }
 
   Content _buildAgreementDraft(VideoProvider provider, String mediaHouseName) {
@@ -219,10 +247,11 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
               .replaceAll(RegExp(r'_+'), '_');
       await saveAgreementFile(pdfBytes, '${safeTitle}_agreement.pdf');
       if (!mounted) return;
-      CustomToast.show('Agreement template downloaded.', isSuccess: true);
+      CustomToast.show(context, 'Agreement template downloaded.',
+          isSuccess: true);
     } catch (error) {
       if (!mounted) return;
-      CustomToast.show('Unable to download agreement: $error',
+      CustomToast.show(context, 'Unable to download agreement: $error',
           isSuccess: false);
     } finally {
       if (mounted) {
@@ -248,6 +277,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     final normalizedPaymentId = paymentId.trim();
     if (normalizedPaymentId.isEmpty) {
       CustomToast.show(
+        context,
         "Payment succeeded but payment ID was not received.",
         isSuccess: false,
       );
@@ -255,8 +285,11 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     }
 
     final provider = context.read<VideoProvider>();
-    final amountText = provider.registrationAmountPaidController.text.trim();
-    final amount = (double.tryParse(amountText) ?? _defaultRegistrationAmount)
+    final amount = (provider.activeRegistrationFee ??
+            double.tryParse(
+              provider.registrationAmountPaidController.text.trim(),
+            ) ??
+            0)
         .toStringAsFixed(2);
 
     provider.setRegistrationPaymentDetails(
@@ -273,7 +306,8 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       markPaid: true,
     );
 
-    CustomToast.show("Onboarding fee payment successful.", isSuccess: true);
+    CustomToast.show(context, "Registration fee payment successful.",
+        isSuccess: true);
   }
 
   void _nextPage() {
@@ -360,8 +394,9 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   List<Widget> _seriesPages(ThemeData theme, VideoProvider provider) {
     return [
       _seriesPageOne(theme, provider),
-      _commonPricingPage(theme, provider, 0),
-      _seriesPageThree(theme, provider),
+      _commonPricingPage(theme, provider, 1),
+      _moviePageThree(theme, provider),
+      _moviePageFour(theme, provider),
     ];
   }
 
@@ -529,7 +564,9 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                 theme,
               ),
               const SizedBox(height: 16),
-              isMovie == 1
+              isMovie == 1 &&
+                      provider.rentalDurationController.text.trim() !=
+                          "One Time"
                   ? CustomTextField(
                       controller: provider.numberOfAttemptController,
                       hintText: "No Of Attempts",
@@ -622,29 +659,31 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
           'Trailer File',
           isVideo: true,
         ),
-        const SizedBox(height: 12),
-        _variantUploadTile(
-          theme,
-          provider,
-          language,
-          'movie',
-          'Movie File',
-          isVideo: true,
-        ),
-        const SizedBox(height: 12),
-        UploadMediaHelpers.buildAudioUploadSection(
-          "$language Audio",
-          theme,
-          context,
-        ),
-        const SizedBox(height: 12),
-        _variantUploadTile(
-          theme,
-          provider,
-          language,
-          'subtitle',
-          'Subtitle File',
-        ),
+        if (_isMovie) ...[
+          const SizedBox(height: 12),
+          _variantUploadTile(
+            theme,
+            provider,
+            language,
+            'movie',
+            'Movie File',
+            isVideo: true,
+          ),
+          const SizedBox(height: 12),
+          UploadMediaHelpers.buildAudioUploadSection(
+            "$language Audio",
+            theme,
+            context,
+          ),
+          const SizedBox(height: 12),
+          _variantUploadTile(
+            theme,
+            provider,
+            language,
+            'subtitle',
+            'Subtitle File',
+          ),
+        ],
       ],
       theme,
     );
@@ -680,11 +719,22 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             color: theme.canvasColor,
           ),
         ),
+        if (field.startsWith('poster')) ...[
+          const SizedBox(height: 4),
+          Text(
+            ImageValidationService.guidelineFor(ImageValidationType.poster),
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.canvasColor.withValues(alpha: 0.65),
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         InkWell(
           onTap: isUploading
               ? null
               : () => provider.pickMovieVariantFile(
+                    context,
                     language,
                     field,
                     isVideo: isVideo,
@@ -768,41 +818,6 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     );
   }
 
-  Widget _seriesPageThree(ThemeData theme, VideoProvider provider) {
-    return SingleChildScrollView(
-      padding: _pagePadding,
-      child: Column(
-        children: [
-          UploadFormHelpers.buildSectionCard(
-            "Upload Files",
-            [
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Censor Certificate", theme, context),
-              const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Poster 1", theme, context),
-              const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Poster 2", theme, context),
-              const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Poster 3", theme, context),
-              const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Teaser File", theme, context),
-              const SizedBox(height: 16),
-              UploadMediaHelpers.buildEnhancedUploadSection(
-                  "Trailer File", theme, context),
-            ],
-            theme,
-          ),
-          const SizedBox(height: 8),
-          _audioSubtitleAndSettings(theme, provider),
-        ],
-      ),
-    );
-  }
-
   Widget _moviePageFour(ThemeData theme, VideoProvider provider) {
     return SingleChildScrollView(
       padding: _pagePadding,
@@ -835,7 +850,9 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: provider.addCurrentCastToQueue,
+                onPressed: () {
+                  provider.addCurrentCastToQueue(context);
+                },
                 icon: const Icon(Icons.add),
                 label: const Text("Add Cast"),
                 style: OutlinedButton.styleFrom(
@@ -936,7 +953,9 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: provider.addCurrentCrewToQueue,
+                onPressed: () {
+                  provider.addCurrentCrewToQueue(context);
+                },
                 icon: const Icon(Icons.add),
                 label: const Text("Add Crew"),
                 style: OutlinedButton.styleFrom(
@@ -1060,6 +1079,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                 provider.isFeatured,
                 (value) {
                   CustomToast.show(
+                    context,
                     provider.isFeatured
                         ? "Featured content is enabled for upcoming releases."
                         : "Featured content is disabled for already released content.",
@@ -1112,7 +1132,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                           Text(
                             provider.hasUploadedAgreement
                                 ? 'Signed document uploaded successfully.'
-                                : 'Download the template, sign the hard copy, and upload it before Onboarding charges.',
+                                : 'Download the template, sign the hard copy, and upload it before registration charges.',
                             style: TextStyle(
                               fontSize: 12,
                               color: theme.canvasColor.withValues(alpha: 0.65),
@@ -1223,6 +1243,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                               await provider.pickAndUploadAgreementDocument();
                           if (!mounted) return;
                           CustomToast.show(
+                            context,
                             uploaded
                                 ? 'Signed agreement uploaded successfully.'
                                 : 'Agreement upload cancelled.',
@@ -1256,6 +1277,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                       );
                       if (!mounted) return;
                       CustomToast.show(
+                        context,
                         'Agreement URL copied.',
                         isSuccess: true,
                       );
@@ -1267,7 +1289,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
               ],
               const SizedBox(height: 20),
               UploadFormHelpers.buildModernToggleRow(
-                'Onboarding Fee Paid',
+                'Registration Fee Paid',
                 'Y = Paid (upload allowed), N = Not paid (upload blocked)',
                 provider.isRegistrationFeePaid,
                 (value) {
@@ -1280,19 +1302,16 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                 theme,
               ),
               const SizedBox(height: 16),
-              if (!provider.isRegistrationFeePaid)
-                CustomTextField(
-                  controller: provider.registrationAmountPaidController,
-                  hintText: "Enter Onboarding fee amount",
-                  label: "Onboarding Fee Amount",
-                  textInputType: TextInputType.number,
-                ),
+              _buildRegistrationFeeCard(provider, theme),
               if (!provider.isRegistrationFeePaid) const SizedBox(height: 12),
               if (!provider.isRegistrationFeePaid)
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: () => _startRegistrationPayment(provider),
+                    onPressed: provider.isRegistrationFeeLoading ||
+                            provider.activeRegistrationFee == null
+                        ? null
+                        : () => _startRegistrationPayment(provider),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: theme.primaryColor,
                       foregroundColor: Colors.white,
@@ -1302,7 +1321,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                       ),
                     ),
                     icon: const Icon(Icons.payments_outlined),
-                    label: const Text("Pay Onboarding Fee"),
+                    label: const Text("Pay Registration Fee"),
                   ),
                 ),
               if (!provider.isRegistrationFeePaid) const SizedBox(height: 16),
@@ -1324,6 +1343,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                   hintText: "Enter amount paid",
                   label: "Amount Paid",
                   textInputType: TextInputType.number,
+                  readOnly: true,
                 ),
                 CustomTextField(
                   controller: provider.registrationPlanTypeController,
@@ -1355,7 +1375,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                     ),
                   ),
                   child: Text(
-                    "Set Onboarding Fee Paid = Y to fill payment details and enable upload.",
+                    "Set Registration Fee Paid = Y to complete payment details and enable upload.",
                     style: TextStyle(
                       color: theme.canvasColor,
                       fontSize: 13,
@@ -1370,6 +1390,97 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     );
   }
 
+  Widget _buildRegistrationFeeCard(VideoProvider provider, ThemeData theme) {
+    final contentType = _registrationFeeContentType;
+    final feeText = provider.activeRegistrationFeeText;
+    final error = provider.registrationFeeError;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.primaryColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: theme.primaryColor.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: theme.primaryColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: provider.isRegistrationFeeLoading
+                ? SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.primaryColor,
+                    ),
+                  )
+                : Icon(
+                    Icons.payments_outlined,
+                    color: theme.primaryColor,
+                    size: 20,
+                  ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  provider.isRegistrationFeeLoading
+                      ? "Fetching registration fee..."
+                      : error ?? "Registration Fee",
+                  style: TextStyle(
+                    color: theme.canvasColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  feeText.isEmpty ? "--" : "INR $feeText",
+                  style: TextStyle(
+                    color: theme.primaryColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 22,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "${provider.activeRegistrationFeeContentType ?? contentType} - ${provider.activeRegistrationFeeAudienceScope ?? 'INDIA'}",
+                  style: TextStyle(
+                    color: theme.canvasColor.withValues(alpha: 0.7),
+                    fontSize: 12,
+                  ),
+                ),
+                if (error != null && !provider.isRegistrationFeeLoading) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => provider.fetchActiveRegistrationFeeRule(
+                      contentType: contentType,
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text("Retry"),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeader(ThemeData themeData) {
     final List<String> stepTitles = _isMovie
         ? const [
@@ -1381,7 +1492,8 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
         : const [
             "Language, Details & Cast",
             "Release, Price & Rental",
-            "Upload & Episodes"
+            "Upload Files",
+            "Content Settings",
           ];
 
     return Stack(
@@ -1546,116 +1658,122 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
 
     if (_currentPage == 2) {
       if (!_validatePageThree(provider)) return;
-      if (_isMovie) {
+      if (_currentPage < _lastPageIndex) {
         _nextPage();
         return;
       }
     }
 
-    if (_isMovie && !_validatePageThree(provider)) return;
+    if (!_validatePageFour(provider)) return;
     _handleAdd(provider, themeData);
   }
 
   bool _validatePageOne(VideoProvider provider) {
-    if (provider.selectedLanguages.isEmpty) {
-      CustomToast.show("Please select at least one language", isSuccess: false);
-      return false;
-    }
-    if (provider.titleController.text.trim().isEmpty) {
-      CustomToast.show("Please enter title", isSuccess: false);
-      return false;
-    }
-    if (provider.descriptionController.text.trim().isEmpty) {
-      CustomToast.show("Please enter description", isSuccess: false);
-      return false;
-    }
-
     return true;
   }
 
   bool _validatePageTwo(VideoProvider provider) {
+    return true;
+  }
+
+  bool _validatePageThree(VideoProvider provider) {
+    return true;
+  }
+
+  bool _validatePageFour(VideoProvider provider) {
+    if (provider.selectedLanguages.isEmpty) {
+      CustomToast.show(context, "Please select at least one language",
+          isSuccess: false);
+      return false;
+    }
+    if (provider.titleController.text.trim().isEmpty) {
+      CustomToast.show(context, "Please enter title", isSuccess: false);
+      return false;
+    }
+    if (provider.descriptionController.text.trim().isEmpty) {
+      CustomToast.show(context, "Please enter description", isSuccess: false);
+      return false;
+    }
+
     final releaseDate = provider.releaseDateController.text.trim();
     final priceText = provider.priceController.text.trim();
     final rentalDuration = provider.rentalDurationController.text.trim();
     final price = double.tryParse(priceText);
 
     if (releaseDate.isEmpty) {
-      CustomToast.show("Please select release date", isSuccess: false);
+      CustomToast.show(context, "Please select release date", isSuccess: false);
       return false;
     }
     if (price == null || price <= 0) {
-      CustomToast.show("Please enter valid price", isSuccess: false);
+      CustomToast.show(context, "Please enter valid price", isSuccess: false);
       return false;
     }
     if (rentalDuration.isEmpty) {
-      CustomToast.show("Please select rental duration", isSuccess: false);
+      CustomToast.show(context, "Please select rental duration",
+          isSuccess: false);
       return false;
     }
-    return true;
-  }
 
-  bool _validatePageThree(VideoProvider provider) {
-    if (_isMovie) {
-      if (provider.selectedLanguages.isEmpty) {
-        CustomToast.show("Please select at least one language",
-            isSuccess: false);
-        return false;
-      }
-      if (provider.censorCertificateController.text.trim().isEmpty) {
-        CustomToast.show("Please upload censor certificate", isSuccess: false);
-        return false;
-      }
-      for (final language in provider.selectedLanguages) {
-        final name = (language.language ?? '').trim();
-        final variant = provider.movieVariantControllers[name];
-        final missingFiles = <String>[];
-        if (variant == null) {
-          missingFiles.addAll(const [
-            'poster 1',
-            'poster 2',
-            'poster 3',
-            'teaser',
-            'trailer',
-            'movie',
-          ]);
-        } else {
-          if (variant['poster1']!.text.trim().isEmpty) {
-            missingFiles.add('poster 1');
-          }
-          /*  if (variant['poster2']!.text.trim().isEmpty) {
-            missingFiles.add('poster 2');
-          }
-          if (variant['poster3']!.text.trim().isEmpty) {
-            missingFiles.add('poster 3');
-          }  */
-          if (variant['teaser']!.text.trim().isEmpty) {
-            missingFiles.add('teaser');
-          }
-          if (variant['trailer']!.text.trim().isEmpty) {
-            missingFiles.add('trailer');
-          }
-          if (variant['movie']!.text.trim().isEmpty) {
-            missingFiles.add('movie');
-          }
+    if (provider.censorCertificateController.text.trim().isEmpty) {
+      CustomToast.show(context, "Please upload censor certificate",
+          isSuccess: false);
+      return false;
+    }
+    final contentLabel = _isMovie ? 'movie' : 'series';
+    for (final language in provider.selectedLanguages) {
+      final name = (language.language ?? '').trim();
+      final variant = provider.movieVariantControllers[name];
+      final missingFiles = <String>[];
+      if (variant == null) {
+        missingFiles.addAll(
+          _isMovie
+              ? [
+                  'poster 1',
+                  'poster 2',
+                  'poster 3',
+                  'teaser',
+                  'trailer',
+                  contentLabel,
+                ]
+              : [
+                  'poster 1',
+                  'teaser',
+                  'trailer',
+                ],
+        );
+      } else {
+        if (variant['poster1']!.text.trim().isEmpty) {
+          missingFiles.add('poster 1');
         }
-        if (missingFiles.isNotEmpty) {
-          CustomToast.show(
-            "Please upload ${missingFiles.join(', ')} for $name",
-            isSuccess: false,
-          );
-          return false;
+        if (variant['poster2']!.text.trim().isEmpty) {
+          missingFiles.add('poster 2');
+        }
+        if (variant['poster3']!.text.trim().isEmpty) {
+          missingFiles.add('poster 3');
+        }
+        if (variant['teaser']!.text.trim().isEmpty) {
+          missingFiles.add('teaser');
+        }
+        if (variant['trailer']!.text.trim().isEmpty) {
+          missingFiles.add('trailer');
+        }
+        if (_isMovie && variant['movie']!.text.trim().isEmpty) {
+          missingFiles.add(contentLabel);
         }
       }
-    } else {
-      final trailerUrl = provider.trailerUrlController.text.trim();
-      if (trailerUrl.isEmpty) {
-        CustomToast.show("Please upload trailer file", isSuccess: false);
+      if (missingFiles.isNotEmpty) {
+        CustomToast.show(
+          context,
+          "Please upload ${missingFiles.join(', ')} for $name",
+          isSuccess: false,
+        );
         return false;
       }
     }
 
     if (provider.hasIncompleteCastDraft) {
       CustomToast.show(
+        context,
         "Please complete cast draft or clear it before submit.",
         isSuccess: false,
       );
@@ -1670,7 +1788,8 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       final targetDate = DateTime.parse(releaseDate);
       provider.toggleFeatured(targetDate.isAfter(DateTime.now()));
     } catch (_) {
-      CustomToast.show("Invalid release date format. Please correct it.",
+      CustomToast.show(
+          context, "Invalid release date format. Please correct it.",
           isSuccess: false);
     }
   }
@@ -1680,7 +1799,8 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
     if (_isMovie) {
       final results = await provider.uploadMovieVariants(context);
       if (!mounted) return;
-      await _showMovieVariantResultDialog(results);
+      await _showMovieVariantResultDialog(results, contentType: "movie");
+      if (!mounted) return;
       if (results.isNotEmpty && results.values.every((value) => value)) {
         provider.disposeData();
         Navigator.of(context).pop();
@@ -1688,48 +1808,20 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       return;
     }
 
-    final Content? content = await provider.uploadSeries(context);
-    if (content != null) {
-      if (provider.hasAnyCastToSave) {
-        final contentId = content.id;
-        if (contentId == null) {
-          CustomToast.show(
-            "Content saved but content ID not received for cast save.",
-            isSuccess: false,
-          );
-          return;
-        }
-        final castSaved =
-            await provider.saveAllCastsForContent(contentId: contentId);
-        if (!castSaved) {
-          return;
-        }
-      }
-      if (provider.hasAnyCrewToSave) {
-        final contentId = content.id;
-        if (contentId == null) {
-          CustomToast.show(
-            "Content saved but content ID not received for crew save.",
-            isSuccess: false,
-          );
-          return;
-        }
-        final crewSaved =
-            await provider.saveAllCrewsForContent(contentId: contentId);
-        if (!crewSaved) {
-          return;
-        }
-      }
+    final results = await provider.uploadSeriesVariants(context);
+    if (!mounted) return;
+    await _showMovieVariantResultDialog(results, contentType: "series");
+    if (!mounted) return;
+    if (results.isNotEmpty && results.values.every((value) => value)) {
       provider.disposeData();
-    }
-    if (content != null && mounted) {
       Navigator.of(context).pop();
     }
   }
 
   Future<void> _showMovieVariantResultDialog(
-    Map<String, bool> results,
-  ) {
+    Map<String, bool> results, {
+    String contentType = "movie",
+  }) {
     return showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -1746,8 +1838,8 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   success
-                      ? "${entry.key} movie added successfully"
-                      : "${entry.key} movie failed to add",
+                      ? "${entry.key} $contentType added successfully"
+                      : "${entry.key} $contentType failed to add",
                   style: TextStyle(
                     color: success ? Colors.green : Colors.red,
                     fontWeight: FontWeight.w600,

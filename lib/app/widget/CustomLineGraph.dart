@@ -162,30 +162,35 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
 
     if (widget.graphNumber == 0) {
       await mediaHouseProvider.revenueGraphByMediaHouse(
+        context,
         selectedTimeRange,
         startDateString,
         endDateString,
       );
     } else if (widget.graphNumber == 1) {
       await mediaHouseProvider.viewsCountGraph(
+        context,
         selectedTimeRange,
         startDateString,
         endDateString,
       );
     } else if (widget.graphNumber == 2) {
       await mediaHouseProvider.releaseMovieCountGraph(
+        context,
         selectedTimeRange,
         startDateString,
         endDateString,
       );
     } else if (widget.graphNumber == 3) {
       await mediaHouseProvider.revenueGraphByMediaHouse(
+        context,
         selectedTimeRange,
         startDateString,
         endDateString,
       );
     } else {
       await mediaHouseProvider.revenueGraphByMediaHouse(
+        context,
         selectedTimeRange,
         startDateString,
         endDateString,
@@ -298,8 +303,7 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
               }
               final shouldShow =
                   index == 0 || index == lastIndex || (index % labelStep == 0);
-              final label =
-                  shouldShow ? indexedPoints[index].value.label : '';
+              final label = shouldShow ? indexedPoints[index].value.label : '';
               return ChartAxisLabel(label, details.textStyle);
             },
           ),

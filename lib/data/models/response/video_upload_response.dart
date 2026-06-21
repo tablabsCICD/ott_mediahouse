@@ -44,41 +44,55 @@ class VideoUploadResponse {
 }
 
 class Data {
-  String? fileName;
-  String? videoUrl;
   int? duration;
-  int? width;
-  int? height;
-  String? format;
+  String? fileName;
   int? size;
+  String? fullUrl;
+  int? width;
+  String? format;
+  String? status;
+  int? height;
 
   Data({
-    this.fileName,
-    this.videoUrl,
     this.duration,
-    this.width,
-    this.height,
-    this.format,
+    this.fileName,
     this.size,
+    this.fullUrl,
+    this.width,
+    this.format,
+    this.status,
+    this.height,
   });
 
   factory Data.fromJson(Map<String, dynamic> json) => Data(
+        duration: _toInt(json["duration"]),
         fileName: json["fileName"],
-        videoUrl: json["fullUrl"],
-        duration: json["duration"],
-        width: json["width"],
-        height: json["height"],
-        format: json["format"],
         size: json["size"],
+        fullUrl: json["fullUrl"] ??
+            json["videoUrl"] ??
+            json["fileUrl"] ??
+            json["url"],
+        width: json["width"],
+        format: json["format"],
+        status: json["status"],
+        height: json["height"],
       );
 
   Map<String, dynamic> toJson() => {
-        "fileName": fileName,
-        "fullUrl": videoUrl,
         "duration": duration,
-        "width": width,
-        "height": height,
-        "format": format,
+        "fileName": fileName,
         "size": size,
+        "fullUrl": fullUrl,
+        "width": width,
+        "format": format,
+        "status": status,
+        "height": height,
       };
+
+  static int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
 }

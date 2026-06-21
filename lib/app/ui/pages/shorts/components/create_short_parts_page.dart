@@ -6,8 +6,10 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:media_house/app/core/auth/auth_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:media_house/app/core/constant/api_constant.dart';
+import 'package:media_house/app/core/utils/image_validation_service.dart';
 import 'package:media_house/app/provider/shorts_provider.dart';
 import 'package:media_house/app/widget/show_toast.dart';
 import 'package:provider/provider.dart';
@@ -74,7 +76,7 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
     return io.File(file.path!).readAsBytes();
   }
 
-  Future<String?> _uploadVideoFile(PlatformFile file) async {
+  Future<_VideoUploadResult?> _uploadVideoFile(PlatformFile file) async {
     try {
       _lastUploadError = null;
       final bytes = await _resolveFileBytes(file);
@@ -84,7 +86,10 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
       }
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse(ApiConstant.uploadVideo),
+        Uri.parse(ApiConstant.uploadVideoMetadata),
+      );
+      request.headers.addAll(
+        await AuthService.authHeaders(includeJson: false),
       );
       request.files.add(
         http.MultipartFile.fromBytes('file', bytes, filename: file.name),
@@ -103,16 +108,19 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
         debugPrint("Short part video upload URL missing -> $body");
         return null;
       }
-      return uploadedUrl;
+      return _VideoUploadResult(
+        url: uploadedUrl,
+        durationSec: _extractUploadedVideoDuration(body),
+      );
     } catch (error) {
       _lastUploadError = error.toString();
       return null;
     }
   }
 
-  Future<String?> _uploadVideoWebFile(html.File file) async {
+  Future<_VideoUploadResult?> _uploadVideoWebFile(html.File file) async {
     _lastUploadError = null;
-    final completer = Completer<String?>();
+    final completer = Completer<_VideoUploadResult?>();
     final xhr = html.HttpRequest();
     final formData = html.FormData()..appendBlob('file', file, file.name);
 
@@ -134,7 +142,12 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
           completer.complete(null);
           return;
         }
-        completer.complete(uploadedUrl);
+        completer.complete(
+          _VideoUploadResult(
+            url: uploadedUrl,
+            durationSec: _extractUploadedVideoDuration(body),
+          ),
+        );
       } catch (error) {
         _lastUploadError = error.toString();
         completer.complete(null);
@@ -146,7 +159,9 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
       if (!completer.isCompleted) completer.complete(null);
     });
 
-    xhr.open('POST', ApiConstant.uploadVideo);
+    xhr.open('POST', ApiConstant.uploadVideoMetadata);
+    final headers = await AuthService.authHeaders(includeJson: false);
+    headers.forEach(xhr.setRequestHeader);
     xhr.send(formData);
     return completer.future;
   }
@@ -170,10 +185,24 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
       if (dataUrl != null) return dataUrl;
 
       final parsed = VideoUploadResponse.fromJson(decoded);
-      return parsed.data?.videoUrl?.trim();
+      return parsed.data?.fullUrl?.trim();
     }
 
     return null;
+  }
+
+  int _extractUploadedVideoDuration(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final data = decoded['data'];
+        final value = data is Map ? data['duration'] : decoded['duration'];
+        if (value is int) return value;
+        if (value is num) return value.round();
+        if (value is String) return int.tryParse(value) ?? 0;
+      }
+    } catch (_) {}
+    return 0;
   }
 
   String? _firstUrlFromMap(Map<String, dynamic> map) {
@@ -202,6 +231,16 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
     try {
       final bytes = await _resolveFileBytes(file);
       if (bytes == null) return null;
+      final validation = await ImageValidationService.validateBytes(
+        bytes: bytes,
+        fileName: file.name,
+        sizeInBytes: file.size,
+        type: ImageValidationType.thumbnail,
+      );
+      if (!validation.isValid) {
+        _lastUploadError = validation.message;
+        return null;
+      }
       final request = http.MultipartRequest(
         'POST',
         Uri.parse(ApiConstant.uploadContentImg),
@@ -217,6 +256,82 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
       if (url == null || url.isEmpty) return null;
       return _ImageUploadResult(url: url, preview: bytes);
     } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String?> _uploadAudioFile(PlatformFile file) async {
+    try {
+      _lastUploadError = null;
+      final bytes = await _resolveFileBytes(file);
+      if (bytes == null) {
+        _lastUploadError = 'Could not read selected audio file.';
+        return null;
+      }
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(ApiConstant.uploadAudioMetadata),
+      );
+      request.headers.addAll(
+        await AuthService.authHeaders(includeJson: false),
+      );
+      request.files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: file.name),
+      );
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      if (!_isUploadSuccessStatus(response.statusCode)) {
+        _lastUploadError = _uploadErrorMessage(response.statusCode, body);
+        return null;
+      }
+      final decoded = jsonDecode(body);
+      final data = decoded is Map ? decoded['data'] : null;
+      final url = data is Map ? data['fullUrl']?.toString().trim() : null;
+      if (url == null || url.isEmpty) {
+        _lastUploadError = 'Upload completed but audio URL was missing.';
+        return null;
+      }
+      return url;
+    } catch (error) {
+      _lastUploadError = error.toString();
+      return null;
+    }
+  }
+
+  Future<String?> _uploadSubtitleFile(PlatformFile file) async {
+    try {
+      _lastUploadError = null;
+      final bytes = await _resolveFileBytes(file);
+      if (bytes == null) {
+        _lastUploadError = 'Could not read selected subtitle file.';
+        return null;
+      }
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(ApiConstant.uploadSubtitle),
+      );
+      request.headers.addAll(
+        await AuthService.authHeaders(includeJson: false),
+      );
+      request.files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: file.name),
+      );
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      if (!_isUploadSuccessStatus(response.statusCode)) {
+        _lastUploadError = _uploadErrorMessage(response.statusCode, body);
+        return null;
+      }
+      final decoded = jsonDecode(body);
+      final data = decoded is Map ? decoded['data'] : null;
+      final url = data is Map ? data['fileUrl']?.toString().trim() : null;
+      if (url == null || url.isEmpty) {
+        _lastUploadError = 'Upload completed but subtitle URL was missing.';
+        return null;
+      }
+      return url;
+    } catch (error) {
+      _lastUploadError = error.toString();
       return null;
     }
   }
@@ -237,14 +352,16 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
       draft.isUploadingVideo = true;
       draft.videoFileName = file.name;
     });
-    final url = await _uploadVideoFile(file);
+    final upload = await _uploadVideoFile(file);
     if (!mounted) return;
     setState(() {
       draft.isUploadingVideo = false;
-      draft.videoUrl = url;
+      draft.videoUrl = upload?.url;
+      draft.durationSec = upload?.durationSec ?? 0;
     });
-    if (url == null) {
+    if (upload == null) {
       CustomToast.show(
+        context,
         _lastUploadError ?? 'Failed to upload ${file.name}',
         isSuccess: false,
       );
@@ -264,16 +381,18 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
       draft.videoFileName = file.name;
     });
 
-    final url = await _uploadVideoWebFile(file);
+    final upload = await _uploadVideoWebFile(file);
     if (!mounted) return;
 
     setState(() {
       draft.isUploadingVideo = false;
-      draft.videoUrl = url;
+      draft.videoUrl = upload?.url;
+      draft.durationSec = upload?.durationSec ?? 0;
     });
 
-    if (url == null) {
+    if (upload == null) {
       CustomToast.show(
+        context,
         _lastUploadError ?? 'Failed to upload ${file.name}',
         isSuccess: false,
       );
@@ -299,7 +418,67 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
       }
     });
     if (upload == null) {
-      CustomToast.show('Failed to upload thumbnail', isSuccess: false);
+      CustomToast.show(
+        context,
+        _lastUploadError ?? 'Failed to upload thumbnail',
+        isSuccess: false,
+      );
+    }
+  }
+
+  Future<void> _pickAudio(_ShortPartDraft draft) async {
+    if (_isSubmitting || draft.isUploadingAudio) return;
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['mp3', 'wav', 'aac', 'm4a'],
+      withData: kIsWeb,
+    );
+    final file = result?.files.single;
+    if (file == null) return;
+    setState(() {
+      draft.isUploadingAudio = true;
+      draft.audioFileName = file.name;
+    });
+    final url = await _uploadAudioFile(file);
+    if (!mounted) return;
+    setState(() {
+      draft.isUploadingAudio = false;
+      draft.audioFileUrl = url;
+    });
+    if (url == null) {
+      CustomToast.show(
+        context,
+        _lastUploadError ?? 'Failed to upload ${file.name}',
+        isSuccess: false,
+      );
+    }
+  }
+
+  Future<void> _pickSubtitle(_ShortPartDraft draft) async {
+    if (_isSubmitting || draft.isUploadingSubtitle) return;
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['srt', 'vtt'],
+      withData: kIsWeb,
+    );
+    final file = result?.files.single;
+    if (file == null) return;
+    setState(() {
+      draft.isUploadingSubtitle = true;
+      draft.subtitleFileName = file.name;
+    });
+    final url = await _uploadSubtitleFile(file);
+    if (!mounted) return;
+    setState(() {
+      draft.isUploadingSubtitle = false;
+      draft.subtitleFileUrl = url;
+    });
+    if (url == null) {
+      CustomToast.show(
+        context,
+        _lastUploadError ?? 'Failed to upload ${file.name}',
+        isSuccess: false,
+      );
     }
   }
 
@@ -318,6 +497,7 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
     );
     if (missingVideos) {
       CustomToast.show(
+        context,
         'Upload video for every remaining short part.',
         isSuccess: false,
       );
@@ -330,17 +510,19 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
     try {
       for (final draft in _partDrafts) {
         final body = {
+          'audioFileUrl': draft.audioFileUrl?.trim() ?? '',
           'coins':
               int.tryParse(draft.coinsCtrl.text.trim()) ?? widget.defaultCoins,
           'description': draft.descCtrl.text.trim().isNotEmpty
               ? draft.descCtrl.text.trim()
               : widget.masterDescription,
-          'durationSec': 0,
+          'durationSec': draft.durationSec,
           'id': 0,
           'isFreePreview': draft.isFreePreview,
           'likes': 0,
           'partNumber': draft.partNumber,
           'shortId': widget.shortId,
+          'subtitleFileUrl': draft.subtitleFileUrl?.trim() ?? '',
           'thumbnail': draft.thumbnailUrl?.trim().isNotEmpty == true
               ? draft.thumbnailUrl!.trim()
               : '',
@@ -358,11 +540,12 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
       }
 
       if (!mounted) return;
-      CustomToast.show('Short parts added successfully.', isSuccess: true);
+      CustomToast.show(context, 'Short parts added successfully.',
+          isSuccess: true);
       Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) return;
-      CustomToast.show(error.toString(), isSuccess: false);
+      CustomToast.show(context, error.toString(), isSuccess: false);
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -576,6 +759,45 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
             onTap: () => _pickThumbnail(draft),
             preview: draft.thumbnailPreview,
           ),
+          const SizedBox(height: 12),
+          _uploadRow(
+            theme,
+            title: 'Audio Upload',
+            statusText: draft.audioFileUrl?.isNotEmpty == true
+                ? (draft.audioFileName ?? 'Audio uploaded')
+                : 'Optional audio file',
+            uploading: draft.isUploadingAudio,
+            uploaded: draft.audioFileUrl?.isNotEmpty == true,
+            onTap: () => _pickAudio(draft),
+            icon: Icons.audiotrack_outlined,
+          ),
+          const SizedBox(height: 12),
+          _uploadRow(
+            theme,
+            title: 'Subtitle Upload',
+            statusText: draft.subtitleFileUrl?.isNotEmpty == true
+                ? (draft.subtitleFileName ?? 'Subtitle uploaded')
+                : 'Optional subtitle file',
+            uploading: draft.isUploadingSubtitle,
+            uploaded: draft.subtitleFileUrl?.isNotEmpty == true,
+            onTap: () => _pickSubtitle(draft),
+            icon: Icons.subtitles_outlined,
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              'Free Preview',
+              style: TextStyle(
+                color: theme.canvasColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            value: draft.isFreePreview,
+            onChanged: _isSubmitting
+                ? null
+                : (value) => setState(() => draft.isFreePreview = value),
+          ),
         ],
       ),
     );
@@ -589,6 +811,7 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
     required bool uploaded,
     required VoidCallback onTap,
     Uint8List? preview,
+    IconData? icon,
   }) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -611,7 +834,9 @@ class _CreateShortPartsDialogState extends State<CreateShortPartsDialog> {
             const SizedBox(width: 12),
           ] else ...[
             Icon(
-              uploaded ? Icons.check_circle : Icons.upload_file_rounded,
+              uploaded
+                  ? Icons.check_circle
+                  : (icon ?? Icons.upload_file_rounded),
               color: uploaded ? const Color(0xFF0F9D58) : theme.primaryColor,
             ),
             const SizedBox(width: 12),
@@ -803,10 +1028,17 @@ class _ShortPartDraft {
   final TextEditingController coinsCtrl;
   String? videoUrl;
   String? videoFileName;
+  int durationSec = 0;
+  String? audioFileUrl;
+  String? audioFileName;
+  String? subtitleFileUrl;
+  String? subtitleFileName;
   String? thumbnailUrl;
   Uint8List? thumbnailPreview;
   bool isUploadingVideo = false;
   bool isUploadingThumb = false;
+  bool isUploadingAudio = false;
+  bool isUploadingSubtitle = false;
   bool isFreePreview = false;
 
   void dispose() {
@@ -824,4 +1056,14 @@ class _ImageUploadResult {
 
   final String url;
   final Uint8List preview;
+}
+
+class _VideoUploadResult {
+  const _VideoUploadResult({
+    required this.url,
+    required this.durationSec,
+  });
+
+  final String url;
+  final int durationSec;
 }

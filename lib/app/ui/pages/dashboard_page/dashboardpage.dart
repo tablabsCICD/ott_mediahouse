@@ -488,7 +488,8 @@ class _DashboardPageState extends State<DashboardPage> {
                     barrierDismissible: false,
                     builder: (_) => SelectUploadTypeDialog(),
                   )
-                : CustomToast.show("First you need to get approval from admin",
+                : CustomToast.show(
+                    context, "First you need to get approval from admin",
                     isSuccess: false);
           },
           icon: Icon(

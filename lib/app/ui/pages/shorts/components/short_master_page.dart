@@ -5,7 +5,7 @@ import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../../data/models/response/short_detail_response.dart';
-import '../../../../../main.dart';
+import '../../../../core/navigation/app_navigator.dart';
 import '../../../../provider/shorts_provider.dart';
 import 'create_short_parts_page.dart';
 import 'edit_short_master_page.dart';

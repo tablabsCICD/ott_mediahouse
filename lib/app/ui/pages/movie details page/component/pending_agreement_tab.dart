@@ -30,10 +30,6 @@ class PendingAgreementTab extends StatefulWidget {
 }
 
 class _PendingAgreementTabState extends State<PendingAgreementTab> {
-  static const String _razorpayKeyId = String.fromEnvironment(
-    'RAZORPAY_KEY_ID',
-    defaultValue: 'rzp_live_LraIKZvldr9N1J',
-  );
   static const String _defaultPlan = 'Basic';
   static const String _defaultValidity = '1 Year';
 
@@ -88,9 +84,10 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
           .replaceAll(RegExp(r'_+'), '_');
       await saveAgreementFile(pdfBytes, '${safeTitle}_agreement.pdf');
       if (!mounted) return;
-      CustomToast.show('Agreement template downloaded.', isSuccess: true);
+      CustomToast.show(context, 'Agreement template downloaded.',
+          isSuccess: true);
     } catch (error) {
-      CustomToast.show('Unable to download agreement: $error',
+      CustomToast.show(context, 'Unable to download agreement: $error',
           isSuccess: false);
     } finally {
       if (mounted) {
@@ -111,6 +108,7 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
   Future<void> _startRegistrationPayment(VideoProvider provider) async {
     if (!kIsWeb && !_supportsNativeRazorpay) {
       CustomToast.show(
+        context,
         'Razorpay checkout is available on Android, iOS, and web.',
         isSuccess: false,
       );
@@ -118,12 +116,14 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
     }
 
     if (!kIsWeb && _razorpay == null) {
-      CustomToast.show('Payment gateway not initialized.', isSuccess: false);
+      CustomToast.show(context, 'Payment gateway not initialized.',
+          isSuccess: false);
       return;
     }
 
-    if (_razorpayKeyId.isEmpty) {
+    if (AppConstant.razorpayKeyId.isEmpty) {
       CustomToast.show(
+        context,
         'Razorpay key is missing. Configure --dart-define=RAZORPAY_KEY_ID=...',
         isSuccess: false,
       );
@@ -134,6 +134,7 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
         double.tryParse(provider.registrationAmountPaidController.text.trim());
     if (enteredAmount == null || enteredAmount <= 0) {
       CustomToast.show(
+        context,
         'Please enter a valid onboarding amount before payment.',
         isSuccess: false,
       );
@@ -147,7 +148,7 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
 
     if (kIsWeb) {
       await WebRazorpayGateway.openCheckout(
-        keyId: _razorpayKeyId,
+        keyId: AppConstant.razorpayKeyId,
         amountInPaise: amountInPaise,
         merchantName: AppConstant.razorpayMerchantName,
         description: 'Onboarding Charges',
@@ -159,20 +160,22 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
           paymentId: paymentId,
           paymentMethod: 'Razorpay (Web)',
         ),
-        onError: (message) => CustomToast.show(message, isSuccess: false),
-        onExternalWallet: (wallet) =>
-            CustomToast.show('Payment switched to $wallet.', isWarning: true),
+        onError: (message) =>
+            CustomToast.show(context, message, isSuccess: false),
+        onExternalWallet: (wallet) => CustomToast.show(
+            context, 'Payment switched to $wallet.',
+            isWarning: true),
       );
       return;
     }
 
     try {
       _razorpay!.open({
-        'key': _razorpayKeyId,
+        'key': AppConstant.razorpayKeyId,
         'amount': amountInPaise,
         'name': AppConstant.razorpayMerchantName,
         'description': 'Onboarding Charges',
-        'image': _razorpayLogoUrl,
+        'image': AppConstant.razorpayLogoUrl,
         'prefill': {
           'contact': user?.mobileNumber ?? '',
           'email': user?.emailId ?? '',
@@ -181,7 +184,7 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
         'theme': {'color': '#1A73E8'},
       });
     } catch (error) {
-      CustomToast.show('Unable to open payment gateway: $error',
+      CustomToast.show(context, 'Unable to open payment gateway: $error',
           isSuccess: false);
     }
   }
@@ -200,12 +203,13 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
   }
 
   void _handlePaymentError(PaymentFailureResponse response) {
-    CustomToast.show(response.message ?? 'Payment failed.', isSuccess: false);
+    CustomToast.show(context, response.message ?? 'Payment failed.',
+        isSuccess: false);
   }
 
   void _handleExternalWallet(ExternalWalletResponse response) {
     final wallet = response.walletName ?? 'external wallet';
-    CustomToast.show('Payment switched to $wallet.', isWarning: true);
+    CustomToast.show(context, 'Payment switched to $wallet.', isWarning: true);
   }
 
   void _applyPaymentSuccess({
@@ -216,6 +220,7 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
     final normalizedPaymentId = paymentId.trim();
     if (normalizedPaymentId.isEmpty) {
       CustomToast.show(
+        context,
         'Payment succeeded but payment ID was not received.',
         isSuccess: false,
       );
@@ -239,12 +244,14 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
     );
     provider.registrationFeeDetailsController.text =
         provider.registrationFeeDetailsValue;
-    CustomToast.show('Onboarding charges paid successfully.', isSuccess: true);
+    CustomToast.show(context, 'Onboarding charges paid successfully.',
+        isSuccess: true);
   }
 
   Future<void> _submitForApproval(VideoProvider provider, Content movie) async {
     if (!provider.hasUploadedAgreement) {
       CustomToast.show(
+        context,
         'Upload the signed agreement before sending for admin approval.',
         isSuccess: false,
       );
@@ -253,6 +260,7 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
 
     if (!provider.isRegistrationFeePaid) {
       CustomToast.show(
+        context,
         'Complete onboarding fee payment before sending for admin approval.',
         isSuccess: false,
       );
@@ -260,7 +268,8 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
     }
 
     if (movie.id == null || provider.content == null) {
-      CustomToast.show('Content details are not available.', isSuccess: false);
+      CustomToast.show(context, 'Content details are not available.',
+          isSuccess: false);
       return;
     }
 
@@ -279,6 +288,7 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
         await provider.getContentById(movie.id!);
         if (!mounted) return;
         CustomToast.show(
+          context,
           'Agreement submitted. Content moved to admin approval.',
           isSuccess: true,
         );
@@ -418,6 +428,7 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
                                       .pickAndUploadAgreementDocument();
                                   if (!mounted) return;
                                   CustomToast.show(
+                                    context,
                                     uploaded
                                         ? 'Signed agreement uploaded successfully.'
                                         : 'Agreement upload cancelled.',
@@ -452,6 +463,7 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
                               );
                               if (!mounted) return;
                               CustomToast.show(
+                                context,
                                 'Agreement URL copied.',
                                 isSuccess: true,
                               );
@@ -478,6 +490,7 @@ class _PendingAgreementTabState extends State<PendingAgreementTab> {
                           if (value) {
                             if (!provider.hasUploadedAgreement) {
                               CustomToast.show(
+                                context,
                                 'Upload the signed agreement before paying onboarding charges.',
                                 isSuccess: false,
                               );

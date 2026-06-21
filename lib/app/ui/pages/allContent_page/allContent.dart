@@ -36,7 +36,7 @@ class _AllContentPageState extends State<AllContentPage> {
 
   static const List<Map<String, String>> _statusOptions = [
     {"label": "All Uploaded", "value": "ALL"},
-    {"label": "Pending Agreement", "value": "PENDING"},
+    // {"label": "Pending Agreement", "value": "PENDING"},
     {"label": "Pending", "value": "PENDING"},
     {"label": "Approved", "value": "APPROVED"},
     {"label": "Rejected", "value": "REJECTED"},
@@ -209,14 +209,14 @@ class _AllContentPageState extends State<AllContentPage> {
         child: Consumer2<VideoProvider, ShortProvider>(
           builder: (context, provider, shortProvider, _) {
             final filtered = _applyLocalSearch(provider.filteredContentList);
-            final miniSeries =
-                _applyMiniSeriesFilters(shortProvider.shorts);
+            final miniSeries = _applyMiniSeriesFilters(shortProvider.shorts);
             final visibleCount =
                 _isMiniSeriesSelected ? miniSeries.length : filtered.length;
             final isLoading = _isInitialLoading ||
                 (_isMiniSeriesSelected && shortProvider.isLoading);
-            final errorMessage =
-                _isMiniSeriesSelected ? shortProvider.shortsError : _errorMessage;
+            final errorMessage = _isMiniSeriesSelected
+                ? shortProvider.shortsError
+                : _errorMessage;
             return Column(
               children: [
                 _buildHeader(theme, visibleCount, isMobile),
@@ -645,6 +645,13 @@ class _AllContentPageState extends State<AllContentPage> {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
+                  if (_shortLanguageLabel(short).isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    _miniBadge(
+                      label: _shortLanguageLabel(short),
+                      color: theme.primaryColor,
+                    ),
+                  ],
                   const SizedBox(height: 6),
                   Text(
                     short.creatorName?.trim().isNotEmpty == true
@@ -673,6 +680,17 @@ class _AllContentPageState extends State<AllContentPage> {
         ),
       ),
     );
+  }
+
+  String _shortLanguageLabel(ShortModel short) {
+    final languages = short.languageList
+            ?.map((item) => (item.language ?? '').trim())
+            .where((item) => item.isNotEmpty)
+            .toList() ??
+        [];
+    if (languages.isEmpty) return '';
+    if (languages.length == 1) return languages.first;
+    return '${languages.first} +${languages.length - 1}';
   }
 
   Widget _miniBadge({required String label, required Color color}) {

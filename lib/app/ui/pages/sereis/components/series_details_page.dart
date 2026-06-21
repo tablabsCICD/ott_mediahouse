@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_house/app/ui/pages/DisplayTrailer.dart';
@@ -35,6 +37,13 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
   int _posterIndex = 0;
   bool _showFullDescription = false;
   final PageController _posterController = PageController();
+
+  String get _seriesLanguage {
+    final languageList = widget.content.languageList ?? const [];
+    final language =
+        languageList.isEmpty ? '' : (languageList.first.language ?? '').trim();
+    return language.isEmpty ? 'NA' : language;
+  }
 
   @override
   void initState() {
@@ -377,6 +386,10 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
           ),
         ),
         const SizedBox(height: 10),
+        _sectionLabel(theme, "Series Language"),
+        const SizedBox(height: 8),
+        _genreChip(theme, _seriesLanguage),
+        const SizedBox(height: 12),
         _sectionLabel(theme, "Directors"),
         const SizedBox(height: 8),
         Text(
@@ -583,6 +596,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
                     barrierDismissible: false,
                     builder: (_) => AddSeasonDialog(
                       seriesId: widget.seriesId,
+                      seriesLanguage: _seriesLanguage,
                       onSuccess: () {
                         Provider.of<SeriesProvider>(context, listen: false)
                             .loadSeries(widget.seriesId);
@@ -762,6 +776,7 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
                         builder: (_) => SeasonDetailPage(
                           seriesId: widget.seriesId,
                           seasonBundle: bundle,
+                          seriesLanguage: _seriesLanguage,
                         ),
                       ),
                     );
@@ -1030,11 +1045,11 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
       spacing: 2,
       runSpacing: 2,
       children: [
-        IconButton(
+        /*  IconButton(
           tooltip: "Edit Episode",
           icon: Icon(Icons.edit_outlined, color: theme.canvasColor),
           onPressed: isPublished ? null : () => _editEpisode(ep),
-        ),
+        ), */
         // IconButton(
         //   tooltip: "Delete Episode",
         //   icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
@@ -1115,25 +1130,63 @@ class _SeriesDetailsPageState extends State<SeriesDetailsPage> {
     if (body == null) return;
 
     final provider = Provider.of<SeriesProvider>(context, listen: false);
-    final success = await provider.updateEpisodeApi(
+    final response = await provider.updateEpisodeApiResponse(
       body,
       seasonId,
       episodeId,
       seriesId: widget.seriesId,
     );
+    final success = response != null &&
+        response.statusCode >= 200 &&
+        response.statusCode < 300;
     await provider.loadSeries(widget.seriesId);
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            success
-                ? "Episode updated successfully"
-                : "Failed to update episode",
-          ),
+      await _showEpisodeUpdateDialog(
+        success: success,
+        message: _episodeResponseMessage(
+          response?.body ?? '',
+          success
+              ? "Episode updated successfully."
+              : "Failed to update episode.",
         ),
       );
     }
+  }
+
+  String _episodeResponseMessage(String body, String fallback) {
+    if (body.trim().isEmpty) return fallback;
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        for (final key in const ['message', 'error', 'details']) {
+          final value = decoded[key]?.toString().trim();
+          if (value != null && value.isNotEmpty) return value;
+        }
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
+  Future<void> _showEpisodeUpdateDialog({
+    required bool success,
+    required String message,
+  }) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(success ? "Episode Updated" : "Episode Update Failed"),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   int? _resolveSeasonId(Episode ep) {

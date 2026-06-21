@@ -58,7 +58,7 @@ class Data {
 
 class ReportAndDataObject {
   DateTime? releasedDate;
-  double? percentageMediaHouse;
+  double? price;
   double? revenue;
   double? netRevenue;
   String? movieName;
@@ -66,7 +66,7 @@ class ReportAndDataObject {
 
   ReportAndDataObject({
     this.releasedDate,
-    this.percentageMediaHouse,
+    this.price,
     this.revenue,
     this.netRevenue,
     this.movieName,
@@ -78,7 +78,7 @@ class ReportAndDataObject {
         releasedDate: json["releasedDate"] == null
             ? null
             : DateTime.parse(json["releasedDate"]),
-        percentageMediaHouse: json["percentageMediaHouse"]?.toDouble(),
+        price: json["price"]?.toDouble(),
         revenue: json["revenue"],
         netRevenue: json["netRevenue"],
         movieName: json["movieName"],
@@ -88,7 +88,7 @@ class ReportAndDataObject {
   Map<String, dynamic> toJson() => {
         "releasedDate":
             "${releasedDate!.year.toString().padLeft(4, '0')}-${releasedDate!.month.toString().padLeft(2, '0')}-${releasedDate!.day.toString().padLeft(2, '0')}",
-        "percentageMediaHouse": percentageMediaHouse,
+        "percentageMediaHouse": price,
         "revenue": revenue,
         "netRevenue": netRevenue,
         "movieName": movieName,

@@ -44,10 +44,10 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
   Future<void> _getData() async {
     final provider = Provider.of<GraphProvider>(context, listen: false);
     if (widget.isRevenue) {
-      await provider.fetchTopPerformingMovieGraph(0);
+      await provider.fetchTopPerformingMovieGraph(context, 0);
       return;
     }
-    await provider.fetchTopRatedMovieGraph(0);
+    await provider.fetchTopRatedMovieGraph(context, 0);
   }
 
   void _syncControllersWithProvider() {
@@ -187,7 +187,8 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
           ),
           const SizedBox(width: 8),
           IconButton.filled(
-            onPressed: () => provider.applyTopMoviesFilters(widget.isRevenue),
+            onPressed: () =>
+                provider.applyTopMoviesFilters(context, widget.isRevenue),
             style: IconButton.styleFrom(
               backgroundColor: theme.primaryColor,
               foregroundColor: Colors.white,
@@ -200,7 +201,7 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
             onPressed: () {
               provider.clearTopMoviesFilters();
               _syncControllersWithProvider();
-              provider.applyTopMoviesFilters(widget.isRevenue);
+              provider.applyTopMoviesFilters(context, widget.isRevenue);
             },
             style: IconButton.styleFrom(
               foregroundColor: labelColor,

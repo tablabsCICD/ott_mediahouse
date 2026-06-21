@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:media_house/domain/entities/mediaHouse.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../domain/entities/user.dart';
+import '../auth/auth_service.dart';
 import '../constant/prefrense_constant.dart';
 
 class LocalSharePreferences{
@@ -20,7 +21,7 @@ class LocalSharePreferences{
   }
   Future<String> getString(String key)async{
     SharedPreferences _prefs = await SharedPreferences.getInstance();
-    return _prefs.getString(key)!;
+    return _prefs.getString(key) ?? "";
   }
 
   Future<bool> getBool(String key)async{
@@ -65,10 +66,7 @@ class LocalSharePreferences{
   }
 
   Future<bool> logOut()async{
-    SharedPreferences _prefs = await SharedPreferences.getInstance();
-    await _prefs.setBool(SharedPreferencesConstant.isLogin, false);
-    await _prefs.remove(SharedPreferencesConstant.currentUser);
-    await _prefs.clear();
+    await AuthService.logout(navigateToLogin: false);
     return true;
   }
 

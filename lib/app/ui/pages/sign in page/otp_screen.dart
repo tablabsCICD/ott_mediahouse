@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:media_house/app/core/constant/image_constant.dart';
 import 'package:media_house/app/provider/themeProvider.dart';
@@ -5,14 +7,18 @@ import 'package:media_house/app/ui/NavigationPage.dart';
 import 'package:media_house/app/widget/show_toast.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../provider/user_provider.dart';
 
 class OtpVerificationPage extends StatefulWidget {
   final String mobileNumber;
+  final String password;
 
-  const OtpVerificationPage({super.key, required this.mobileNumber});
+  const OtpVerificationPage({
+    super.key,
+    required this.mobileNumber,
+    required this.password,
+  });
 
   @override
   State<OtpVerificationPage> createState() => _OtpVerificationPageState();
@@ -21,6 +27,22 @@ class OtpVerificationPage extends StatefulWidget {
 class _OtpVerificationPageState extends State<OtpVerificationPage> {
   final TextEditingController otpController = TextEditingController();
   bool _isLoading = false;
+  bool _isResending = false;
+  Timer? _timer;
+  int _secondsRemaining = 60;
+
+  @override
+  void initState() {
+    super.initState();
+    _startCountdown();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    otpController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,9 +133,7 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                onPressed: () {
-                  _isLoading ? null : _verifyOtp(context);
-                },
+                onPressed: _isLoading ? null : () => _verifyOtp(context),
                 child: _isLoading
                     ? const CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -124,6 +144,30 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: selectedThemeData.canvasColor,
+                        ),
+                      ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: (_secondsRemaining == 0 && !_isResending)
+                    ? () => _resendOtp(context)
+                    : null,
+                child: _isResending
+                    ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: selectedThemeData.primaryColor,
+                        ),
+                      )
+                    : Text(
+                        _secondsRemaining == 0
+                            ? 'Resend OTP'
+                            : 'Resend OTP in $_secondsRemaining s',
+                        style: TextStyle(
+                          color: selectedThemeData.primaryColor,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
               ),
@@ -138,7 +182,8 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     final otp = otpController.text.trim();
 
     if (otp.isEmpty || otp.length != 6) {
-      CustomToast.show('Please enter a valid 6-digit OTP', isSuccess: false);
+      CustomToast.show(context, 'Please enter a valid 6-digit OTP',
+          isSuccess: false);
       return;
     }
 
@@ -149,21 +194,67 @@ class _OtpVerificationPageState extends State<OtpVerificationPage> {
     var result = await Provider.of<UserProvider>(context, listen: false)
         .verifyOtp(widget.mobileNumber, otp, context);
 
-    if (result['success'] == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('isLoggedIn', true);
+    if (!context.mounted) return;
 
-      CustomToast.show('Login Successful!', isSuccess: true);
+    if (result['success'] == true) {
+      CustomToast.show(context, 'Login Successful!', isSuccess: true);
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => NavigationPage()),
       );
     } else {
-      CustomToast.show('Failure: ${result['message']}', isSuccess: false);
+      CustomToast.show(context, 'Failure: ${result['message']}',
+          isSuccess: false);
     }
 
     setState(() {
       _isLoading = false;
+    });
+  }
+
+  Future<void> _resendOtp(BuildContext context) async {
+    setState(() {
+      _isResending = true;
+    });
+
+    final result = await Provider.of<UserProvider>(context, listen: false)
+        .loginWithCredentials(widget.mobileNumber, widget.password, context);
+
+    if (!context.mounted) return;
+
+    if (result['success'] == true) {
+      CustomToast.show(context, 'OTP sent again', isSuccess: true);
+      _startCountdown();
+    } else {
+      CustomToast.show(context, 'Failure: ${result['message']}',
+          isSuccess: false);
+    }
+
+    setState(() {
+      _isResending = false;
+    });
+  }
+
+  void _startCountdown() {
+    _timer?.cancel();
+    setState(() {
+      _secondsRemaining = 60;
+    });
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining <= 1) {
+        timer.cancel();
+        if (mounted) {
+          setState(() {
+            _secondsRemaining = 0;
+          });
+        }
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _secondsRemaining--;
+        });
+      }
     });
   }
 }

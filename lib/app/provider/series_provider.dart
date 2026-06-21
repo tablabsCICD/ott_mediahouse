@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:media_house/app/core/constant/api_constant.dart';
 import 'package:media_house/data/models/shorts.dart';
+import 'package:media_house/data/models/response/audio_upload_response.dart';
 import 'package:media_house/domain/entities/cast_crew_model.dart';
 import 'package:universal_html/html.dart' as html;
 
@@ -16,6 +18,7 @@ import '../../data/models/response/series_detail_response.dart';
 import '../../data/models/response/short_detail_response.dart';
 import '../../data/models/response/video_upload_response.dart';
 import '../../domain/entities/content.dart';
+import '../core/auth/auth_service.dart';
 import '../core/network/api_helper.dart';
 import '../core/utils/sharepreferences.dart';
 
@@ -52,6 +55,20 @@ class SeriesProvider extends ChangeNotifier {
   bool _isStatusLoadingMore = false;
   bool get isStatusLoadingMore => _isStatusLoadingMore;
   final TextEditingController movieUrlController = TextEditingController();
+  final TextEditingController episodeAudioUrlController =
+      TextEditingController();
+  final TextEditingController episodeSubtitleUrlController =
+      TextEditingController();
+  int episodeVideoRuntime = 0;
+  bool _isEpisodeAudioUploading = false;
+  bool _isEpisodeSubtitleUploading = false;
+  double episodeAudioUploadProgress = 0.0;
+  double episodeSubtitleUploadProgress = 0.0;
+  String? episodeAudioFileName;
+  String? episodeSubtitleFileName;
+
+  bool get isEpisodeAudioUploading => _isEpisodeAudioUploading;
+  bool get isEpisodeSubtitleUploading => _isEpisodeSubtitleUploading;
 
   SeriesDetailsResponse? _data;
   bool _loading = false;
@@ -84,6 +101,7 @@ class SeriesProvider extends ChangeNotifier {
 
     try {
       final url = ApiConstant.seriesDetails(seriesId);
+      print(url);
       ApiHelper apiHelper = ApiHelper();
       var response = await apiHelper.getApi(url);
 
@@ -635,13 +653,18 @@ class SeriesProvider extends ChangeNotifier {
   }
 
   Future<void> uploadVideoWeb(bool isTrailer) async {
+    final completer = Completer<void>();
     html.FileUploadInputElement uploadInput = html.FileUploadInputElement();
     uploadInput.accept = 'video/*';
     uploadInput.click();
 
-    uploadInput.onChange.listen((event) {
+    uploadInput.onChange.listen((event) async {
       final file = uploadInput.files?.first;
-      if (file == null) return;
+      if (file == null) {
+        _resetVideoUploadState();
+        if (!completer.isCompleted) completer.complete();
+        return;
+      }
 
       final xhr = html.HttpRequest();
       final formData = html.FormData();
@@ -665,8 +688,7 @@ class SeriesProvider extends ChangeNotifier {
           final response = json.decode(xhr.responseText!);
           VideoUploadResponse contentImageUploadResponse =
               VideoUploadResponse.fromJson(response);
-          final encryptedUrl =
-              contentImageUploadResponse.data?.videoUrl?.trim();
+          final encryptedUrl = contentImageUploadResponse.data?.fullUrl?.trim();
           if (encryptedUrl == null || encryptedUrl.isEmpty) {
             _resetVideoUploadState();
             return;
@@ -675,33 +697,42 @@ class SeriesProvider extends ChangeNotifier {
           print(encryptedUrl);
 
           movieUrlController.text = encryptedUrl;
+          episodeVideoRuntime = contentImageUploadResponse.data?.duration ?? 0;
           //  movieFileName = file.name;
           movieUploadProgress = 1.0;
           _isMovieUploading = false;
+          _isUploading = false;
           notifyListeners();
+          if (!completer.isCompleted) completer.complete();
         } else {
           _resetVideoUploadState();
+          if (!completer.isCompleted) completer.complete();
         }
       });
 
       xhr.onError.listen((_) {
         movieUploadProgress = 0.0;
         _isMovieUploading = false;
+        _isUploading = false;
 
         notifyListeners();
+        if (!completer.isCompleted) completer.complete();
       });
 
-      xhr.open('POST', ApiConstant.uploadVideo);
+      xhr.open('POST', ApiConstant.uploadVideoMetadata);
+      final headers = await AuthService.authHeaders(includeJson: false);
+      headers.forEach(xhr.setRequestHeader);
       xhr.send(formData);
 
       _isMovieUploading = true;
 
       notifyListeners();
     });
+    return completer.future;
   }
 
   Future<void> uploadVideo(bool isTrailer) async {
-    final Uri uploadUri = Uri.parse(ApiConstant.uploadVideo);
+    final Uri uploadUri = Uri.parse(ApiConstant.uploadVideoMetadata);
 
     // Reset progress at start and set uploading status
 
@@ -712,7 +743,7 @@ class SeriesProvider extends ChangeNotifier {
 
     try {
       if (kIsWeb) {
-        uploadVideoWeb(isTrailer);
+        await uploadVideoWeb(isTrailer);
         return;
       } else {
         // Android/iOS implementation with proper progress tracking
@@ -761,6 +792,9 @@ class SeriesProvider extends ChangeNotifier {
 
           // Create the multipart request
           final request = http.MultipartRequest('POST', uploadUri);
+          request.headers.addAll(
+            await AuthService.authHeaders(includeJson: false),
+          );
 
           // Add the file with progress tracking
           request.files.add(http.MultipartFile(
@@ -779,7 +813,7 @@ class SeriesProvider extends ChangeNotifier {
             VideoUploadResponse contentImageUploadResponse =
                 VideoUploadResponse.fromJson(responseJson);
             final encryptedUrl =
-                contentImageUploadResponse.data?.videoUrl?.trim();
+                contentImageUploadResponse.data?.fullUrl?.trim();
             if (encryptedUrl == null || encryptedUrl.isEmpty) {
               print("Video upload response did not include a videoUrl");
               movieUploadProgress = 0.0;
@@ -787,6 +821,8 @@ class SeriesProvider extends ChangeNotifier {
             }
 
             movieUrlController.text = encryptedUrl;
+            episodeVideoRuntime =
+                contentImageUploadResponse.data?.duration ?? 0;
             movieUploadProgress = 1.0;
 
             print("Video uploaded successfully: $encryptedUrl");
@@ -836,9 +872,204 @@ class SeriesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> pickEpisodeAudioFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['mp3', 'wav', 'aac', 'm4a'],
+      withData: kIsWeb,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    _isEpisodeAudioUploading = true;
+    episodeAudioUploadProgress = 0.05;
+    notifyListeners();
+
+    try {
+      final pickedFile = result.files.single;
+      final extension = (pickedFile.extension ?? '').toLowerCase();
+      if (!const {'mp3', 'wav', 'aac', 'm4a'}.contains(extension)) {
+        throw Exception('Audio must be MP3, WAV, AAC, or M4A.');
+      }
+      if ((pickedFile.size / (1024 * 1024)) > 100) {
+        throw Exception('Audio must be 100 MB or smaller.');
+      }
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(ApiConstant.uploadAudioMetadata),
+      );
+      request.headers.addAll(
+        await AuthService.authHeaders(includeJson: false),
+      );
+
+      if (kIsWeb) {
+        final bytes = pickedFile.bytes;
+        if (bytes == null) throw Exception('Unable to read selected audio.');
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            bytes,
+            filename: pickedFile.name,
+          ),
+        );
+      } else {
+        final path = pickedFile.path;
+        if (path == null || path.isEmpty) {
+          throw Exception('Unable to read selected audio.');
+        }
+        request.files.add(await http.MultipartFile.fromPath('file', path));
+      }
+
+      episodeAudioUploadProgress = 0.45;
+      notifyListeners();
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final decoded = jsonDecode(responseBody);
+      final parsed = decoded is Map
+          ? AudioUploadResponse.fromJson(Map<String, dynamic>.from(decoded))
+          : AudioUploadResponse(message: 'Audio upload returned invalid data.');
+      if (!_isSuccessStatus(response.statusCode)) {
+        throw Exception(
+          parsed.message?.trim().isNotEmpty == true
+              ? parsed.message!.trim()
+              : 'Audio upload failed with ${response.statusCode}.',
+        );
+      }
+
+      final url = parsed.data?.fullUrl?.trim();
+      if (url == null || url.isEmpty) {
+        throw Exception('Audio upload response did not include a URL.');
+      }
+
+      episodeAudioUrlController.text = url;
+      episodeAudioFileName = pickedFile.name;
+      episodeAudioUploadProgress = 1.0;
+    } catch (error) {
+      debugPrint('Episode audio upload failed: $error');
+      episodeAudioUploadProgress = 0.0;
+      rethrow;
+    } finally {
+      _isEpisodeAudioUploading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> pickEpisodeSubtitleFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['srt', 'vtt'],
+      withData: kIsWeb,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    _isEpisodeSubtitleUploading = true;
+    episodeSubtitleUploadProgress = 0.05;
+    notifyListeners();
+
+    try {
+      final pickedFile = result.files.single;
+      final extension = (pickedFile.extension ?? '').toLowerCase();
+      if (!const {'srt', 'vtt'}.contains(extension)) {
+        throw Exception('Subtitle must be SRT or VTT.');
+      }
+      if ((pickedFile.size / (1024 * 1024)) > 2) {
+        throw Exception('Subtitle file must be 2 MB or smaller.');
+      }
+
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(ApiConstant.uploadSubtitle),
+      );
+      request.headers.addAll(
+        await AuthService.authHeaders(includeJson: false),
+      );
+
+      if (kIsWeb) {
+        final bytes = pickedFile.bytes;
+        if (bytes == null) {
+          throw Exception('Unable to read selected subtitle.');
+        }
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            bytes,
+            filename: pickedFile.name,
+          ),
+        );
+      } else {
+        final path = pickedFile.path;
+        if (path == null || path.isEmpty) {
+          throw Exception('Unable to read selected subtitle.');
+        }
+        request.files.add(await http.MultipartFile.fromPath('file', path));
+      }
+
+      episodeSubtitleUploadProgress = 0.45;
+      notifyListeners();
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      final decoded = jsonDecode(responseBody);
+      if (!_isSuccessStatus(response.statusCode)) {
+        throw Exception('Subtitle upload failed with ${response.statusCode}.');
+      }
+      final data = decoded is Map ? decoded['data'] : null;
+      final url = data is Map ? data['fileUrl']?.toString().trim() : null;
+      if (url == null || url.isEmpty) {
+        throw Exception('Subtitle upload response did not include a URL.');
+      }
+
+      episodeSubtitleUrlController.text = url;
+      episodeSubtitleFileName = pickedFile.name;
+      episodeSubtitleUploadProgress = 1.0;
+    } catch (error) {
+      debugPrint('Episode subtitle upload failed: $error');
+      episodeSubtitleUploadProgress = 0.0;
+      rethrow;
+    } finally {
+      _isEpisodeSubtitleUploading = false;
+      notifyListeners();
+    }
+  }
+
+  void clearEpisodeUploadDraft() {
+    movieUrlController.clear();
+    episodeAudioUrlController.clear();
+    episodeSubtitleUrlController.clear();
+    episodeVideoRuntime = 0;
+    movieUploadProgress = 0.0;
+    episodeAudioUploadProgress = 0.0;
+    episodeSubtitleUploadProgress = 0.0;
+    _isMovieUploading = false;
+    _isUploading = false;
+    _isEpisodeAudioUploading = false;
+    _isEpisodeSubtitleUploading = false;
+    episodeAudioFileName = null;
+    episodeSubtitleFileName = null;
+    notifyListeners();
+  }
+
+  void clearEpisodeAudioDraft() {
+    episodeAudioUrlController.clear();
+    episodeAudioUploadProgress = 0.0;
+    episodeAudioFileName = null;
+    notifyListeners();
+  }
+
+  void clearEpisodeSubtitleDraft() {
+    episodeSubtitleUrlController.clear();
+    episodeSubtitleUploadProgress = 0.0;
+    episodeSubtitleFileName = null;
+    notifyListeners();
+  }
+
   bool isSubmitting = false;
 
-  Future<bool> createEpisodeApi(Map<String, dynamic> body, int seasonId) async {
+  Future<http.Response?> createEpisodeApiResponse(
+    Map<String, dynamic> body,
+    int seasonId,
+  ) async {
     try {
       isSubmitting = true;
       notifyListeners();
@@ -854,20 +1085,26 @@ class SeriesProvider extends ChangeNotifier {
       debugPrint("STATUS => ${response.statusCode}");
       debugPrint("RESPONSE => ${response.body}");
 
-      return response.statusCode == 200 || response.statusCode == 201;
+      return response;
     } catch (e) {
       debugPrint("Create Episode Error: $e");
-      return false;
+      return null;
     } finally {
       isSubmitting = false;
       notifyListeners();
     }
   }
 
+  Future<bool> createEpisodeApi(Map<String, dynamic> body, int seasonId) async {
+    final response = await createEpisodeApiResponse(body, seasonId);
+    if (response == null) return false;
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
+
   bool _isSuccessStatus(int code) =>
       code == 200 || code == 201 || code == 202 || code == 204;
 
-  Future<bool> updateEpisodeApi(
+  Future<http.Response?> updateEpisodeApiResponse(
     Map<String, dynamic> body,
     int seasonId,
     int episodeId, {
@@ -879,17 +1116,35 @@ class SeriesProvider extends ChangeNotifier {
 
       final apiHelper = ApiHelper();
       final url = '${ApiConstant.baseUrl}series/episode/$episodeId/update';
+
       final response = await apiHelper.putApiWithBody(url, body);
       debugPrint('Update Episode URL => $url');
-      debugPrint('Update Episode STATUS => ${response.statusCode}');
-      return _isSuccessStatus(response.statusCode);
+      debugPrint('Update Episode Request => $body');
+      debugPrint('Update Episode Response => ${response.body}');
+      return response;
     } catch (e) {
       debugPrint("Update Episode Error: $e");
-      return false;
+      return null;
     } finally {
       isSubmitting = false;
       notifyListeners();
     }
+  }
+
+  Future<bool> updateEpisodeApi(
+    Map<String, dynamic> body,
+    int seasonId,
+    int episodeId, {
+    int? seriesId,
+  }) async {
+    final response = await updateEpisodeApiResponse(
+      body,
+      seasonId,
+      episodeId,
+      seriesId: seriesId,
+    );
+    if (response == null) return false;
+    return _isSuccessStatus(response.statusCode);
   }
 
   Future<bool> deleteEpisodeApi(

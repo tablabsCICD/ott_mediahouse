@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:media_house/app/ui/pages/DisplayTrailer.dart';
 import 'package:media_house/data/models/response/series_detail_response.dart';
 import 'package:provider/provider.dart';
 
@@ -14,11 +17,13 @@ import 'edit_season_dialog.dart';
 class SeasonDetailPage extends StatefulWidget {
   final int seriesId;
   final SeasonBundle seasonBundle;
+  final String seriesLanguage;
 
   const SeasonDetailPage({
     super.key,
     required this.seriesId,
     required this.seasonBundle,
+    required this.seriesLanguage,
   });
 
   @override
@@ -313,159 +318,171 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
       itemBuilder: (context, index) {
         final ep = episodes[index];
         final views = ep.viewCount ?? 0;
-        final amount = widget.seasonBundle.season.amount ?? ep.amount ?? 0;
+        final amount = ep.amount ?? widget.seasonBundle.season.amount ?? 0;
         final revenue = views * amount;
 
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            color: theme.cardColor.withValues(alpha: 0.96),
-            border:
-                Border.all(color: theme.dividerColor.withValues(alpha: 0.35)),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 760;
-              final poster = ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: SizedBox(
-                  height: 80,
-                  width: 124,
-                  child: (ep.posterUrl ?? '').trim().isNotEmpty
-                      ? Image.network(
-                          ep.posterUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _posterFallback(80, 124),
-                        )
-                      : _posterFallback(80, 124),
-                ),
-              );
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TrailerPage(trailerUrl: ep.videoUrl ?? ''),
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              color: theme.cardColor.withValues(alpha: 0.96),
+              border:
+                  Border.all(color: theme.dividerColor.withValues(alpha: 0.35)),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 760;
+                final poster = ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SizedBox(
+                    height: 80,
+                    width: 124,
+                    child: (ep.posterUrl ?? '').trim().isNotEmpty
+                        ? Image.network(
+                            ep.posterUrl!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                _posterFallback(80, 124),
+                          )
+                        : _posterFallback(80, 124),
+                  ),
+                );
 
-              final titleSection = Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          height: 30,
-                          width: 30,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: theme.primaryColor,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            "E${ep.episodeNumber ?? '-'}",
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
+                final titleSection = Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            height: 30,
+                            width: 30,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: theme.primaryColor,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              "E${ep.episodeNumber ?? '-'}",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            (ep.title ?? '').trim().isEmpty
-                                ? "Untitled Episode"
-                                : ep.title!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: theme.canvasColor,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              (ep.title ?? '').trim().isEmpty
+                                  ? "Untitled Episode"
+                                  : ep.title!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: theme.canvasColor,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
+                          ),
+                        ],
+                      ),
+                      if ((ep.description ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          ep.description!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: theme.canvasColor.withValues(alpha: 0.75),
+                            height: 1.35,
                           ),
                         ),
                       ],
-                    ),
-                    if ((ep.description ?? '').trim().isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        ep.description!,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: theme.canvasColor.withValues(alpha: 0.75),
-                          height: 1.35,
-                        ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _metaChip(theme, Icons.currency_rupee_rounded,
+                              "Price Rs $amount"),
+                          _metaChip(theme, Icons.trending_up_rounded,
+                              "Revenue Rs $revenue"),
+                          _metaChip(theme, Icons.timer_outlined,
+                              "${ep.runtime ?? 0} min"),
+                          _metaChip(
+                              theme, Icons.visibility_outlined, "$views views"),
+                          _metaChip(theme, Icons.favorite_border, "0 likes"),
+                          _metaChip(
+                              theme, Icons.comment_outlined, "0 comments"),
+                        ],
                       ),
                     ],
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _metaChip(theme, Icons.currency_rupee_rounded,
-                            "Price Rs $amount"),
-                        _metaChip(theme, Icons.trending_up_rounded,
-                            "Revenue Rs $revenue"),
-                        _metaChip(theme, Icons.timer_outlined,
-                            "${ep.runtime ?? 0} min"),
-                        _metaChip(
-                            theme, Icons.visibility_outlined, "$views views"),
-                        _metaChip(theme, Icons.favorite_border, "0 likes"),
-                        _metaChip(theme, Icons.comment_outlined, "0 comments"),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-
-              final actions = Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: "Edit Episode",
-                    icon: Icon(Icons.edit_outlined, color: theme.primaryColor),
-                    onPressed: _isSeasonPublished
-                        ? null
-                        : () => _editEpisode(context, ep),
                   ),
-                  // IconButton(
-                  //   tooltip: "Delete Episode",
-                  //   icon: const Icon(Icons.delete_outline,
-                  //       color: Colors.redAccent),
-                  //   onPressed: _isSeasonPublished || ep.id == null
-                  //       ? null
-                  //       : () => _deleteEpisode(context, ep.id!),
-                  // ),
-                ],
-              );
+                );
 
-              if (compact) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                final actions = Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        poster,
-                        const SizedBox(width: 10),
-                        titleSection,
-                      ],
+                    IconButton(
+                      tooltip: "Edit Episode",
+                      icon:
+                          Icon(Icons.edit_outlined, color: theme.primaryColor),
+                      onPressed: ep.id == null
+                          ? null
+                          : () => _editEpisode(context, ep),
                     ),
-                    const SizedBox(height: 6),
-                    Align(alignment: Alignment.centerRight, child: actions),
+                    IconButton(
+                      tooltip: "Delete Episode",
+                      icon: const Icon(Icons.delete_outline,
+                          color: Colors.redAccent),
+                      onPressed: _isSeasonPublished || ep.id == null
+                          ? null
+                          : () => _deleteEpisode(context, ep.id!),
+                    ),
                   ],
                 );
-              }
 
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  poster,
-                  const SizedBox(width: 12),
-                  titleSection,
-                  const SizedBox(width: 4),
-                  actions,
-                ],
-              );
-            },
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          poster,
+                          const SizedBox(width: 10),
+                          titleSection,
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Align(alignment: Alignment.centerRight, child: actions),
+                    ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    poster,
+                    const SizedBox(width: 12),
+                    titleSection,
+                    const SizedBox(width: 4),
+                    actions,
+                  ],
+                );
+              },
+            ),
           ),
         );
       },
@@ -710,6 +727,7 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
 
     if (!context.mounted) return;
     CustomToast.show(
+      context,
       success ? "Season updated successfully" : "Failed to update season",
       isSuccess: success,
     );
@@ -780,6 +798,7 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
         seriesId: widget.seriesId,
         seasonId: widget.seasonBundle.season.id!,
         seasonPrice: widget.seasonBundle.season.amount ?? 0,
+        seriesLanguage: widget.seriesLanguage,
         onSuccess: _reloadSeasonEpisodes,
       ),
     );
@@ -868,17 +887,6 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
   }
 
   Future<void> _editEpisode(BuildContext context, Episode ep) async {
-    if (_isSeasonPublished) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Published seasons cannot edit episodes. Raise a ticket to admin for changes.",
-          ),
-        ),
-      );
-      return;
-    }
-
     final seasonId = widget.seasonBundle.season.id;
     if (seasonId == null || ep.id == null) return;
 
@@ -892,56 +900,65 @@ class _SeasonDetailPageState extends State<SeasonDetailPage> {
     if (body == null) return;
 
     final provider = Provider.of<SeriesProvider>(context, listen: false);
-    final success = await provider.updateEpisodeApi(
+    final response = await provider.updateEpisodeApiResponse(
       body,
       seasonId,
       ep.id!,
       seriesId: widget.seriesId,
     );
+    final success = response != null &&
+        response.statusCode >= 200 &&
+        response.statusCode < 300;
     if (success) {
-      setState(() {
-        final index = _episodes.indexWhere((e) => e.id == ep.id);
-        if (index != -1) {
-          final target = _episodes[index];
-          target.title = (body['title'] ?? target.title)?.toString();
-          target.description =
-              (body['description'] ?? target.description)?.toString();
-          target.videoUrl = (body['videoUrl'] ?? target.videoUrl)?.toString();
-          target.posterUrl =
-              (body['posterUrl'] ?? target.posterUrl)?.toString();
-          target.runtime = _toIntOrNull(body['runtime']) ?? target.runtime;
-          target.releaseDate =
-              _toIntOrNull(body['releaseDate']) ?? target.releaseDate;
-          target.episodeNumber =
-              _toIntOrNull(body['episodeNumber']) ?? target.episodeNumber;
-          target.amount = _toIntOrNull(body['amount']) ?? target.amount;
-          if (body.containsKey('active')) {
-            final active = body['active'];
-            if (active is bool) {
-              target.active = active;
-            }
-          }
-          if (body.containsKey('free')) {
-            final free = body['free'];
-            if (free is bool) {
-              target.free = free;
-            }
-          }
-        }
-      });
+      await _reloadSeasonEpisodes();
     }
 
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            success
-                ? "Episode updated successfully"
-                : "Failed to update episode",
-          ),
+      await _showEpisodeUpdateDialog(
+        success: success,
+        message: _episodeResponseMessage(
+          response?.body ?? '',
+          success
+              ? "Episode updated successfully."
+              : "Failed to update episode.",
         ),
       );
     }
+  }
+
+  String _episodeResponseMessage(String body, String fallback) {
+    if (body.trim().isEmpty) return fallback;
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        for (final key in const ['message', 'error', 'details']) {
+          final value = decoded[key]?.toString().trim();
+          if (value != null && value.isNotEmpty) return value;
+        }
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
+  Future<void> _showEpisodeUpdateDialog({
+    required bool success,
+    required String message,
+  }) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(success ? "Episode Updated" : "Episode Update Failed"),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   String _initials(String input) {

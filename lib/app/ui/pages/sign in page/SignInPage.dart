@@ -103,7 +103,7 @@ class _SignInPageState extends State<SignInPage> {
               TextField(
                 controller: usernameController,
                 decoration: const InputDecoration(
-                  labelText: 'Username / Mobile Number',
+                  labelText: 'Mobile Number',
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.text,
@@ -192,13 +192,13 @@ class _SignInPageState extends State<SignInPage> {
     final password = passwordController.text.trim();
 
     if (username.isEmpty) {
-      CustomToast.show('Please enter username or mobile number',
+      CustomToast.show(context, 'Please enter username or mobile number',
           isSuccess: false);
       return;
     }
 
     if (password.isEmpty) {
-      CustomToast.show('Please enter password', isSuccess: false);
+      CustomToast.show(context, 'Please enter password', isSuccess: false);
       return;
     }
 
@@ -213,15 +213,23 @@ class _SignInPageState extends State<SignInPage> {
     }
 
     if (result['success'] == true) {
-      CustomToast.show('OTP sent to $username', isSuccess: true);
+      final data = result['data'];
+      final sentTo = data is Map<String, dynamic>
+          ? (data['otpSentTo'] ?? data['username'] ?? username).toString()
+          : username;
+      CustomToast.show(context, 'OTP sent to $sentTo', isSuccess: true);
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => OtpVerificationPage(mobileNumber: username),
+          builder: (context) => OtpVerificationPage(
+            mobileNumber: username,
+            password: password,
+          ),
         ),
       );
     } else {
-      CustomToast.show('Failure: ${result['message']}', isSuccess: false);
+      CustomToast.show(context, 'Failure: ${result['message']}',
+          isSuccess: false);
     }
 
     setState(() {

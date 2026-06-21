@@ -12,8 +12,9 @@ import 'package:provider/provider.dart';
 import 'package:universal_html/html.dart' as html;
 
 import '../../../../../data/models/response/content_image_upload_response.dart';
-import '../../../../../main.dart';
 import '../../../../core/constant/api_constant.dart';
+import '../../../../core/navigation/app_navigator.dart';
+import '../../../../core/utils/image_validation_service.dart';
 import '../../../../core/utils/sharepreferences.dart';
 
 class AddShortMaster {
@@ -272,7 +273,24 @@ class AddShortMaster {
           input.click();
           input.onChange.listen((_) async {
             if (input.files == null || input.files!.isEmpty) return;
-            webFile = input.files!.first;
+            final file = input.files!.first;
+            final reader = html.FileReader();
+            reader.readAsArrayBuffer(file);
+            await reader.onLoad.first;
+            final bytes =
+                Uint8List.fromList((reader.result as List).cast<int>());
+            final validation = await ImageValidationService.validateBytes(
+              bytes: bytes,
+              fileName: file.name,
+              sizeInBytes: file.size,
+              type: ImageValidationType.poster,
+            );
+            if (!validation.isValid) {
+              showGlobalSnack(validation.message ?? "Invalid image");
+              return;
+            }
+            webFile = file;
+            previewBytes = bytes;
             await uploadImage(setState);
             setState(() {});
           });
@@ -280,8 +298,19 @@ class AddShortMaster {
           final picker = ImagePicker();
           final file = await picker.pickImage(source: ImageSource.gallery);
           if (file != null) {
+            final bytes = await file.readAsBytes();
+            final validation = await ImageValidationService.validateBytes(
+              bytes: bytes,
+              fileName: file.name,
+              sizeInBytes: bytes.lengthInBytes,
+              type: ImageValidationType.poster,
+            );
+            if (!validation.isValid) {
+              showGlobalSnack(validation.message ?? "Invalid image");
+              return;
+            }
             imageFile = io.File(file.path);
-            previewBytes = await file.readAsBytes();
+            previewBytes = bytes;
             await uploadImage(setState);
             setState(() {});
           }

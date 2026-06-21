@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:media_house/app/provider/notification_settings_provider.dart';
-import 'package:media_house/app/provider/themeProvider.dart';
 import 'package:media_house/domain/entities/notification_model.dart';
 import 'package:media_house/domain/entities/notification_settings_model.dart';
 import 'package:provider/provider.dart';
@@ -11,8 +10,6 @@ class SettingsCustomAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final themeProvider = context.watch<ThemeProvider>();
-    final isDark = themeProvider.getTheme.brightness == Brightness.dark;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
@@ -581,6 +578,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   NotificationType? _typeFilter;
   NotificationDeliveryStatus? _statusFilter;
   DateTimeRange? _customDateRange;
+  String _sortDirection = 'desc';
 
   @override
   void initState() {
@@ -590,6 +588,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     _typeFilter = provider.typeFilter;
     _statusFilter = provider.statusFilter;
     _customDateRange = provider.customDateRange;
+    _sortDirection = provider.sortDirection;
   }
 
   @override
@@ -598,130 +597,151 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'History Filters',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: NotificationHistoryFilter.values.map((filter) {
-                final selected = _historyFilter == filter;
-                return ChoiceChip(
-                  selected: selected,
-                  label: Text(_historyLabel(filter)),
-                  selectedColor: theme.colorScheme.primary,
-                  backgroundColor: theme.colorScheme.surface,
-                  labelStyle: TextStyle(
-                    color: selected
-                        ? theme.colorScheme.onPrimary
-                        : theme.colorScheme.onSurface.withOpacity(0.78),
-                    fontWeight:
-                        selected ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                  side: BorderSide(
-                    color: selected
-                        ? theme.colorScheme.primary
-                        : theme.dividerColor.withOpacity(0.35),
-                  ),
-                  showCheckmark: false,
-                  onSelected: (_) => setState(() => _historyFilter = filter),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 16),
-            if (_historyFilter == NotificationHistoryFilter.custom) ...[
-              OutlinedButton.icon(
-                onPressed: _pickDateRange,
-                icon: const Icon(Icons.date_range_rounded),
-                label: Text(_customDateRange == null
-                    ? 'Choose Custom Date'
-                    : _dateRangeLabel(_customDateRange!)),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'History Filters',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: NotificationHistoryFilter.values.map((filter) {
+                  final selected = _historyFilter == filter;
+                  return ChoiceChip(
+                    selected: selected,
+                    label: Text(_historyLabel(filter)),
+                    selectedColor: theme.colorScheme.primary,
+                    backgroundColor: theme.colorScheme.surface,
+                    labelStyle: TextStyle(
+                      color: selected
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.onSurface.withOpacity(0.78),
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                    side: BorderSide(
+                      color: selected
+                          ? theme.colorScheme.primary
+                          : theme.dividerColor.withOpacity(0.35),
+                    ),
+                    showCheckmark: false,
+                    onSelected: (_) => setState(() => _historyFilter = filter),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              if (_historyFilter == NotificationHistoryFilter.custom) ...[
+                OutlinedButton.icon(
+                  onPressed: _pickDateRange,
+                  icon: const Icon(Icons.date_range_rounded),
+                  label: Text(_customDateRange == null
+                      ? 'Choose Custom Date'
+                      : _dateRangeLabel(_customDateRange!)),
+                ),
+                const SizedBox(height: 16),
+              ],
+              DropdownButtonFormField<NotificationType>(
+                initialValue: _typeFilter,
+                decoration: const InputDecoration(
+                  labelText: 'Notification Type',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem<NotificationType>(
+                    value: null,
+                    child: Text('All Types'),
+                  ),
+                  ...NotificationType.values.map(
+                    (type) => DropdownMenuItem<NotificationType>(
+                      value: type,
+                      child: Text(type.label),
+                    ),
+                  ),
+                ],
+                onChanged: (value) => setState(() => _typeFilter = value),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<NotificationDeliveryStatus>(
+                initialValue: _statusFilter,
+                decoration: const InputDecoration(
+                  labelText: 'Delivery Status',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem<NotificationDeliveryStatus>(
+                    value: null,
+                    child: Text('All Statuses'),
+                  ),
+                  ...NotificationDeliveryStatus.values.map(
+                    (status) => DropdownMenuItem<NotificationDeliveryStatus>(
+                      value: status,
+                      child: Text(status.label),
+                    ),
+                  ),
+                ],
+                onChanged: (value) => setState(() => _statusFilter = value),
+              ),
+              const SizedBox(height: 12),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment<String>(
+                    value: 'desc',
+                    icon: Icon(Icons.south_rounded),
+                    label: Text('Newest'),
+                  ),
+                  ButtonSegment<String>(
+                    value: 'asc',
+                    icon: Icon(Icons.north_rounded),
+                    label: Text('Oldest'),
+                  ),
+                ],
+                selected: {_sortDirection},
+                onSelectionChanged: (value) {
+                  setState(() => _sortDirection = value.first);
+                },
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        await context
+                            .read<NotificationSettingsProvider>()
+                            .applyFilters(clear: true);
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                      child: const Text('Clear'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () async {
+                        await context
+                            .read<NotificationSettingsProvider>()
+                            .applyFilters(
+                              historyFilter: _historyFilter,
+                              typeFilter: _typeFilter,
+                              statusFilter: _statusFilter,
+                              customDateRange: _customDateRange,
+                              sortDirection: _sortDirection,
+                            );
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                      child: const Text('Apply'),
+                    ),
+                  ),
+                ],
+              ),
             ],
-            DropdownButtonFormField<NotificationType>(
-              value: _typeFilter,
-              decoration: const InputDecoration(
-                labelText: 'Notification Type',
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                const DropdownMenuItem<NotificationType>(
-                  value: null,
-                  child: Text('All Types'),
-                ),
-                ...NotificationType.values.map(
-                  (type) => DropdownMenuItem<NotificationType>(
-                    value: type,
-                    child: Text(type.label),
-                  ),
-                ),
-              ],
-              onChanged: (value) => setState(() => _typeFilter = value),
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<NotificationDeliveryStatus>(
-              value: _statusFilter,
-              decoration: const InputDecoration(
-                labelText: 'Delivery Status',
-                border: OutlineInputBorder(),
-              ),
-              items: [
-                const DropdownMenuItem<NotificationDeliveryStatus>(
-                  value: null,
-                  child: Text('All Statuses'),
-                ),
-                ...NotificationDeliveryStatus.values.map(
-                  (status) => DropdownMenuItem<NotificationDeliveryStatus>(
-                    value: status,
-                    child: Text(status.label),
-                  ),
-                ),
-              ],
-              onChanged: (value) => setState(() => _statusFilter = value),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      await context
-                          .read<NotificationSettingsProvider>()
-                          .applyFilters(clear: true);
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                    child: const Text('Clear'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () async {
-                      await context
-                          .read<NotificationSettingsProvider>()
-                          .applyFilters(
-                            historyFilter: _historyFilter,
-                            typeFilter: _typeFilter,
-                            statusFilter: _statusFilter,
-                            customDateRange: _customDateRange,
-                          );
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                    child: const Text('Apply'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );

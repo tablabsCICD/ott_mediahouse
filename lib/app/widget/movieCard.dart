@@ -6,14 +6,14 @@ import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:media_house/domain/entities/content.dart';
 
 class MovieCard extends StatelessWidget {
-  int movieId;
-  String movieName;
-  String poster_url;
-  double rating;
-  int rating_count;
-  Content movie;
+  final int movieId;
+  final String movieName;
+  final String poster_url;
+  final double rating;
+  final int rating_count;
+  final Content movie;
 
-  MovieCard({
+  const MovieCard({
     super.key,
     required this.movieId,
     required this.movieName,
@@ -42,6 +42,17 @@ class MovieCard extends StatelessWidget {
     return value.toStringAsFixed(0);
   }
 
+  String _languageLabel() {
+    final languages = movie.languageList
+            ?.map((item) => (item.language ?? '').trim())
+            .where((item) => item.isNotEmpty)
+            .toList() ??
+        [];
+    if (languages.isEmpty) return '';
+    if (languages.length == 1) return languages.first;
+    return '${languages.first} +${languages.length - 1}';
+  }
+
   Widget _metricChip(IconData icon, String value) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
@@ -63,6 +74,29 @@ class MovieCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _languageChip() {
+    final label = _languageLabel();
+    if (label.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontSize: 10,
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -150,15 +184,25 @@ class MovieCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            movieName,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  movieName,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (_languageLabel().isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                Flexible(child: _languageChip()),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 4),
                           Wrap(
@@ -284,15 +328,25 @@ class MovieCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            movieName,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  movieName,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (_languageLabel().isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                Flexible(child: _languageChip()),
+                              ],
+                            ],
                           ),
                           const SizedBox(height: 4),
                           Wrap(

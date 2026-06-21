@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:media_house/app/core/utils/agreement_download_helper.dart';
 import 'package:media_house/app/core/utils/agreement_template.dart';
 import 'package:media_house/app/core/utils/sharepreferences.dart';
+import 'package:media_house/app/ui/pages/sereis/components/series_details_page.dart';
+import 'package:media_house/app/ui/pages/shorts/components/short_master_page.dart';
 import 'package:media_house/app/widget/show_toast.dart';
 
 import '../../domain/entities/content.dart';
@@ -47,38 +49,19 @@ class AgreementMovieCard extends StatelessWidget {
                       children: [
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Expanded(
-                              child: Text(
-                                movie.title ?? '',
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: theme.canvasColor,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                            Text(
+                              movie.title ?? '',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: theme.canvasColor,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 9,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.primaryColor,
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                movie.type ?? 'MOVIE',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
+                            if (_languageLabel().isNotEmpty) _languageBadge(),
                           ],
                         ),
                         const SizedBox(height: 10),
@@ -201,23 +184,68 @@ class AgreementMovieCard extends StatelessWidget {
     );
   }
 
-  int _seriesEpisodes() {
-    final dynamic value = movie.episodeId;
-    if (value == null) return 0;
-    if (value is int) return value;
-    return int.tryParse(value.toString()) ?? 0;
-  }
-
-  void _openAgreementDetails(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => MovieDetailsPage(
-          movieId: movie.id!,
-          initialTab: 3,
+  Widget _languageBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: theme.primaryColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: theme.primaryColor.withValues(alpha: 0.32)),
+      ),
+      child: Text(
+        _languageLabel(),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: theme.primaryColor,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
+  }
+
+  String _languageLabel() {
+    final languages = movie.languageList
+            ?.map((item) => (item.language ?? '').trim())
+            .where((item) => item.isNotEmpty)
+            .toList() ??
+        [];
+    if (languages.isEmpty) return '';
+    if (languages.length == 1) return languages.first;
+    return '${languages.first} +${languages.length - 1}';
+  }
+
+  void _openAgreementDetails(BuildContext context) {
+    if (movie.type == "MOVIE") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MovieDetailsPage(movieId: movie.id!),
+        ),
+      );
+      return;
+    }
+    if (movie.type == "SERIES") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SeriesDetailsPage(
+            seriesId: movie.id!,
+            content: movie,
+          ),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ShortMasterPage(
+            shortId: movie.id!,
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _downloadAgreementTemplate(BuildContext context) async {
@@ -232,9 +260,11 @@ class AgreementMovieCard extends StatelessWidget {
           .replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_')
           .replaceAll(RegExp(r'_+'), '_');
       await saveAgreementFile(bytes, '${safeTitle}_agreement.pdf');
-      CustomToast.show('Agreement template downloaded.', isSuccess: true);
+      CustomToast.show(context, 'Agreement template downloaded.',
+          isSuccess: true);
     } catch (_) {
       CustomToast.show(
+        context,
         'Unable to download agreement template.',
         isSuccess: false,
       );

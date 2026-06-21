@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:media_house/app/core/constant/app_constant.dart';
 import 'package:media_house/app/provider/mediaHouseProvider.dart';
@@ -6,7 +7,9 @@ import 'package:media_house/app/ui/pages/help%20support%20page/helpDesk.dart';
 import 'package:media_house/app/ui/pages/profile%20page/component/EditProfilePage.dart';
 import 'package:media_house/app/ui/pages/profile%20page/component/about_filmytell.dart';
 import 'package:media_house/app/ui/pages/sign%20in%20page/SignInPage.dart';
+import 'package:media_house/app/widget/show_toast.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/utils/sharepreferences.dart';
 
@@ -559,19 +562,28 @@ class _ProfilePageState extends State<ProfilePage> {
             ProfileOption(
               icon: Icons.file_copy,
               title: "Terms, Policies and Liscenses",
-              onTap: () {},
+              onTap: () {
+                _openPrivacyPolicy();
+              },
             ),
             ProfileOption(
               icon: Icons.info,
               title: "About Filmytell",
               onTap: () {
-                AboutFilmytellDialog.show(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AboutFilmytellScreen(),
+                  ),
+                );
               },
             ),
             ProfileOption(
               icon: Icons.star,
               title: "Rate Us",
-              onTap: () {},
+              onTap: () {
+                _openRateUs();
+              },
             ),
           ],
         ),
@@ -588,6 +600,73 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ],
     );
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    try {
+      await launchUrl(
+        Uri.parse(AppConstant.privacyPolicy),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      CustomToast.show(
+        context,
+        'Unable to open privacy policy page right now.',
+        isSuccess: false,
+      );
+    }
+  }
+
+  Future<void> _openTerms() async {
+    try {
+      await launchUrl(
+        Uri.parse(AppConstant.playStoreLink),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      CustomToast.show(
+        context,
+        'Unable to open terms and condition right now.',
+        isSuccess: false,
+      );
+    }
+  }
+
+  Future<void> _openRateUs() async {
+    try {
+      bool launched = false;
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        final marketUri = Uri.parse('market://details?id=com.filmytell.ott');
+        launched = await launchUrl(
+          marketUri,
+          mode: LaunchMode.externalApplication,
+        );
+      }
+
+      if (!launched) {
+        launched = await launchUrl(
+          Uri.parse(AppConstant.playStoreLink),
+          mode: LaunchMode.externalApplication,
+        );
+      }
+
+      if (!launched && mounted) {
+        CustomToast.show(
+          context,
+          'Unable to open rating page right now.',
+          isSuccess: false,
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      CustomToast.show(
+        context,
+        'Unable to open rating page right now.',
+        isSuccess: false,
+      );
+    }
   }
 
   Widget _pill(String label, String value) {
