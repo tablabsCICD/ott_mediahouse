@@ -4,6 +4,7 @@ import 'package:media_house/app/ui/pages/sereis/components/series_details_page.d
 import 'package:media_house/app/widget/StarRatingWidget.dart';
 import 'package:media_house/device/utils/ResponsiveWidget.dart';
 import 'package:media_house/domain/entities/content.dart';
+import '../core/content/content_type.dart';
 
 class MovieCard extends StatelessWidget {
   final int movieId;
@@ -106,7 +107,7 @@ class MovieCard extends StatelessWidget {
     return ResponsiveWidget.isDesktop(context)
         ? GestureDetector(
             onTap: () {
-              movie.type == "MOVIE"
+              ContentTypeValue.isMovieLike(movie.type)
                   ? Navigator.push(
                       context,
                       MaterialPageRoute(

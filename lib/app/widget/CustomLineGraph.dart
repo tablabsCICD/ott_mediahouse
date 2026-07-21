@@ -454,11 +454,11 @@ class _CustomLineGraphState extends State<CustomLineGraph> {
   Widget _buildTypeDropdown(MediaHouseProvider provider, ThemeData theme) {
     return DropdownButtonFormField<String>(
       initialValue: provider.customGraphContentType,
-      items: const ["ALL", "MOVIE", "SERIES", "SHORT"]
+      items: const ["ALL", "MOVIE", "SHORT_FILM", "SERIES", "SHORT"]
           .map(
             (item) => DropdownMenuItem<String>(
               value: item,
-              child: Text(item),
+              child: Text(item == "SHORT_FILM" ? "Short Film" : item),
             ),
           )
           .toList(growable: false),

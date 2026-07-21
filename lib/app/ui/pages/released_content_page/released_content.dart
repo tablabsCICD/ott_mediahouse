@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import '../../../../domain/entities/content.dart';
 import '../../../../data/models/shorts.dart';
 import '../../../core/utils/sharepreferences.dart';
+import '../../../core/content/content_type.dart';
 
 class ReleasedContentPage extends StatefulWidget {
   const ReleasedContentPage({super.key});
@@ -485,6 +486,25 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
           },
         ),
         ChoiceChip(
+          label: const Text("Short Films"),
+          selected: selectedContentType == ContentTypeValue.shortFilm,
+          selectedColor: theme.primaryColor,
+          backgroundColor:
+              theme.scaffoldBackgroundColor.withValues(alpha: 0.45),
+          labelStyle: TextStyle(
+            color: selectedContentType == ContentTypeValue.shortFilm
+                ? Colors.white
+                : theme.primaryColor,
+            fontWeight: FontWeight.w600,
+          ),
+          onSelected: (_) async {
+            if (selectedContentType == ContentTypeValue.shortFilm) return;
+            setState(() => selectedContentType = ContentTypeValue.shortFilm);
+            if (!mounted) return;
+            await _fetchSelectedContent();
+          },
+        ),
+        ChoiceChip(
           label: const Text("Series"),
           selected: selectedContentType == "SERIES",
           selectedColor: theme.primaryColor,
@@ -530,7 +550,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
     final posterUrl = movie.posterUrlList?.isNotEmpty == true
         ? movie.posterUrlList!.first
         : '';
-    final typeLabel = _isSeries(movie) ? 'SERIES' : 'MOVIE';
+    final typeLabel = ContentTypeValue.displayLabel(movie.type).toUpperCase();
     final languageLabel = _contentLanguageLabel(movie);
 
     return Material(
@@ -766,7 +786,7 @@ class _ReleasedContentPageState extends State<ReleasedContentPage> {
       return;
     }
 
-    if ((movie.type == "MOVIE")) {
+    if (ContentTypeValue.isMovieLike(movie.type)) {
       Navigator.push(
         context,
         MaterialPageRoute(

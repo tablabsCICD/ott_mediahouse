@@ -121,7 +121,7 @@ class _SettlementCardState extends State<SettlementCard> {
       final haystack = [
         item.settlementId ?? 'N/A',
         item.settlementStatusValue,
-        item.contentTypeValue,
+        item.contentTypeLabel,
         item.mediaHouseName,
         formatSettlementDate(item.periodStartDate),
         formatSettlementDate(item.periodEndDate),
@@ -179,7 +179,7 @@ class _SettlementCardState extends State<SettlementCard> {
                           formatCurrency(item.customerPayment)),
                       _metric(
                           theme, 'Transactions', '${item.totalTransactions}'),
-                      _metric(theme, 'Content', item.contentTypeValue),
+                      _metric(theme, 'Content', item.contentTypeLabel),
                     ]),
                     const SizedBox(height: 8),
                     Row(
@@ -306,7 +306,7 @@ void showSettlementDetails(BuildContext context, MediaHouseSettlement item) {
     MapEntry('Settlement date',
         formatSettlementDate(item.settlementDate, includeTime: true)),
     MapEntry('Status', item.settlementStatusValue),
-    MapEntry('Content type', item.contentTypeValue),
+    MapEntry('Content type', item.contentTypeLabel),
     MapEntry('Total transactions', '${item.totalTransactions}'),
     MapEntry('Customer payment', formatCurrency(item.customerPayment)),
     MapEntry('GST charges', formatCurrency(item.gstCharges)),

@@ -102,7 +102,7 @@ class _SettlementPageState extends State<SettlementPage> {
         .where((item) => [
               item.settlementId ?? 'N/A',
               item.settlementStatusValue,
-              item.contentTypeValue,
+              item.contentTypeLabel,
               item.mediaHouseName,
               formatSettlementDate(item.periodStartDate),
               formatSettlementDate(item.periodEndDate),
@@ -191,7 +191,7 @@ class _SettlementPageState extends State<SettlementPage> {
                                     includeTime: true))),
                                 DataCell(Text(item.settlementStatusValue)),
                                 DataCell(Text('${item.totalTransactions}')),
-                                DataCell(Text(item.contentTypeValue)),
+                                DataCell(Text(item.contentTypeLabel)),
                                 DataCell(
                                     Text(formatCurrency(item.customerPayment))),
                                 DataCell(Text(formatCurrency(item.gstCharges))),

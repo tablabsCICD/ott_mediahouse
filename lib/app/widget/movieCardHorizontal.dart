@@ -8,6 +8,7 @@ import '../../domain/entities/content.dart';
 import '../ui/pages/movie details page/MovieDetailsPage.dart';
 import '../ui/pages/movie details page/component/setPercentageDialog.dart';
 import '../ui/pages/sereis/components/series_details_page.dart';
+import '../core/content/content_type.dart';
 
 class MovieCardHorizontal extends StatelessWidget {
   final Content movie;
@@ -65,7 +66,7 @@ class MovieCardHorizontal extends StatelessWidget {
   }
 
   void _openDetails(BuildContext context) {
-    if (movie.type == "MOVIE") {
+    if (ContentTypeValue.isMovieLike(movie.type)) {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -187,7 +188,7 @@ class MovieCardHorizontal extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        movie.type ?? "",
+        ContentTypeValue.displayLabel(movie.type),
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,

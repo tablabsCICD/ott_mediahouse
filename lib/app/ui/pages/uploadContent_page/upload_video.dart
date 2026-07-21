@@ -18,8 +18,25 @@ import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../../../provider/videoProvider.dart';
 import '../../../../domain/entities/content.dart';
+import '../../../core/content/content_type.dart';
 
-enum UploadContentType { movie, series }
+enum UploadContentType { movie, shortFilm, series }
+
+extension UploadContentTypeContract on UploadContentType {
+  bool get isMovieLike => this != UploadContentType.series;
+
+  String get apiValue => switch (this) {
+        UploadContentType.movie => ContentTypeValue.movie,
+        UploadContentType.shortFilm => ContentTypeValue.shortFilm,
+        UploadContentType.series => ContentTypeValue.series,
+      };
+
+  String get displayLabel => switch (this) {
+        UploadContentType.movie => 'Movie',
+        UploadContentType.shortFilm => 'Short Film',
+        UploadContentType.series => 'Series',
+      };
+}
 
 class UploadVideoWidget extends StatefulWidget {
   final UploadContentType uploadType;
@@ -43,9 +60,13 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   int _currentPage = 0;
   bool _isDownloadingAgreement = false;
 
-  bool get _isMovie => widget.uploadType == UploadContentType.movie;
-  String get _uploadContentType => _isMovie ? "MOVIE" : "SERIES";
-  String get _registrationFeeContentType => _isMovie ? "MOVIES" : "SERIES";
+  bool get _isMovieLike => widget.uploadType.isMovieLike;
+  String get _uploadContentType => widget.uploadType.apiValue;
+  String get _registrationFeeContentType => switch (widget.uploadType) {
+        UploadContentType.movie => "MOVIES",
+        UploadContentType.shortFilm => ContentTypeValue.shortFilm,
+        UploadContentType.series => ContentTypeValue.series,
+      };
   int get _totalSteps => 4;
   int get _lastPageIndex => _totalSteps - 1;
   bool get _isMobile => ResponsiveWidget.isMobile(context);
@@ -221,7 +242,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
       genreList: provider.selectedGeners,
       directorList: provider.directorList,
       ageRating: provider.ageRatingController.text.trim(),
-      type: _isMovie ? "MOVIE" : "SERIES",
+      type: _uploadContentType,
       sensorCertificate: provider.censorCertificateController.text.trim(),
       mediaHouseName: mediaHouseName,
     );
@@ -367,7 +388,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
                     child: PageView(
                       controller: _pageController,
                       physics: const NeverScrollableScrollPhysics(),
-                      children: _isMovie
+                      children: _isMovieLike
                           ? _moviePages(selectedThemeData, provider)
                           : _seriesPages(selectedThemeData, provider),
                     ),
@@ -659,7 +680,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
           'Trailer File',
           isVideo: true,
         ),
-        if (_isMovie) ...[
+        if (_isMovieLike) ...[
           const SizedBox(height: 12),
           _variantUploadTile(
             theme,
@@ -1482,7 +1503,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
   }
 
   Widget _buildHeader(ThemeData themeData) {
-    final List<String> stepTitles = _isMovie
+    final List<String> stepTitles = _isMovieLike
         ? const [
             "Language, Details & Cast",
             "Release, Price & Rental",
@@ -1509,7 +1530,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
             children: [
               const SizedBox(height: 12),
               Text(
-                _isMovie ? "Upload Movie" : "Upload Series",
+                "Upload ${widget.uploadType.displayLabel}",
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -1719,14 +1740,18 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
           isSuccess: false);
       return false;
     }
-    final contentLabel = _isMovie ? 'movie' : 'series';
+    final contentLabel = widget.uploadType == UploadContentType.shortFilm
+        ? 'short film'
+        : _isMovieLike
+            ? 'movie'
+            : 'series';
     for (final language in provider.selectedLanguages) {
       final name = (language.language ?? '').trim();
       final variant = provider.movieVariantControllers[name];
       final missingFiles = <String>[];
       if (variant == null) {
         missingFiles.addAll(
-          _isMovie
+          _isMovieLike
               ? [
                   'poster 1',
                   'poster 2',
@@ -1757,7 +1782,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
         if (variant['trailer']!.text.trim().isEmpty) {
           missingFiles.add('trailer');
         }
-        if (_isMovie && variant['movie']!.text.trim().isEmpty) {
+        if (_isMovieLike && variant['movie']!.text.trim().isEmpty) {
           missingFiles.add(contentLabel);
         }
       }
@@ -1796,7 +1821,7 @@ class _UploadVideoWidgetState extends State<UploadVideoWidget> {
 
   Future<void> _handleAdd(
       VideoProvider provider, ThemeData selectedThemeData) async {
-    if (_isMovie) {
+    if (_isMovieLike) {
       final results = await provider.uploadMovieVariants(context);
       if (!mounted) return;
       await _showMovieVariantResultDialog(results, contentType: "movie");

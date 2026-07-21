@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/content/content_type.dart';
 import 'package:intl/intl.dart';
 import 'package:media_house/app/provider/graphProvider.dart';
 import 'package:media_house/app/provider/mediaHouseProvider.dart';
@@ -35,6 +36,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
   static const List<String> _contentTypeOptions = [
     'ALL',
     'MOVIE',
+    'SHORT_FILM',
     'SERIES',
     'MINI SERIES'
   ];
@@ -765,7 +767,9 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
                         (type) => DropdownMenuItem<String>(
                           value: type,
                           child: Text(
-                            type,
+                            type == 'ALL'
+                                ? type
+                                : ContentTypeValue.displayLabel(type),
                             style: TextStyle(color: theme.canvasColor),
                           ),
                         ),

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../core/content/content_type.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -313,7 +314,8 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
             runSpacing: 8,
             children: [
               _statusPill(_displayValue(movie.approvalStatus)),
-              _metaPill(Icons.category_outlined, _displayValue(movie.type)),
+              _metaPill(Icons.category_outlined,
+                  ContentTypeValue.displayLabel(movie.type)),
               _metaPill(Icons.schedule, _displayValue(movie.runtime)),
               _metaPill(Icons.currency_rupee, _formatPrice(movie.price)),
               _metaPill(Icons.workspace_premium_outlined,
@@ -1039,7 +1041,8 @@ class _MovieDetailsPageState extends State<MovieDetailsPage>
               ),
               children: [
                 _tableRow('Title', _displayValue(movie.title)),
-                _tableRow('Content Type', _displayValue(movie.type)),
+                _tableRow(
+                    'Content Type', ContentTypeValue.displayLabel(movie.type)),
                 _tableRow(
                     'Approval Status', _displayValue(movie.approvalStatus)),
                 _tableRow('Active', _boolLabel(movie.active)),

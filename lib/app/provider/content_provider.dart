@@ -39,7 +39,12 @@ class ContentProvider extends ChangeNotifier {
     "A (restricted to adults only)"
   ];
 
-  final List<String> contentTypeOptions = ["Movie", "Series", "TV Show"];
+  final List<String> contentTypeOptions = [
+    "Movie",
+    "Short Film",
+    "Series",
+    "TV Show",
+  ];
   final List<String> rentalDurations = [
     "One Time",
     "One Day",

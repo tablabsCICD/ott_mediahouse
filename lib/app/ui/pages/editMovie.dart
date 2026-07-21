@@ -9,6 +9,7 @@ import '../../provider/themeProvider.dart';
 import '../../provider/videoProvider.dart';
 import '../../widget/show_toast.dart';
 import 'uploadContent_page/upload_video.dart';
+import '../../core/content/content_type.dart';
 
 class EditVideoMovie extends StatefulWidget {
   final Content movie;
@@ -53,7 +54,7 @@ class _EditVideoMovieState extends State<EditVideoMovie> {
     }
   }
 
-  bool get _isMovie => (widget.movie.type ?? "MOVIE").toLowerCase() == "movie";
+  bool get _isMovie => ContentTypeValue.isMovieLike(widget.movie.type);
   bool get _isApproved =>
       (widget.movie.approvalStatus ?? '').toLowerCase() == "approved";
   @override

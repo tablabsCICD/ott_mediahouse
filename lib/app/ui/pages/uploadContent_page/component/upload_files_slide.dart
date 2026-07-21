@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/component/upload_form_helpers.dart';
 import 'package:media_house/app/ui/pages/uploadContent_page/component/upload_media_helpers.dart';
 import 'package:provider/provider.dart';
+import '../../../../core/content/content_type.dart';
 
 class UploadFilesSlide extends StatelessWidget {
   final ThemeData themeData;
@@ -35,7 +36,7 @@ class UploadFilesSlide extends StatelessWidget {
               UploadMediaHelpers.buildEnhancedUploadSection(
                   "Trailer File", themeData, context),
               const SizedBox(height: 16),
-              type == "MOVIE"
+              ContentTypeValue.isMovieLike(type)
                   ? UploadMediaHelpers.buildEnhancedUploadSection(
                       "Movie File", themeData, context)
                   : SizedBox.shrink(),

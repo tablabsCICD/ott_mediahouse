@@ -8,6 +8,7 @@ import 'package:media_house/app/widget/show_toast.dart';
 
 import '../../domain/entities/content.dart';
 import '../ui/pages/movie details page/MovieDetailsPage.dart';
+import '../core/content/content_type.dart';
 
 class AgreementMovieCard extends StatelessWidget {
   const AgreementMovieCard({
@@ -217,7 +218,7 @@ class AgreementMovieCard extends StatelessWidget {
   }
 
   void _openAgreementDetails(BuildContext context) {
-    if (movie.type == "MOVIE") {
+    if (ContentTypeValue.isMovieLike(movie.type)) {
       Navigator.push(
         context,
         MaterialPageRoute(

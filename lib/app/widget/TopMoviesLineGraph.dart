@@ -164,7 +164,13 @@ class _TopMoviesLineGraphState extends State<TopMoviesLineGraph> {
               width: 0,
               label: "Type",
               value: provider.selectedContentType,
-              items: const ["ALL", "MOVIE", "SERIES", "MINI SERIES"],
+              items: const [
+                "ALL",
+                "MOVIE",
+                "SHORT_FILM",
+                "SERIES",
+                "MINI SERIES"
+              ],
               onChanged: (value) {
                 provider.setContentTypeFilter(value ?? "ALL");
                 _getData();

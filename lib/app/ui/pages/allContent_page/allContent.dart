@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../domain/entities/content.dart';
 import '../../../core/utils/sharepreferences.dart';
+import '../../../core/content/content_type.dart';
 
 class AllContentPage extends StatefulWidget {
   const AllContentPage({super.key});
@@ -356,6 +357,8 @@ class _AllContentPageState extends State<AllContentPage> {
                   runSpacing: 8,
                   children: [
                     _buildTypeChip(theme, "MOVIE", "Movies"),
+                    _buildTypeChip(
+                        theme, ContentTypeValue.shortFilm, "Short Films"),
                     _buildTypeChip(theme, "SERIES", "Series"),
                     _buildTypeChip(theme, _miniSeriesType, "Mini Series"),
                   ],
@@ -366,6 +369,9 @@ class _AllContentPageState extends State<AllContentPage> {
             Row(
               children: [
                 _buildTypeChip(theme, "MOVIE", "Movies"),
+                const SizedBox(width: 8),
+                _buildTypeChip(
+                    theme, ContentTypeValue.shortFilm, "Short Films"),
                 const SizedBox(width: 8),
                 _buildTypeChip(theme, "SERIES", "Series"),
                 const SizedBox(width: 8),

@@ -81,6 +81,12 @@ class SelectUploadTypeDialog extends StatelessWidget {
         const SizedBox(height: spacing),
         SizedBox(
           width: 250,
+          child: _card(
+              theme, "Upload Short Film", Icons.movie_filter, 16 / 9, context),
+        ),
+        const SizedBox(height: spacing),
+        SizedBox(
+          width: 250,
           child: _card(theme, "Upload Series", Icons.tv, 16 / 9, context),
         ),
         const SizedBox(height: spacing),
@@ -110,6 +116,12 @@ class SelectUploadTypeDialog extends StatelessWidget {
             SizedBox(
               width: movieWidth,
               child: _card(theme, "Upload Movie", Icons.movie, 16 / 9, context),
+            ),
+            const SizedBox(height: spacing),
+            SizedBox(
+              width: movieWidth,
+              child: _card(theme, "Upload Short Film", Icons.movie_filter,
+                  16 / 9, context),
             ),
             const SizedBox(height: spacing),
             SizedBox(
@@ -149,9 +161,11 @@ class SelectUploadTypeDialog extends StatelessWidget {
                 context: context,
                 barrierDismissible: false,
                 builder: (BuildContext context) {
-                  final uploadType = title == "Upload Movie"
-                      ? UploadContentType.movie
-                      : UploadContentType.series;
+                  final uploadType = switch (title) {
+                    "Upload Movie" => UploadContentType.movie,
+                    "Upload Short Film" => UploadContentType.shortFilm,
+                    _ => UploadContentType.series,
+                  };
                   return Dialog(
                     backgroundColor: theme.cardColor,
                     child: SizedBox(

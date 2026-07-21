@@ -9,7 +9,7 @@ enum SettlementStatus {
   unknown
 }
 
-enum ContentType { movie, series, shorts, unknown }
+enum ContentType { movie, shortFilm, series, shorts, unknown }
 
 SettlementStatus settlementStatusFrom(String? value) {
   return SettlementStatus.values.firstWhere(
@@ -19,6 +19,9 @@ SettlementStatus settlementStatusFrom(String? value) {
 }
 
 ContentType contentTypeFrom(String? value) {
+  if (value?.trim().toUpperCase() == 'SHORT_FILM') {
+    return ContentType.shortFilm;
+  }
   return ContentType.values.firstWhere(
     (item) => item.name == value?.trim().toLowerCase(),
     orElse: () => ContentType.unknown,
@@ -146,6 +149,14 @@ class MediaHouseSettlement {
     if (id == null || id.isEmpty) return null;
     return id.replaceFirst(RegExp(r'-TXN-\d+$', caseSensitive: false), '');
   }
+
+  String get contentTypeLabel => switch (contentType) {
+        ContentType.movie => 'Movie',
+        ContentType.shortFilm => 'Short Film',
+        ContentType.series => 'Series',
+        ContentType.shorts => 'Mini Series',
+        ContentType.unknown => contentTypeValue,
+      };
 }
 
 class SettlementPageData {
