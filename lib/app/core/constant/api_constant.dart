@@ -1,7 +1,5 @@
 class ApiConstant {
-  //static const String baseUrl = "https://filmytell.in/ott/";
-  static const String baseUrl =
-      "http://ec2-13-201-5-93.ap-south-1.compute.amazonaws.com:8080/ott/";
+  static const String baseUrl = "https://filmytell.in/ott2/";
 
   static String twoStepLogin = "${baseUrl}auth/two-step/login";
   static String twoStepVerifyOtp = "${baseUrl}auth/two-step/verify-otp";
@@ -198,8 +196,23 @@ class ApiConstant {
   static String getRaisedTicketByFlag(isResolved, userId) =>
       "${baseUrl}api/TicketRaised/userIsResolved?userId=$userId&isResolved=$isResolved";
 
-  static String weeklySettelementData(id) =>
-      "${baseUrl}api/settelment/user/$id";
+  static String mediaHouseSettlements(
+    int mediaHouseId, {
+    int page = 0,
+    int size = 10,
+  }) =>
+      "${baseUrl}ott/api/settlements/media-house/$mediaHouseId?page=$page&size=$size";
+
+  static String mediaHouseWeeklySettlementReport(
+    int mediaHouseId, {
+    String? settlementBatchReference,
+  }) {
+    final reference = settlementBatchReference?.trim();
+    final query = reference == null || reference.isEmpty
+        ? ''
+        : '?settlementBatchReference=${Uri.encodeQueryComponent(reference)}';
+    return "${baseUrl}ott/api/media-house/weekly-settlement-report/$mediaHouseId$query";
+  }
 
   static String topRevenueContentGraph(
     id,
