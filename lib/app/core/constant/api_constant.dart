@@ -1,5 +1,5 @@
 class ApiConstant {
-  static const String baseUrl = "https://filmytell.in/ott2/";
+  static const String baseUrl = "https://filmytell.com/ott/";
 
   static String twoStepLogin = "${baseUrl}auth/two-step/login";
   static String twoStepVerifyOtp = "${baseUrl}auth/two-step/verify-otp";
