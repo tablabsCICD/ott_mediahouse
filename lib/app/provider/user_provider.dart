@@ -310,9 +310,9 @@ class UserProvider extends ChangeNotifier {
             setValue(_mediaHouse);
             LocalSharePreferences localSharePreferences =
                 LocalSharePreferences();
-            localSharePreferences.setString(
+            await localSharePreferences.setString(
                 SharedPreferencesConstant.currentMediaHouse,
-                jsonEncode(_mediaHouse));
+                jsonEncode(_mediaHouse.toJson()));
             notifyListeners();
           } else {
             debugPrint("No data found: ${getAllMediaHouseResponse.message}");

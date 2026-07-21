@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../domain/entities/user.dart';
 import '../auth/auth_service.dart';
 import '../constant/prefrense_constant.dart';
+import '../storage/local_data_sanitizer.dart';
 
 class LocalSharePreferences{
   static final LocalSharePreferences localSharePreferences = LocalSharePreferences._internal();
@@ -13,6 +14,13 @@ class LocalSharePreferences{
   LocalSharePreferences._internal();
   setString(String key,String val)async{
     SharedPreferences _prefs = await SharedPreferences.getInstance();
+    if (key == SharedPreferencesConstant.currentUser) {
+      val = jsonEncode(LocalDataSanitizer.userDisplayHint(
+          Map<String, dynamic>.from(jsonDecode(val))));
+    } else if (key == SharedPreferencesConstant.currentMediaHouse) {
+      val = jsonEncode(LocalDataSanitizer.mediaHouseDisplayHint(
+          Map<String, dynamic>.from(jsonDecode(val))));
+    }
     _prefs.setString(key,val);
   }
   setBool(String key,bool val)async{
