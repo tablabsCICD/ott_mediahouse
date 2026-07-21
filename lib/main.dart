@@ -14,19 +14,16 @@ import 'package:media_house/app/provider/user_provider.dart';
 import 'package:media_house/app/provider/videoProvider.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'app/core/navigation/app_navigator.dart';
 import 'app/config/routes/routes.dart';
+import 'app/core/storage/storage_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  await StorageService.initialize();
 
-  // Initialize SharedPreferences
-  final prefs = await SharedPreferences.getInstance();
-
-  // Check theme preference
-  final themeBool = prefs.getBool("isDark") ?? true;
+  final themeBool = StorageService.instance.preferences.isDarkMode;
 
   // Initialize Firebase
 

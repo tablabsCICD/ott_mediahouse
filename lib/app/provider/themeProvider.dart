@@ -1,18 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:media_house/data/themes/custom_theme.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:media_house/app/core/storage/storage_service.dart';
 
 class ThemeProvider extends ChangeNotifier {
   late ThemeData _selectedTheme;
-  late SharedPreferences _prefs;
 
   ThemeProvider({bool isDark = false}) {
     _selectedTheme = isDark ? AppTheme.darkTheme : AppTheme.lightTheme;
-    _initPrefs();
-  }
-
-  Future<void> _initPrefs() async {
-    _prefs = await SharedPreferences.getInstance();
   }
 
   ThemeData get getTheme => _selectedTheme;
@@ -21,7 +15,7 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> toggleTheme() async {
     _selectedTheme = isDark ? AppTheme.lightTheme : AppTheme.darkTheme;
-    await _prefs.setBool("isDark", isDark);
+    await StorageService.instance.preferences.setDarkMode(isDark);
     notifyListeners();
   }
 }

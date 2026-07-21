@@ -9,6 +9,8 @@ import 'package:media_house/app/core/navigation/app_navigator.dart';
 import 'package:media_house/app/ui/pages/sign%20in%20page/SignInPage.dart';
 import 'package:media_house/domain/entities/user.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../storage/storage_service.dart';
+import '../storage/local_data_sanitizer.dart';
 
 class AuthService {
   AuthService._();
@@ -22,13 +24,45 @@ class AuthService {
 
   static Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
+    try {
+      final secure =
+          await StorageService.instance.secureSession.getAccessToken();
+      if (secure != null && secure.trim().isNotEmpty) return secure;
+    } catch (_) {}
     return prefs.getString(SharedPreferencesConstant.accessToken) ??
         prefs.getString(SharedPreferencesConstant.token);
   }
 
   static Future<String?> getRefreshToken() async {
     final prefs = await SharedPreferences.getInstance();
+    try {
+      final secure =
+          await StorageService.instance.secureSession.getRefreshToken();
+      if (secure != null && secure.trim().isNotEmpty) return secure;
+    } catch (_) {}
     return prefs.getString(SharedPreferencesConstant.refreshToken);
+  }
+
+  static Future<void> updateTokens({
+    required String accessToken,
+    String? refreshToken,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      await StorageService.instance.secureSession.setAccessToken(accessToken);
+      if (refreshToken != null && refreshToken.trim().isNotEmpty) {
+        await StorageService.instance.secureSession
+            .setRefreshToken(refreshToken);
+      }
+    } catch (_) {
+      // Legacy preferences remain the first-release fallback.
+    }
+    await prefs.setString(SharedPreferencesConstant.accessToken, accessToken);
+    await prefs.setString(SharedPreferencesConstant.token, accessToken);
+    if (refreshToken != null && refreshToken.trim().isNotEmpty) {
+      await prefs.setString(
+          SharedPreferencesConstant.refreshToken, refreshToken);
+    }
   }
 
   static Future<Map<String, String>> authHeaders({
@@ -89,8 +123,7 @@ class AuthService {
     final loginTime = DateTime.now().toIso8601String();
 
     await prefs.setBool(SharedPreferencesConstant.isLogin, true);
-    await prefs.setString(SharedPreferencesConstant.accessToken, accessToken);
-    await prefs.setString(SharedPreferencesConstant.token, accessToken);
+    await updateTokens(accessToken: accessToken, refreshToken: refreshToken);
     if (refreshToken != null && refreshToken.trim().isNotEmpty) {
       await prefs.setString(
           SharedPreferencesConstant.refreshToken, refreshToken);
@@ -98,6 +131,9 @@ class AuthService {
       await prefs.remove(SharedPreferencesConstant.refreshToken);
     }
     if (sessionId != null && sessionId.trim().isNotEmpty) {
+      try {
+        await StorageService.instance.secureSession.setSessionId(sessionId);
+      } catch (_) {}
       await prefs.setString(SharedPreferencesConstant.sessionId, sessionId);
     }
     if (user.id != null) {
@@ -112,14 +148,16 @@ class AuthService {
     await prefs.setString(SharedPreferencesConstant.loginTime, loginTime);
     await prefs.setString(
       SharedPreferencesConstant.currentUser,
-      jsonEncode(user.toJson()),
+      jsonEncode(LocalDataSanitizer.userDisplayHint(user.toJson())),
     );
-
-    debugPrint('JWT Stored');
   }
 
   static Future<void> clearSession() async {
     final prefs = await SharedPreferences.getInstance();
+    try {
+      await StorageService.instance.secureSession.clearSession();
+      await StorageService.instance.cacheInvalidation.clearAllProtectedCache();
+    } catch (_) {}
     await prefs.setBool(SharedPreferencesConstant.isLogin, false);
     await prefs.remove(SharedPreferencesConstant.currentUser);
     await prefs.remove(SharedPreferencesConstant.currentMediaHouse);
@@ -138,7 +176,6 @@ class AuthService {
     bool sessionExpired = false,
     bool navigateToLogin = true,
   }) async {
-    debugPrint(sessionExpired ? 'JWT Expired' : 'Logout Triggered');
     await clearSession();
 
     if (!navigateToLogin) return;
