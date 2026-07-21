@@ -1,30 +1,27 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../data/models/api_response.dart';
 import '../auth/auth_service.dart';
 import '../constant/api_constant.dart';
-import '../constant/prefrense_constant.dart';
+import '../storage/storage_service.dart';
 
 class ApiHelper {
+  static Future<bool>? _refreshInFlight;
+
   Future<dynamic> getApi(String URL) async {
-    debugPrint('API GET $URL');
     final request = await _send(
       URL,
       () async => http
           .get(Uri.parse(URL), headers: await AuthService.authHeaders())
           .timeout(const Duration(seconds: 10)),
     );
-    debugPrint(request.body);
     return request;
   }
 
   Future<dynamic> deleteApi(String URL) async {
-    debugPrint('API DELETE $URL');
     final request = await _send(
       URL,
       () async => http.delete(
@@ -32,12 +29,10 @@ class ApiHelper {
         headers: await AuthService.authHeaders(),
       ),
     );
-    debugPrint(request.body);
     return request;
   }
 
   Future<dynamic> postApi(String URL) async {
-    debugPrint('API POST $URL');
     final request = await _send(
       URL,
       () async => http.post(
@@ -45,14 +40,11 @@ class ApiHelper {
         headers: await AuthService.authHeaders(),
       ),
     );
-    debugPrint(request.body);
     return request;
   }
 
   Future<dynamic> postApiWithBody(String url, Map<String, dynamic> data) async {
-    debugPrint('API POST $url');
     final body = json.encode(data);
-    debugPrint(body);
     final response = await _send(
       url,
       () async => http.post(
@@ -61,12 +53,10 @@ class ApiHelper {
         body: body,
       ),
     );
-    debugPrint(response.body);
     return response;
   }
 
   Future<dynamic> putApi(String URL) async {
-    debugPrint('API PUT $URL');
     final request = await _send(
       URL,
       () async => http.put(
@@ -74,14 +64,11 @@ class ApiHelper {
         headers: await AuthService.authHeaders(),
       ),
     );
-    debugPrint(request.body);
     return request;
   }
 
   Future<dynamic> putApiWithBody(String url, Map<String, dynamic> data) async {
-    debugPrint('API PUT $url');
     final body = json.encode(data);
-    debugPrint(body);
     final response = await _send(
       url,
       () async => http.put(
@@ -90,28 +77,22 @@ class ApiHelper {
         body: body,
       ),
     );
-    debugPrint(response.body);
     return response;
   }
 
   Future<dynamic> postApiWithoutAuthToken(String URL) async {
-    debugPrint('API POST PUBLIC $URL');
     final request = await http.post(Uri.parse(URL));
-    debugPrint(request.body);
     return request;
   }
 
   Future<dynamic> postApiWithoutBodyAndToken(
       String url, Map<String, dynamic> data) async {
-    debugPrint('API POST PUBLIC $url');
     final body = json.encode(data);
-    debugPrint(body);
     final response = await http.post(
       Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
       body: body,
     );
-    debugPrint(response.body);
     return response;
   }
 
@@ -128,7 +109,6 @@ class ApiHelper {
     if (request.statusCode == 200 ||
         request.statusCode == 400 ||
         request.statusCode == 201) {
-      debugPrint('API response ${request.body}');
       final response = jsonDecode(request.body);
       return ApiResponse(request.statusCode, response);
     } else {
@@ -141,17 +121,29 @@ class ApiHelper {
     Future<http.Response> Function() request,
   ) async {
     final response = await request();
+    if (response.statusCode == 403) {
+      await StorageService.instance.cacheInvalidation.clearAllProtectedCache();
+      return response;
+    }
     if (response.statusCode != 401 || _isAuthUrl(url)) {
       return response;
     }
 
-    final refreshed = await _tryRefreshToken();
+    final refreshed = await _refreshOnce();
     if (refreshed) {
       return request();
     }
 
     await AuthService.logout(sessionExpired: true);
     return response;
+  }
+
+  Future<bool> _refreshOnce() {
+    final running = _refreshInFlight;
+    if (running != null) return running;
+    final refresh = _tryRefreshToken();
+    _refreshInFlight = refresh;
+    return refresh.whenComplete(() => _refreshInFlight = null);
   }
 
   bool _isAuthUrl(String url) {
@@ -163,7 +155,6 @@ class ApiHelper {
   Future<bool> _tryRefreshToken() async {
     final refreshToken = await AuthService.getRefreshToken();
     if (refreshToken == null || refreshToken.trim().isEmpty) {
-      debugPrint('JWT Expired');
       return false;
     }
 
@@ -191,19 +182,12 @@ class ApiHelper {
         return false;
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(SharedPreferencesConstant.accessToken, accessToken);
-      await prefs.setString(SharedPreferencesConstant.token, accessToken);
-      if (newRefreshToken != null && newRefreshToken.trim().isNotEmpty) {
-        await prefs.setString(
-          SharedPreferencesConstant.refreshToken,
-          newRefreshToken,
-        );
-      }
-      debugPrint('JWT Stored');
+      await AuthService.updateTokens(
+        accessToken: accessToken,
+        refreshToken: newRefreshToken,
+      );
       return true;
-    } catch (error) {
-      debugPrint('Refresh token failed: $error');
+    } catch (_) {
       return false;
     }
   }

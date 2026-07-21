@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../../data/models/response/short_detail_response.dart';
 import '../../../../core/navigation/app_navigator.dart';
+import '../../../../core/utils/sharepreferences.dart';
 import '../../../../provider/shorts_provider.dart';
 import 'create_short_parts_page.dart';
 import 'edit_short_master_page.dart';
@@ -26,11 +27,18 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
     super.initState();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<ShortProvider>().fetchShortDetail(
-            shortId: widget.shortId,
-            userId: 1,
-          );
+      _fetchDetail(widget.shortId);
     });
+  }
+
+  Future<void> _fetchDetail(int shortId) async {
+    final user = await LocalSharePreferences().getUser();
+    final userId = user?.id;
+    if (!mounted || userId == null || userId <= 0) return;
+    await context.read<ShortProvider>().fetchShortDetail(
+          shortId: shortId,
+          userId: userId,
+        );
   }
 
   void _editShort(BuildContext context, ShortDetailModel shortModel) async {
@@ -47,10 +55,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
       ),
     );
     if (result == true && mounted) {
-      await context.read<ShortProvider>().fetchShortDetail(
-            shortId: widget.shortId,
-            userId: 1,
-          );
+      await _fetchDetail(widget.shortId);
     }
   }
 
@@ -306,12 +311,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                           );
 
                           if (result == true && mounted) {
-                            await context
-                                .read<ShortProvider>()
-                                .fetchShortDetail(
-                                  shortId: short.data!.id ?? 0,
-                                  userId: 1,
-                                );
+                            await _fetchDetail(short.data!.id ?? 0);
                           }
                         },
                 ),
@@ -482,7 +482,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
                 /// 👁 VIEWS
                 _statChip(
                   icon: Icons.remove_red_eye,
-                  value: views ?? 0,
+                  value: views,
                 ),
 
                 /// ❤️ LIKES
@@ -543,10 +543,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
 
               if (success) {
                 // 🔄 refresh short details
-                await provider.fetchShortDetail(
-                  shortId: widget.shortId,
-                  userId: 1,
-                );
+                await _fetchDetail(widget.shortId);
 
                 globalMessengerKey.currentState?.showSnackBar(
                   const SnackBar(content: Text("Part deleted successfully")),
@@ -579,10 +576,7 @@ class _ShortMasterPageState extends State<ShortMasterPage> {
     );
 
     if (result == true && mounted) {
-      await context.read<ShortProvider>().fetchShortDetail(
-            shortId: widget.shortId,
-            userId: 1,
-          );
+      await _fetchDetail(widget.shortId);
     }
   }
 
