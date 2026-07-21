@@ -30,34 +30,67 @@ class _SettlementPageState extends State<SettlementPage> {
     final theme = context.watch<ThemeProvider>().getTheme;
     final provider = context.watch<SettelementProvider>();
     return Scaffold(
-      body: provider.isLoading
+      body: provider.isLoading && provider.settlements.isEmpty
           ? Center(child: CircularProgressIndicator(color: theme.primaryColor))
-          : provider.errorMessage != null
+          : provider.errorMessage != null && provider.settlements.isEmpty
               ? _error(provider, theme)
               : RefreshIndicator(
                   onRefresh: provider.refresh,
                   child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SettlementCard(
-                            autoLoad: false,
-                            onSearchChanged: (value) =>
-                                setState(() => _query = value)),
-                        if (provider.settlements.isNotEmpty) ...[
-                          const SizedBox(height: 26),
-                          _table(theme, _filtered(provider.settlements)),
-                          const SizedBox(height: 16),
-                          _pagination(provider, theme),
-                        ],
-                      ]),
-                )),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (provider.showingCachedData) ...[
+                            _cachedBanner(provider, theme),
+                            const SizedBox(height: 12),
+                          ],
+                          SettlementCard(
+                              autoLoad: false,
+                              onSearchChanged: (value) =>
+                                  setState(() => _query = value)),
+                          if (provider.settlements.isNotEmpty) ...[
+                            const SizedBox(height: 26),
+                            _table(theme, _filtered(provider.settlements)),
+                            const SizedBox(height: 16),
+                            _pagination(provider, theme),
+                          ],
+                        ]),
+                  )),
       floatingActionButton: FloatingActionButton(
         backgroundColor: theme.primaryColor,
         onPressed: () => Navigator.pushNamed(context, AppRoutes.helpSupport),
         child: const Icon(Icons.message_rounded),
+      ),
+    );
+  }
+
+  Widget _cachedBanner(SettelementProvider provider, ThemeData theme) {
+    final updated = provider.lastUpdated?.toLocal();
+    final timestamp = updated == null
+        ? 'earlier'
+        : '${updated.year.toString().padLeft(4, '0')}-'
+            '${updated.month.toString().padLeft(2, '0')}-'
+            '${updated.day.toString().padLeft(2, '0')} '
+            '${updated.hour.toString().padLeft(2, '0')}:'
+            '${updated.minute.toString().padLeft(2, '0')}';
+    return Material(
+      color: theme.primaryColor.withValues(alpha: .08),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(children: [
+          Icon(Icons.history, color: theme.primaryColor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Temporarily showing cached settlement data from $timestamp. '
+              'Refreshing from the server…',
+              style: TextStyle(color: theme.canvasColor),
+            ),
+          ),
+        ]),
       ),
     );
   }
@@ -169,7 +202,8 @@ class _SettlementPageState extends State<SettlementPage> {
                                     item.mediaHouseCommissionPercentage))),
                                 DataCell(Text(
                                     formatCurrency(item.mediaHouseCommission))),
-                                DataCell(Text(formatCurrency(item.grossRevenue))),
+                                DataCell(
+                                    Text(formatCurrency(item.grossRevenue))),
                                 DataCell(Text(formatCurrency(item.tds))),
                                 DataCell(Text(formatCurrency(
                                     item.settlementPlatformCharges))),
@@ -202,7 +236,9 @@ class _SettlementPageState extends State<SettlementPage> {
               }),
           const SizedBox(width: 12),
           if (provider.isLoadingMore)
-            const SizedBox(width: 24, height: 24,
+            const SizedBox(
+                width: 24,
+                height: 24,
                 child: CircularProgressIndicator(strokeWidth: 2))
           else
             ElevatedButton.icon(

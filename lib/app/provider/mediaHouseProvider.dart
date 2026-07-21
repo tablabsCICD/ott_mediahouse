@@ -11,6 +11,9 @@ import '../../data/models/response/chartResponse.dart';
 import '../../domain/entities/mediaHouse.dart';
 import '../core/constant/api_constant.dart';
 import '../core/network/api_helper.dart';
+import '../core/storage/portal_cache_service.dart';
+import '../core/storage/storage_keys.dart';
+import '../core/storage/storage_service.dart';
 import '../core/utils/sharepreferences.dart';
 import '../widget/show_toast.dart';
 import 'dart:io' as io;
@@ -62,20 +65,52 @@ class MediaHouseProvider extends ChangeNotifier {
 
   // Fetch all moviesByMediaHouseId
   Future<void> fetchMediaHouseDashboardData(int mediaHouseId) async {
+    final user = await LocalSharePreferences().getUser();
+    final userId = user?.id;
+    String? cacheKey;
+    var cacheLoaded = false;
+    if (userId != null && userId > 0 && mediaHouseId > 0) {
+      cacheKey = PortalCacheService.scopedKey(
+        userId: userId.toString(),
+        mediaHouseId: mediaHouseId.toString(),
+        dataType: 'dashboard',
+      );
+      if (StorageService.instance.cacheAvailable) {
+        final cached = await StorageService.instance.portalCache.read(
+          boxName: HiveBoxes.dashboardCache,
+          key: cacheKey,
+          userId: userId.toString(),
+          mediaHouseId: mediaHouseId.toString(),
+        );
+        if (cached != null) {
+          cacheLoaded = true;
+          _mediaHouseDashboardData =
+              MediaHouseDashboardData.fromJson(cached.payload);
+          notifyListeners();
+        }
+      }
+    }
     String apiUrl = ApiConstant.getMediaHouseDashboardCount(mediaHouseId);
     ApiHelper apiHelper = ApiHelper();
     try {
       var response = await apiHelper.getApi(apiUrl);
       if (response.statusCode == 200) {
         Map<String, dynamic> responseBody = json.decode(response.body);
-        debugPrint("response::: " + responseBody.toString());
         MediaHouseDashboardCount mediaHouseDashboardCount =
             MediaHouseDashboardCount.fromJson(responseBody);
-        debugPrint("data::: " + mediaHouseDashboardCount.data.toString());
         if (mediaHouseDashboardCount.isSuccess == true) {
           if (mediaHouseDashboardCount.data != null) {
             _mediaHouseDashboardData = mediaHouseDashboardCount.data!;
-            debugPrint("message : ${mediaHouseDashboardCount.message}");
+            if (cacheKey != null && userId != null) {
+              await StorageService.instance.portalCache.write(
+                boxName: HiveBoxes.dashboardCache,
+                key: cacheKey,
+                userId: userId.toString(),
+                mediaHouseId: mediaHouseId.toString(),
+                payload: _mediaHouseDashboardData.toJson(),
+                ttl: CacheTtl.dashboard,
+              );
+            }
             notifyListeners();
           } else {
             debugPrint("empty list: ${mediaHouseDashboardCount.message}");
@@ -87,8 +122,8 @@ class MediaHouseProvider extends ChangeNotifier {
         throw Exception(
             'Failed to fetch Content. Status code: ${response.statusCode}');
       }
-    } catch (error) {
-      debugPrint("Error: $error");
+    } catch (_) {
+      if (cacheLoaded) return;
       throw Exception('An error occurred while fetching Content.');
     }
   }

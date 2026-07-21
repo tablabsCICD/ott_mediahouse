@@ -85,8 +85,7 @@ class MediaHouseSettlement {
     final type = json['contentType']?.toString().trim() ?? 'UNKNOWN';
     return MediaHouseSettlement(
       settlementId: _nullableText(json['settlementId']),
-      settlementBatchReference:
-          _nullableText(json['settlementBatchReference']),
+      settlementBatchReference: _nullableText(json['settlementBatchReference']),
       mediaHouseId: _int(json['mediaHouseId']),
       mediaHouseName: json['mediaHouseName']?.toString() ?? '',
       settlementPeriod: json['settlementPeriod']?.toString() ?? '',
@@ -113,6 +112,32 @@ class MediaHouseSettlement {
       finalPayableAmount: _double(json['finalPayableAmount']),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'settlementId': settlementId,
+        'settlementBatchReference': settlementBatchReference,
+        'mediaHouseId': mediaHouseId,
+        'mediaHouseName': mediaHouseName,
+        'settlementPeriod': settlementPeriod,
+        'periodStartDate': periodStartDate?.toUtc().toIso8601String(),
+        'periodEndDate': periodEndDate?.toUtc().toIso8601String(),
+        'settlementDate': settlementDate?.toUtc().toIso8601String(),
+        'settlementStatus': settlementStatusValue,
+        'totalTransactions': totalTransactions,
+        'contentType': contentTypeValue,
+        'customerPayment': customerPayment,
+        'gstCharges': gstCharges,
+        'customerPlatformCharges': customerPlatformCharges,
+        'netRevenue': netRevenue,
+        'mediaHouseCommissionPercentage': mediaHouseCommissionPercentage,
+        'mediaHouseCommission': mediaHouseCommission,
+        'grossRevenue': grossRevenue,
+        'tds': tds,
+        'settlementPlatformCharges': settlementPlatformCharges,
+        'otherDeductions': otherDeductions,
+        'totalDeductions': totalDeductions,
+        'finalPayableAmount': finalPayableAmount,
+      };
 
   String? get batchReference {
     final dedicated = settlementBatchReference?.trim();
@@ -164,6 +189,17 @@ class SettlementPageData {
       empty: json['empty'] == true || content.isEmpty,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'content': content.map((item) => item.toJson()).toList(),
+        'number': number,
+        'size': size,
+        'totalElements': totalElements,
+        'totalPages': totalPages,
+        'first': first,
+        'last': last,
+        'empty': empty,
+      };
 }
 
 class MediaHouseSettlementResponse {

@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:media_house/app/core/utils/sharepreferences.dart';
+import 'package:media_house/app/core/storage/portal_cache_service.dart';
+import 'package:media_house/app/core/storage/storage_keys.dart';
+import 'package:media_house/app/core/storage/storage_service.dart';
 import 'package:media_house/data/models/response/media_house_settlement.dart';
 import 'package:media_house/data/services/settlement_service.dart';
 
@@ -30,11 +33,18 @@ class SettelementProvider extends ChangeNotifier {
   bool get last => _last;
   int? _mediaHouseId;
   int _requestGeneration = 0;
+  String? _userId;
+  bool _showingCachedData = false;
+  bool get showingCachedData => _showingCachedData;
+  DateTime? _lastUpdated;
+  DateTime? get lastUpdated => _lastUpdated;
 
   Future<void> fetchForCurrentMediaHouse({int? page, int? size}) async {
+    final user = await LocalSharePreferences().getUser();
     final mediaHouse = await LocalSharePreferences().getMediaHouse();
     final id = mediaHouse?.id;
-    if (id == null || id <= 0) {
+    final userId = user?.id;
+    if (id == null || id <= 0 || userId == null || userId <= 0) {
       _requestGeneration++;
       _settlements = const [];
       _errorMessage =
@@ -43,6 +53,7 @@ class SettelementProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    _userId = userId.toString();
     _mediaHouseId = id;
     await fetchPage(page ?? _page, size: size ?? _pageSize);
   }
@@ -64,6 +75,9 @@ class SettelementProvider extends ChangeNotifier {
       _settlements = const [];
     }
     _errorMessage = null;
+    if (!append) {
+      await _loadCache(id, requestedPage, requestedSize);
+    }
     notifyListeners();
     try {
       final response = await _service.getMediaHouseSettlements(
@@ -92,16 +106,21 @@ class SettelementProvider extends ChangeNotifier {
       _totalPages = data.totalPages;
       _first = data.first;
       _last = data.last || data.content.length < requestedSize;
+      _showingCachedData = false;
+      _lastUpdated = DateTime.now().toUtc();
+      await _writeCache(id, data, requestedPage, requestedSize);
     } on SettlementServiceException catch (error) {
       if (generation != _requestGeneration) return;
-      if (!append) _settlements = const [];
+      if (!append && !_showingCachedData) _settlements = const [];
       _errorMessage = error.message;
-      _page = requestedPage;
-      _pageSize = requestedSize;
-      _totalElements = 0;
-      _totalPages = 0;
-      _first = requestedPage == 0;
-      _last = true;
+      if (!_showingCachedData) {
+        _page = requestedPage;
+        _pageSize = requestedSize;
+        _totalElements = 0;
+        _totalPages = 0;
+        _first = requestedPage == 0;
+        _last = true;
+      }
     } finally {
       if (generation == _requestGeneration) {
         _isLoading = false;
@@ -115,4 +134,64 @@ class SettelementProvider extends ChangeNotifier {
   Future<void> retry() => fetchPage(_page, size: _pageSize);
   Future<void> refresh() => fetchForCurrentMediaHouse(page: 0, size: _pageSize);
   Future<void> loadMore() => fetchPage(_page + 1, size: _pageSize);
+
+  String? _cacheKey(int mediaHouseId, int page, int size) {
+    final userId = _userId;
+    if (userId == null) return null;
+    return PortalCacheService.scopedKey(
+      userId: userId,
+      mediaHouseId: mediaHouseId.toString(),
+      dataType: 'settlements',
+      query: {'page': page, 'size': size},
+    );
+  }
+
+  Future<void> _loadCache(int mediaHouseId, int page, int size) async {
+    if (!StorageService.instance.cacheAvailable) return;
+    final key = _cacheKey(mediaHouseId, page, size);
+    final userId = _userId;
+    if (key == null || userId == null) return;
+    final entry = await StorageService.instance.portalCache.read(
+      boxName: HiveBoxes.settlementCache,
+      key: key,
+      userId: userId,
+      mediaHouseId: mediaHouseId.toString(),
+    );
+    if (entry == null) return;
+    try {
+      final data = SettlementPageData.fromJson(entry.payload);
+      _settlements = data.content;
+      _page = data.number;
+      _pageSize = data.size;
+      _totalElements = data.totalElements;
+      _totalPages = data.totalPages;
+      _first = data.first;
+      _last = data.last;
+      _showingCachedData = true;
+      _lastUpdated = entry.createdAt;
+    } catch (_) {
+      await StorageService.instance.portalCache
+          .delete(HiveBoxes.settlementCache, key);
+    }
+  }
+
+  Future<void> _writeCache(
+    int mediaHouseId,
+    SettlementPageData data,
+    int page,
+    int size,
+  ) async {
+    if (!StorageService.instance.cacheAvailable) return;
+    final key = _cacheKey(mediaHouseId, page, size);
+    final userId = _userId;
+    if (key == null || userId == null) return;
+    await StorageService.instance.portalCache.write(
+      boxName: HiveBoxes.settlementCache,
+      key: key,
+      userId: userId,
+      mediaHouseId: mediaHouseId.toString(),
+      payload: data.toJson(),
+      ttl: CacheTtl.settlements,
+    );
+  }
 }
